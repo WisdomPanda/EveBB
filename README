@@ -1,0 +1,31 @@
+======
+README
+======
+
+* Copyright (C) 2011 EveBB
+* EveBB is built on FluBB v1.4.2 Copyright (C) 2008-2010 FluxBB
+* FluxBB is based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
+* License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
+* Authors: Thorin Wren & WisdomPanda
+* Package: Alliance
+* Version: 0.9.3
+
+===========
+PREPORATION
+===========
+
+* Create a database with your hosting account and make a note of the details.
+
+============
+INSTALLATION
+============
+
+* Upload the contents of the Corporation folder to your web space using an FTP client.
+* Browse to your website (or the address where the forum was uploaded) and follow the instructions.
+
+=======
+SUPPORT
+=======
+
+* If you encounter any problems then please visit our support forum at http://www.eve-bb.com/forum
+
