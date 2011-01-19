@@ -1216,6 +1216,10 @@ function fetch_selected_character($id, $limited = false) {
 				".$db->prefix."api_allowed_corps AS corp
 			ON
 				corp.corporationID=c.corp_id
+			LEFT JOIN
+				".$db->prefix."api_allowed_alliance AS ally
+			ON
+				corp.allianceID=ally.allianceID
 			WHERE
 				sc.user_id=".$id."
 			";
