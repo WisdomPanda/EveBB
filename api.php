@@ -16,26 +16,26 @@ if (isset($_GET['char_list'])) {
 				'apiKey' => $data[1]
 			);
 			
-	try {
-		$xml = post_request($url, $vars);
-		echo $xml;
-	} catch (Exception $e) {
+	if (!$xml = post_request($url, $vars)) {
 		echo sprintf($error, "Unable to fetch API data.");
-	} //End try - catch().
+		exit;
+	} //End if.
+	
 } else if (isset($_GET['corp_name'])) {
 	$url = "http://api.eve-online.com/corp/CorporationSheet.xml.aspx";
 	$vars = array(
 			'corporationID' => intval($_GET['corpID'])
 			);
-		
-	try {
-		$xml = post_request($url, $vars);
-		echo $xml;
-	} catch (Exception $e) {
+			
+	if (!$xml = post_request($url, $vars)) {
 		echo sprintf($error, "Unable to fetch API data.");
-	} //End try - catch().
+		exit;
+	} //End if.
+	
 } else {
-	echo sprintf($error, "No Action Specified.");
+	$xml = sprintf($error, "No Action Specified.");
 } //End if - else().
+
+echo $xml;
 
 ?>

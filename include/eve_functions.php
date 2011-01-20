@@ -118,30 +118,24 @@ function task_runner() {
 	} //End if.
 	
 	if ($run_rules) {
-		try {
-			if (!apply_rules()) {
-				$log[] = 'Unable to complete rule check!<br/>';
-			} else {
-				$log[] = 'Rule applied!<br/>';
-			} //End if - else.
-			$sql = "INSERT INTO ".$db->prefix."config(conf_name, conf_value) VALUES('o_eve_last_rule_check', '".time()."') ON DUPLICATE KEY UPDATE conf_value='".time()."'";
-			$db->query($sql);
-		} catch (Exception $e) {} //End try - catch().
+		if (!apply_rules()) {
+			$log[] = 'Unable to complete rule check!<br/>';
+		} else {
+			$log[] = 'Rule applied!<br/>';
+		} //End if - else.
+		$sql = "INSERT INTO ".$db->prefix."config(conf_name, conf_value) VALUES('o_eve_last_rule_check', '".time()."') ON DUPLICATE KEY UPDATE conf_value='".time()."'";
+		$db->query($sql) or error('Unable to update config timers.', __FILE__, __LINE__< $db->error());
 	} //End if.
 	
 	if ($run_char) {
-		try {
-			if (isset($_GET['force_char'])) {
-				$force_Char = true;
-			} //End if.
-		 	$log = array_merge($log, task_update_characters(1, defined('EVE_CRON_ACTIVE'), $force_char));
-		} catch (Exception $e) {} //End try - catch().
+		if (isset($_GET['force_char'])) {
+			$force_char = true;
+		} //End if.
+		$log = array_merge($log, task_update_characters(1, defined('EVE_CRON_ACTIVE'), $force_char));
 	} //End if.
 	
-		if ($run_ally) {
-		try {
-		 	$log = array_merge($log, task_update_alliance());
-		} catch (Exception $e) {} //End try - catch().
+	if ($run_ally) {
+		$log = array_merge($log, task_update_alliance());
 	} //End if.
 	
 	if ($run_auth || $run_rules) {
@@ -178,7 +172,8 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 	
 	if (!$result = $db->query($sql)) {
 		$err = $db->error();
-		throw new Exception("Unable to fetch character information.<br/>".$err['error_msg']);
+		return "Unable to fetch character information.<br/>".$err['error_msg'];
+		//throw new Exception("Unable to fetch character information.<br/>".$err['error_msg']);
 	} //End if.
 	
 	$log = array();
@@ -220,7 +215,8 @@ function task_check_auth() {
 	$sql = "SELECT corporationID FROM ".$db->prefix."api_allowed_corps WHERE allowed=1;";
 	if (!$result = $db->query($sql)) {
 		$err = $db->error();
-		throw new Exception("Unable to allowed corporation information.<br/>".$err['error_msg']);
+		return "Unable to allowed corporation information.<br/>".$err['error_msg'];
+		//throw new Exception("Unable to allowed corporation information.<br/>".$err['error_msg']);
 	} //End if.
 	
 	if ($db->num_rows($result) == 0) {
@@ -238,7 +234,8 @@ function task_check_auth() {
 	$sql = "SELECT c.corp_id,c.character_name,c.last_update,c.character_id,a.user_id FROM ".$db->prefix."api_characters AS c,".$db->prefix."api_auth AS a WHERE a.api_character_id=c.character_id";
 	if (!$result = $db->query($sql)) {
 		$err = $db->error();
-		throw new Exception("Unable to find user auth information.<br/>".$err['error_msg']);
+		return false;
+		//throw new Exception("Unable to find user auth information.<br/>".$err['error_msg']);
 	} //End if.
 	
 	if ($db->num_rows($result) == 0) {
@@ -1295,7 +1292,8 @@ function post_request($url, $data = array(), $optional_headers = array()) {
 	$file = @fopen($url, 'r', false, $context);
 	
 	if (!$file) {
-		throw new Exception("Unable to fetch data.<br/>URL: ".$url);
+		return false;
+		//throw new Exception("Unable to fetch data.<br/>URL: ".$url);
 	} //End if.
 	
 	$response = stream_get_contents($file);
