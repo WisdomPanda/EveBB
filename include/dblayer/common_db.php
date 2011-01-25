@@ -30,6 +30,14 @@ switch ($db_type)
 		require PUN_ROOT.'include/dblayer/mysqli_innodb.php';
 		break;
 
+	case 'pgsql':
+		require PUN_ROOT.'include/dblayer/pgsql.php';
+		break;
+
+	case 'sqlite':
+		require PUN_ROOT.'include/dblayer/sqlite.php';
+		break;
+
 	default:
 		error('\''.$db_type.'\' is not a valid database type. Please check settings in config.php.', __FILE__, __LINE__);
 		break;

@@ -151,7 +151,7 @@ function refresh_alliance_list() {
 	foreach ($list->result->rowset->row as $row) {
 		//Need to use this in corp loop, so type cast it here so it's only type cast once.
 		$id = (int)$row['allianceID'];
-		$sql = "
+		/*$sql = "
 			INSERT INTO
 				".$db->prefix."api_alliance_list
 				(
@@ -174,9 +174,18 @@ function refresh_alliance_list() {
 			ON DUPLICATE KEY UPDATE
 				memberCount=".(int)$row['memberCount'].",
 				executorCorpID=".(int)$row['executorCorpID']."
-			;";
+			;";*/
 		
-		if (!$db->query($sql)) {
+		$fields = array(
+				'allianceID' => $id,
+				'name' => $db->escape((string)$row['name']),
+				'shortName' => $db->escape((string)$row['shortName']),
+				'memberCount' => (int)$row['memberCount'],
+				'executorCorpID' => (int)$row['executorCorpID'],
+				'startDate' => (string)$row['startDate']
+			);
+		
+		if (!$db->insert_or_update($fields, 'allianceID', $db->prefix.'api_alliance_list')) {
 			if (defined('PUN_DEBUG')) {
 					error((string)$list->error."<br/>".$sql."<br/>".print_r($row, true)."<br/>", __FILE__, __LINE__, $db->error());
 				} //End if.
@@ -294,7 +303,7 @@ function add_alliance($allianceID) {
 		return false;
 	} //End if.
 	
-	$sql = "
+	/*$sql = "
 			INSERT INTO
 				".$db->prefix."api_allowed_alliance
 					(
@@ -320,8 +329,19 @@ function add_alliance($allianceID) {
 				executorCorpID=".$alliance['executorCorpID'].",
 				memberCount=".$alliance['memberCount'].",
 				allowed=1
-			;";
-	if (!$db->query($sql)) {
+			;";*/
+	
+	$fields = array(
+			'allianceID' => $allianceID,
+			'allianceName' => $alliance['name'],
+			'ticker' => $alliance['shortName'],
+			'startDate' => $alliance['startDate'],
+			'executorCorpID' => $alliance['executorCorpID'],
+			'memberCount' => $alliance['memberCount'],
+			'allowed' => 1
+		);
+	
+	if (!$db->insert_or_update($fields, 'allianceID', $db->prefix.'api_allowed_alliance')) {
 		if (defined('PUN_DEBUG')) {
 			error("Unable to insert alliance.", __FILE__, __LINE__, $db->error());
 		} //End if.

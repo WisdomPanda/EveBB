@@ -251,6 +251,10 @@ if (!isset($_POST['form_sent']) || !empty($alerts))
 		if (count($db_extensions) > 2)
 			$dual_mysql = true;
 	}
+	if (function_exists('sqlite_open'))
+		$db_extensions[] = array('sqlite', 'SQLite');
+	if (function_exists('pg_connect'))
+		$db_extensions[] = array('pgsql', 'PostgreSQL');
 
 	if (empty($db_extensions))
 		exit('This PHP environment does not have support for any of the databases that FluxBB supports. PHP needs to have support for either MySQL, PostgreSQL or SQLite in order for FluxBB to be installed.');
@@ -345,7 +349,7 @@ foreach ($alerts as $cur_alert)
 				<fieldset>
 				<legend>Select your database type</legend>
 					<div class="infldset">
-						<p>EveBB currently supports MySQL. If your database of choice is missing from the drop-down menu below, it means this PHP environment does not have support for that particular database. More information regarding support for particular versions of each database can be found in the FAQ.</p>
+						<p>EveBB currently supports MySQL, MySQLi, SQLite and PostgreSQL. If your database of choice is missing from the drop-down menu below, it means this PHP environment does not have support for that particular database. More information regarding support for particular versions of each database can be found in the FAQ.</p>
 <?php if ($dual_mysql): ?>						<p>EveBB has detected that your PHP environment supports two different ways of communicating with MySQL. The two options are called standard and improved. If you are uncertain which one to use, start by trying improved and if that fails, try standard.</p>
 <?php endif; ?><?php if ($mysql_innodb): ?>						<p>EveBB has detected that your MySQL server might support <a href="http://dev.mysql.com/doc/refman/5.0/en/innodb.html">InnoDB</a>. This would be a good choice if you are planning to run a large forum. If you are uncertain, it is recommended that you do not use InnoDB.</p>
 <?php endif; ?>						<label class="required"><strong>Database type <span>(Required)</span></strong>

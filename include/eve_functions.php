@@ -72,7 +72,7 @@ function task_runner() {
 		} //End if.
 	} else if ($pun_config['o_eve_use_cron'] == '0') {
 		//We need to fetch any characters that need to be updated.
-		$sql = "SELECT last_update FROM  ".$db->prefix."api_characters WHERE last_update<".(time()-($pun_config['o_eve_cache_char_sheet_interval']*60*60))." ORDER BY  last_update DESC LIMIT 0 , 1";
+		$sql = "SELECT last_update FROM  ".$db->prefix."api_characters WHERE last_update<".(time()-($pun_config['o_eve_cache_char_sheet_interval']*60*60))." ORDER BY  last_update DESC LIMIT 0,1";
 		if (!$result = $db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
 				error("Unable to fetch corp list.", __FILE__, __LINE__, $db->error());
@@ -112,8 +112,9 @@ function task_runner() {
 		} else {
 			$log[] = 'Auth checked!<br/>';
 		} //End if - else.
-		$sql = "INSERT INTO ".$db->prefix."config(conf_name, conf_value) VALUES('o_eve_last_auth_check', '".time()."') ON DUPLICATE KEY UPDATE conf_value='".time()."'";
-		$db->query($sql);
+		//$sql = "INSERT INTO ".$db->prefix."config(conf_name, conf_value) VALUES('o_eve_last_auth_check', '".time()."') ON DUPLICATE KEY UPDATE conf_value='".time()."'";
+		//$db->query($sql);
+		$db->insert_or_update(array('conf_name' => 'o_eve_last_auth_check', 'conf_value' => "'".time()."'"), 'conf_name', $db->prefix.'config');
 	} //End if.
 	
 	if ($run_rules) {
@@ -122,8 +123,9 @@ function task_runner() {
 		} else {
 			$log[] = 'Rule applied!<br/>';
 		} //End if - else.
-		$sql = "INSERT INTO ".$db->prefix."config(conf_name, conf_value) VALUES('o_eve_last_rule_check', '".time()."') ON DUPLICATE KEY UPDATE conf_value='".time()."'";
-		$db->query($sql) or error('Unable to update config timers.', __FILE__, __LINE__< $db->error());
+		/*$sql = "INSERT INTO ".$db->prefix."config(conf_name, conf_value) VALUES('o_eve_last_rule_check', '".time()."') ON DUPLICATE KEY UPDATE conf_value='".time()."'";
+		$db->query($sql) or error('Unable to update config timers.', __FILE__, __LINE__< $db->error());*/
+		$db->insert_or_update(array('conf_name' => 'o_eve_last_rule_check', 'conf_value' => "'".time()."'"), 'conf_name', $db->prefix.'config');
 	} //End if.
 	
 	if ($run_char) {
@@ -583,15 +585,17 @@ function is_allowed_corp($corpID) {
  * Returns a SimpleXML Object. Don't try and use it like an array...
  */
 
-function fetch_character_api($auth) {
+function fetch_character_api($auth, &$error = 0) {
 	
 	if (!isset($auth['apiKey']) || !isset($auth['userID']) || !isset($auth['characterID'])) {
+		$error = API_BAD_AUTH;
 		return false;
 	} //End if.
 	
 	$url = "http://api.eve-online.com/char/CharacterSheet.xml.aspx";
 	
 	if (!$xml = post_request($url, $auth)) {
+		$error = API_BAD_REQUEST;
 		return false;
 	} //End if.
 		
@@ -735,7 +739,7 @@ function add_corp($corpID, $allowed = true) {
 		return false;
 	} //End if.
 		
-	$sql = "INSERT INTO ".$db->prefix."api_allowed_corps
+	/*$sql = "INSERT INTO ".$db->prefix."api_allowed_corps
 				(
 					corporationID,
 					corporationName,
@@ -773,9 +777,24 @@ function add_corp($corpID, $allowed = true) {
 				taxRate=".(float)$corp_sheet->result->taxRate."
 				".(($allowed) ? ',allowed=1' : '')."
 			;
-	";
+	";*/
+	$fields = array(
+			'corporationID' => (int)$corp_sheet->result->corporationID,
+			'corporationName' => $db->escape((string)$corp_sheet->result->corporationName),
+			'ticker' => $db->escape((string)$corp_sheet->result->ticker),
+			'ceoID' => (int)$corp_sheet->result->ceoID,
+			'ceoName' => $db->escape((string)$corp_sheet->result->ceoName),
+			'description' => $db->escape((string)$corp_sheet->result->description),
+			'url' => $db->escape((string)$corp_sheet->result->url),
+			'allianceID' => (int)$corp_sheet->result->allianceID,
+			'taxRate' => (float)$corp_sheet->result->taxRate
+		);
+	
+	if ($allowed) {
+		$fields['allowed'] = 1;
+	} //End if.
 		
-	if (!$db->query($sql)) {
+	if (!$db->insert_or_update($fields, 'corporationID', $db->prefix.'api_allowed_corps')) {
 		return false;
 	} //End if.
 	
@@ -794,7 +813,7 @@ function add_corp($corpID, $allowed = true) {
 function add_api_keys($user_id, $api_user_id, $api_character_id, $api_key) {
 	global $db;
 	
-	$sql = '
+	/*$sql = '
 		INSERT INTO
 			'.$db->prefix."api_auth
 				(
@@ -814,9 +833,16 @@ function add_api_keys($user_id, $api_user_id, $api_character_id, $api_key) {
 			user_id=".$user_id.",
 			api_character_id=".(int)$api_character_id.",
 			api_user_id=".(int)$api_user_id.",
-			api_key='".$db->escape($api_key)."'";
+			api_key='".$db->escape($api_key)."'";*/
 	
-	if (!$db->query($sql)) {
+	$fields = array(
+			'user_id' => $user_id,
+			'api_character_id' => (int)$api_character_id,
+			'api_user_id' => (int)$api_user_id,
+			'api_key' => $db->escape($api_key)
+		);
+	
+	if (!$db->insert_or_update($fields, 'api_character_id', $db->prefix.'api_auth')) {
 		if (defined('PUN_DEBUG')) {
 			error("Unable to update API keys.", __FILE__, __LINE__, $db->error());
 		} //End if.
@@ -867,7 +893,7 @@ function update_character_sheet($user_id, $api = array(), $sheet = false, &$erro
 	
 	//If any of them are not set and if sheet is false...
 	if ((!isset($api['apiKey']) || !isset($api['userID']) || !isset($api['characterID'])) && !$sheet) {
-		$error = API_BAD_REQUEST;
+		$error = API_BAD_AUTH;
 		return false;
 	} //End if.
 	
@@ -912,6 +938,7 @@ function update_character_sheet($user_id, $api = array(), $sheet = false, &$erro
 	} //End if - else.
 	
 	//We should be good from here.
+	/*
 	$sql = "
 			INSERT INTO ".$db->prefix."api_characters
 				(
@@ -969,10 +996,31 @@ function update_character_sheet($user_id, $api = array(), $sheet = false, &$erro
 			balance=".(float)$char_sheet->result->balance.",
 			last_update=".time()."
 	";
+	*/
+	
+	$fields = array(
+			'user_id' => $user_id,
+			'character_id' => (int)$char_sheet->result->characterID,
+			'character_name'=> $db->escape((string)$char_sheet->result->name),
+			'corp_id'=> (int)$char_sheet->result->corporationID,
+			'corp_name'=> $db->escape((string)$char_sheet->result->corporationName),
+			'ally_id'=> (int)$char_sheet->result->allianceID,
+			'ally_name'=> $db->escape((string)$char_sheet->result->allianceName),
+			'dob'=> $db->escape((string)$char_sheet->result->DoB),
+			'race'=> $db->escape((string)$char_sheet->result->race),
+			'blood_line'=> $db->escape((string)$char_sheet->result->bloodLine),
+			'ancestry'=> $db->escape((string)$char_sheet->result->ancestry),
+			'gender'=> $db->escape((string)$char_sheet->result->gender),
+			'clone_name'=> $db->escape((string)$char_sheet->result->cloneName),
+			'clone_sp'=> (int)$char_sheet->result->cloneSkillPoints,
+			'balance'=> (float)$char_sheet->result->balance,
+			'last_update'=> time()
+		);
+	
 	//Incase you're wondering, the values we reference from the XML object are not actually the types we want until we type cast them.
 	//They are in fact SimpleXML objects. (as in, child objects) Trying to add them without type casting can lead to interesting side effects. :)
 	
-	if (!$db->query($sql)) {
+	if (!$db->insert_or_update($fields, 'character_id', $db->prefix.'api_characters')) {
 		if (defined('PUN_DEBUG')) {
 		error("Unable to run update query for character data.<br/>".$sql, __FILE__, __LINE__, $db->error());
 	} //End if.
@@ -1005,8 +1053,10 @@ function select_character($user_id, $character_id) {
 		return false;
 	} //End if.
 	
-	$sql = "INSERT INTO ".$db->prefix."api_selected_char(user_id, character_id) VALUES(".$user_id.",".$character_id.") ON DUPLICATE KEY UPDATE character_id=".$character_id.";";
-	if (!$db->query($sql)) {
+	//$sql = "INSERT INTO ".$db->prefix."api_selected_char(user_id, character_id) VALUES(".$user_id.",".$character_id.") ON DUPLICATE KEY UPDATE character_id=".$character_id.";";
+	
+	
+	if (!$db->insert_or_update(array('user_id' => $user_id, 'character_id' => $character_id), 'user_id', $db->prefix.'api_selected_char')) {
 		if (defined('PUN_DEBUG')) {
 			error("Unable to select character.<br/>", __FILE__, __LINE__, $db->error());
 		} //End if.

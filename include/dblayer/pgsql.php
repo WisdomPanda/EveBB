@@ -135,6 +135,64 @@ class DBLayer
 			return false;
 		}
 	}
+	
+	/**
+	 * This function mimics the functionality for the 'ON DUPLICATE KEY UPDATE' command in MySQL5.
+	 * With PostgreSQL, we will be taking the long way around of checking to see if it exists.
+	 */
+	function insert_or_update($fields, $primaryKey, $table, $fields_to_update = array()) {
+		
+		if (empty($fields[$primaryKey])) {
+			return false;
+		} //End if.
+		
+		$sql = "SELECT ".$primaryKey." FROM ".$table." WHERE ".$primaryKey."=".(is_string($fields[$primaryKey]) ? "'".$fields[$primaryKey]."'": $fields[$primaryKey]);
+		
+		if (!$result = $this->query($sql)) {
+			return false;
+		} //End if.
+		
+		if ($this->num_rows($result) == 1) {
+			//Lets do an update.
+			$update_fields = "";
+			if (empty($fields_to_update)) {
+				
+				foreach($fields as $key => $value) {
+					$update_fields .= $key."=".(is_string($value) ? "'".$value."'": $value).",";
+				} //End foreach().
+			} else {
+				foreach($fields_to_update as $key => $value) {
+					$update_fields .= $key."=".(is_string($value) ? "'".$value."'": $value).",";
+				} //End foreach().
+			} //End if - else.
+				
+			$update_fields = substr($update_fields, 0, -1);
+				
+			$sql = "UPDATE ".$table." SET ".$update_fields." WHERE ".$primaryKey."=".(is_string($value) ? "'".$fields[$primaryKey]."'": $fields[$primaryKey]);
+			
+		} else {
+			//Insert that data, baby.
+			$table_fields = $table."(";
+			$insert_fields = "VALUES(";
+			
+			foreach($fields as $key => $value) {
+				$insert_fields .= (is_string($value) ? "'".$value."'": $value).",";
+				$table_fields .= $key.',';
+			} //End foreach().
+			
+			$insert_fields = substr($insert_fields, 0, -1);
+			$table_fields = substr($table_fields, 0, -1);
+			
+			$table_fields .= ")";
+			$insert_fields .= ")";
+			
+			$sql = "INSERT INTO ".$table_fields." ".$insert_fields.";";
+			
+		} //End if - else.
+		
+		return $this->query($sql);
+		
+	} //End insert_or_update().
 
 
 	function result($query_id = 0, $row = 0, $col = 0)
