@@ -14,6 +14,7 @@ if (file_exists(PUN_ROOT.'include/eve_alliance_functions.php')) {
 	include PUN_ROOT.'include/eve_corp_functions.php';
 } //End if - else.
 
+
 /**
  * AUTHORS NOTE
  *
