@@ -17,6 +17,11 @@ if (isset($_GET['char_list'])) {
 			);
 			
 	if (!$xml = post_request($url, $vars)) {
+		if (defined('PUN_DEBUG')) {
+			$err = error_get_last();
+			echo sprintf($error, "Unable to fetch API data.<br/>PHP Says: [".$err['type']."] ".$err['message']." in file <b>".$err['file']."</b> on line: <b>".$err['line']."</b>");
+			exit;
+		} //End if.
 		echo sprintf($error, "Unable to fetch API data.");
 		exit;
 	} //End if.

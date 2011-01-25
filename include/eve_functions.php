@@ -106,15 +106,13 @@ function task_runner() {
 	//$run_auth = $run_rules = true;
 	
 	if ($run_auth) {
-		try {
-			if (!task_check_auth()) {
-				$log[] = 'Unable to complete auth check!<br/>';
-			} else {
-				$log[] = 'Auth checked!<br/>';
-			} //End if - else.
-			$sql = "INSERT INTO ".$db->prefix."config(conf_name, conf_value) VALUES('o_eve_last_auth_check', '".time()."') ON DUPLICATE KEY UPDATE conf_value='".time()."'";
-			$db->query($sql);
-		} catch (Exception $e) {} //End try - catch().
+		if (!task_check_auth()) {
+			$log[] = 'Unable to complete auth check!<br/>';
+		} else {
+			$log[] = 'Auth checked!<br/>';
+		} //End if - else.
+		$sql = "INSERT INTO ".$db->prefix."config(conf_name, conf_value) VALUES('o_eve_last_auth_check', '".time()."') ON DUPLICATE KEY UPDATE conf_value='".time()."'";
+		$db->query($sql);
 	} //End if.
 	
 	if ($run_rules) {
@@ -591,29 +589,27 @@ function fetch_character_api($auth) {
 	} //End if.
 	
 	$url = "http://api.eve-online.com/char/CharacterSheet.xml.aspx";
-			
-	try {
-		$xml = post_request($url, $auth);
+	
+	if (!$xml = post_request($url, $auth)) {
+		return false;
+	} //End if.
 		
-		if (!$char_sheet = simplexml_load_string($xml)) {
-			if (defined('PUN_DEBUG')) {
-				error(print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
-			} //End if.
-			return false;
+	if (!$char_sheet = simplexml_load_string($xml)) {
+		if (defined('PUN_DEBUG')) {
+			error(print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
 		} //End if.
-		
-		if (isset($char_sheet->error)) {
-			if (defined('PUN_DEBUG')) {
-				error($char_sheet->error, __FILE__, __LINE__, $db->error());
-			} //End if.
-			return false;
+		return false;
+	} //End if.
+	
+	if (isset($char_sheet->error)) {
+		if (defined('PUN_DEBUG')) {
+			error($char_sheet->error, __FILE__, __LINE__, $db->error());
 		} //End if.
+		return false;
+	} //End if.
 		
 		return $char_sheet;
 		
-	} catch (Exception $e) {
-		return false;
-	} //End try - catch().
 } //End fetch_character_api().
 
 /**
@@ -720,73 +716,67 @@ function add_corp($corpID, $allowed = true) {
 	$url = "http://api.eve-online.com/corp/CorporationSheet.xml.aspx";
 	$corp_sheet;
 	
-	try {
-		$xml = post_request($url, array('corporationID' => $corpID));
+	if (!$xml = post_request($url, array('corporationID' => $corpID))) {
+		return false;
+	} //End if.
 		
-		if (!$corp_sheet = simplexml_load_string($xml)) {
-			if (defined('PUN_DEBUG')) {
-				error(print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
-			} //End if.
-			return false;
-		} //End if.
-		
-		if (isset($corp_sheet->error)) {
-			if (defined('PUN_DEBUG')) {
-				error($corp_sheet->error, __FILE__, __LINE__, $db->error());
-			} //End if.
-			return false;
-		} //End if.
-		
-		$sql = "INSERT INTO ".$db->prefix."api_allowed_corps
-					(
-						corporationID,
-						corporationName,
-						ticker,
-						ceoID,
-						ceoName,
-						description,
-						url,
-						allianceID,
-						taxRate,
-						allowed
-					)
-				VALUES
-					(
-						".(int)$corp_sheet->result->corporationID.",
-						'".$db->escape((string)$corp_sheet->result->corporationName)."',
-						'".$db->escape((string)$corp_sheet->result->ticker)."',
-						".(int)$corp_sheet->result->ceoID.",
-						'".$db->escape((string)$corp_sheet->result->ceoName)."',
-						'".$db->escape((string)$corp_sheet->result->description)."',
-						'".$db->escape((string)$corp_sheet->result->url)."',
-						".(int)$corp_sheet->result->allianceID.",
-						".(float)$corp_sheet->result->taxRate.",
-						".(($allowed) ? '1' : '0')."
-					)
-				ON DUPLICATE KEY UPDATE
-					corporationID=".(int)$corp_sheet->result->corporationID.",
-					corporationName='".$db->escape((string)$corp_sheet->result->corporationName)."',
-					ticker='".$db->escape((string)$corp_sheet->result->ticker)."',
-					ceoID=".(int)$corp_sheet->result->ceoID.",
-					ceoName='".$db->escape((string)$corp_sheet->result->ceoName)."',
-					description='".$db->escape((string)$corp_sheet->result->description)."',
-					url='".$db->escape((string)$corp_sheet->result->url)."',
-					allianceID=".(int)$corp_sheet->result->allianceID.",
-					taxRate=".(float)$corp_sheet->result->taxRate."
-					".(($allowed) ? ',allowed=1' : '')."
-				;
-		";
-		
-		if (!$db->query($sql)) {
-			return false;
-		} //End if.
-		
-	} catch (Exception $e) {
+	if (!$corp_sheet = simplexml_load_string($xml)) {
 		if (defined('PUN_DEBUG')) {
-			error($e->getMessage(), __FILE__, __LINE__, $db->error());
+			error(print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
-	} //End try - catch().
+	} //End if.
+		
+	if (isset($corp_sheet->error)) {
+		if (defined('PUN_DEBUG')) {
+			error($corp_sheet->error, __FILE__, __LINE__, $db->error());
+		} //End if.
+		return false;
+	} //End if.
+		
+	$sql = "INSERT INTO ".$db->prefix."api_allowed_corps
+				(
+					corporationID,
+					corporationName,
+					ticker,
+					ceoID,
+					ceoName,
+					description,
+					url,
+					allianceID,
+					taxRate,
+					allowed
+				)
+			VALUES
+				(
+					".(int)$corp_sheet->result->corporationID.",
+					'".$db->escape((string)$corp_sheet->result->corporationName)."',
+					'".$db->escape((string)$corp_sheet->result->ticker)."',
+					".(int)$corp_sheet->result->ceoID.",
+					'".$db->escape((string)$corp_sheet->result->ceoName)."',
+					'".$db->escape((string)$corp_sheet->result->description)."',
+					'".$db->escape((string)$corp_sheet->result->url)."',
+					".(int)$corp_sheet->result->allianceID.",
+					".(float)$corp_sheet->result->taxRate.",
+					".(($allowed) ? '1' : '0')."
+				)
+			ON DUPLICATE KEY UPDATE
+				corporationID=".(int)$corp_sheet->result->corporationID.",
+				corporationName='".$db->escape((string)$corp_sheet->result->corporationName)."',
+				ticker='".$db->escape((string)$corp_sheet->result->ticker)."',
+				ceoID=".(int)$corp_sheet->result->ceoID.",
+				ceoName='".$db->escape((string)$corp_sheet->result->ceoName)."',
+				description='".$db->escape((string)$corp_sheet->result->description)."',
+				url='".$db->escape((string)$corp_sheet->result->url)."',
+				allianceID=".(int)$corp_sheet->result->allianceID.",
+				taxRate=".(float)$corp_sheet->result->taxRate."
+				".(($allowed) ? ',allowed=1' : '')."
+			;
+	";
+		
+	if (!$db->query($sql)) {
+		return false;
+	} //End if.
 	
 	return array(
 		'corporationID' => (int)$corp_sheet->result->corporationID,
@@ -876,123 +866,117 @@ function update_character_sheet($user_id, $api = array(), $sheet = false, &$erro
 	
 	//If any of them are not set and if sheet is false...
 	if ((!isset($api['apiKey']) || !isset($api['userID']) || !isset($api['characterID'])) && !$sheet) {
+		$error = API_BAD_REQUEST;
 		return false;
 	} //End if.
 	
 	$url = "http://api.eve-online.com/char/CharacterSheet.xml.aspx";
 	$char_sheet;
 	
-	try {
-		if (!$sheet) {
-			$xml = post_request($url, $api);
-			
-			if (!$char_sheet = simplexml_load_string($xml)) {
-				if (defined('PUN_DEBUG')) {
-					error("Unable to convert xml.".print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
-				} //End if.
-				return false;
-			} //End if.
-			
-			if (isset($char_sheet->error)) {
-				if (defined('PUN_DEBUG')) {
-					error("API error while fetching character data.".$char_sheet->error, __FILE__, __LINE__, $db->error());
-				} //End if.
-				
-				$err = (int)$char_sheet->error['code'];
-				
-				if ($err >= 200 && $err < 300) {
-					$error = API_BAD_AUTH;
-				} else {
-					$error = API_SERVER_ERROR;
-				} //End if - else.
-				
-				return false;
-			} //End if.
-			
-			if (isset($char_sheet->html)) {
-				$error = API_SERVER_DOWN;
-				return false;
-			} //End if.
-			
-		} else {
-			$char_sheet = $sheet;
-		} //End if - else.
-		
-		//We should be good from here.
-		$sql = "
-				INSERT INTO ".$db->prefix."api_characters
-					(
-						user_id,
-						character_id,
-						character_name,
-						corp_id,
-						corp_name,
-						ally_id,
-						ally_name,
-						dob,
-						race,
-						blood_line,
-						ancestry,
-						gender,
-						clone_name,
-						clone_sp,
-						balance,
-						last_update
-					)
-				VALUES
-					(
-						".$user_id.",
-						".(int)$char_sheet->result->characterID.",
-						'".$db->escape((string)$char_sheet->result->name)."',
-						".(int)$char_sheet->result->corporationID.",
-						'".$db->escape((string)$char_sheet->result->corporationName)."',
-						".(int)$char_sheet->result->allianceID.",
-						'".$db->escape((string)$char_sheet->result->allianceName)."',
-						'".$db->escape((string)$char_sheet->result->DoB)."',
-						'".$db->escape((string)$char_sheet->result->race)."',
-						'".$db->escape((string)$char_sheet->result->bloodLine)."',
-						'".$db->escape((string)$char_sheet->result->ancestry)."',
-						'".$db->escape((string)$char_sheet->result->gender)."',
-						'".$db->escape((string)$char_sheet->result->cloneName)."',
-						".(int)$char_sheet->result->cloneSkillPoints.",
-						".(float)$char_sheet->result->balance.",
-						".time()."
-					)
-			ON DUPLICATE KEY UPDATE
-				user_id=".$user_id.",
-				character_id=".(int)$char_sheet->result->characterID.",
-				character_name='".$db->escape((string)$char_sheet->result->name)."',
-				corp_id=".(int)$char_sheet->result->corporationID.",
-				corp_name='".$db->escape((string)$char_sheet->result->corporationName)."',
-				ally_id=".(int)$char_sheet->result->allianceID.",
-				ally_name='".$db->escape((string)$char_sheet->result->allianceName)."',
-				dob='".$db->escape((string)$char_sheet->result->DoB)."',
-				race='".$db->escape((string)$char_sheet->result->race)."',
-				blood_line='".$db->escape((string)$char_sheet->result->bloodLine)."',
-				ancestry='".$db->escape((string)$char_sheet->result->ancestry)."',
-				gender='".$db->escape((string)$char_sheet->result->gender)."',
-				clone_name='".$db->escape((string)$char_sheet->result->cloneName)."',
-				clone_sp=".(int)$char_sheet->result->cloneSkillPoints.",
-				balance=".(float)$char_sheet->result->balance.",
-				last_update=".time()."
-		";
-		//Incase you're wondering, the values we reference from the XML object are not actually the types we want until we type cast them.
-		//They are in fact SimpleXML objects. (as in, child objects) Trying to add them without type casting can lead to interesting side effects. :)
-		
-		if (!$db->query($sql)) {
-			if (defined('PUN_DEBUG')) {
-			error("Unable to run update query for character data.<br/>".$sql, __FILE__, __LINE__, $db->error());
+	if (!$sheet) {
+		if (!$xml = post_request($url, $api)) {
+			return false;
 		} //End if.
+			
+		if (!$char_sheet = simplexml_load_string($xml)) {
+			if (defined('PUN_DEBUG')) {
+				error("Unable to convert xml.".print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
+			} //End if.
 			return false;
 		} //End if.
 		
-	} catch (Exception $e) {
-		if (defined('PUN_DEBUG')) {
-			error("Unable to update character data.<br/>".$e->getMessage(), __FILE__, __LINE__, $db->error());
+		if (isset($char_sheet->error)) {
+			if (defined('PUN_DEBUG')) {
+				error("API error while fetching character data.".$char_sheet->error, __FILE__, __LINE__, $db->error());
+			} //End if.
+			
+			$err = (int)$char_sheet->error['code'];
+			
+			if ($err >= 200 && $err < 300) {
+				$error = API_BAD_AUTH;
+			} else {
+				$error = API_SERVER_ERROR;
+			} //End if - else.
+			
+			return false;
 		} //End if.
-		$error = API_BAD_FETCH; //Generic error.
+			
+		if (isset($char_sheet->html)) {
+			$error = API_SERVER_DOWN;
+			return false;
+		} //End if.
+			
+	} else {
+		$char_sheet = $sheet;
+	} //End if - else.
+	
+	//We should be good from here.
+	$sql = "
+			INSERT INTO ".$db->prefix."api_characters
+				(
+					user_id,
+					character_id,
+					character_name,
+					corp_id,
+					corp_name,
+					ally_id,
+					ally_name,
+					dob,
+					race,
+					blood_line,
+					ancestry,
+					gender,
+					clone_name,
+					clone_sp,
+					balance,
+					last_update
+				)
+			VALUES
+				(
+					".$user_id.",
+					".(int)$char_sheet->result->characterID.",
+					'".$db->escape((string)$char_sheet->result->name)."',
+					".(int)$char_sheet->result->corporationID.",
+					'".$db->escape((string)$char_sheet->result->corporationName)."',
+					".(int)$char_sheet->result->allianceID.",
+					'".$db->escape((string)$char_sheet->result->allianceName)."',
+					'".$db->escape((string)$char_sheet->result->DoB)."',
+					'".$db->escape((string)$char_sheet->result->race)."',
+					'".$db->escape((string)$char_sheet->result->bloodLine)."',
+					'".$db->escape((string)$char_sheet->result->ancestry)."',
+					'".$db->escape((string)$char_sheet->result->gender)."',
+					'".$db->escape((string)$char_sheet->result->cloneName)."',
+					".(int)$char_sheet->result->cloneSkillPoints.",
+					".(float)$char_sheet->result->balance.",
+					".time()."
+				)
+		ON DUPLICATE KEY UPDATE
+			user_id=".$user_id.",
+			character_id=".(int)$char_sheet->result->characterID.",
+			character_name='".$db->escape((string)$char_sheet->result->name)."',
+			corp_id=".(int)$char_sheet->result->corporationID.",
+			corp_name='".$db->escape((string)$char_sheet->result->corporationName)."',
+			ally_id=".(int)$char_sheet->result->allianceID.",
+			ally_name='".$db->escape((string)$char_sheet->result->allianceName)."',
+			dob='".$db->escape((string)$char_sheet->result->DoB)."',
+			race='".$db->escape((string)$char_sheet->result->race)."',
+			blood_line='".$db->escape((string)$char_sheet->result->bloodLine)."',
+			ancestry='".$db->escape((string)$char_sheet->result->ancestry)."',
+			gender='".$db->escape((string)$char_sheet->result->gender)."',
+			clone_name='".$db->escape((string)$char_sheet->result->cloneName)."',
+			clone_sp=".(int)$char_sheet->result->cloneSkillPoints.",
+			balance=".(float)$char_sheet->result->balance.",
+			last_update=".time()."
+	";
+	//Incase you're wondering, the values we reference from the XML object are not actually the types we want until we type cast them.
+	//They are in fact SimpleXML objects. (as in, child objects) Trying to add them without type casting can lead to interesting side effects. :)
+	
+	if (!$db->query($sql)) {
+		if (defined('PUN_DEBUG')) {
+		error("Unable to run update query for character data.<br/>".$sql, __FILE__, __LINE__, $db->error());
+	} //End if.
 		return false;
-	} //End try - catch().
+	} //End if.
 	
 	return (int)$char_sheet->result->characterID;
 	

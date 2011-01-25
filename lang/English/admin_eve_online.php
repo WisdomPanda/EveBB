@@ -104,7 +104,7 @@ $lang_admin_eve_online = array(
 'o_eve_cache_char_sheet_info' => 'How long between scheduled character sheet checking. (To check corp status, roles, etc.)',
 'o_eve_cache_char_sheet_interval' => 'Char Sheet Interval',
 'o_eve_cache_char_sheet_interval_info' => 'This determines how long each character sheet is considered valid.<br/>
-The server will update one character sheet at a time, meaing you will need to adjust<br/> this depending on how active your forum is.
+The server will update one character sheet at a time, meaning you will need to adjust<br/> this depending on how active your forum is.
 Setting this below 4 Hours is not reccommended as<br/> each time this is called it adds ~2s to each page load time.',
 'o_eve_rules_interval' => 'Group Rule Interval',
 'o_eve_rules_interval_info' => 'This determines how long the server waits before re-checking the group rules you\'ve setup.',

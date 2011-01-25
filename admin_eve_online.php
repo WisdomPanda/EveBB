@@ -435,7 +435,7 @@ foreach ($banners as $row)
 {
 	
 	if (strlen($row) < 5) {
-		continue; //Easy blanket way to remove any images.
+		continue; //Easy blanket way to remove any non-images. (1 name character + 1 '.' character + 3 file type characters = 5)
 	} //End if.
 	
 	if ($row == $pun_config['o_eve_banner']) {
