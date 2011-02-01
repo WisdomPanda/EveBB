@@ -7,10 +7,6 @@ if (!defined('FROM_PROFILE')) {
 //Get our language file.
 require PUN_ROOT.'lang/'.$pun_user['language'].'/profile_characters.php';
 
-/**
- * Logic stuff goes here.
- */
-
 if ($action == 'select_character') {
 	if (isset($_POST['form_sent_characters'])) {
 		
@@ -100,11 +96,9 @@ generate_profile_menu('characters');
 	} //End if.
 	
 	if (empty($error)) {
-	$selected_char = $db->fetch_assoc($result);
-	
-	if (!file_exists('img/chars/'.$selected_char['character_id'].'_64.jpg') || !file_exists('img/chars/'.$selected_char['character_id'].'_128.jpg')) {
-		cache_char_pic($selected_char['character_id']);
-	} //End if.
+		$selected_char = $db->fetch_assoc($result);
+		
+		cache_char_pic($selected_char['character_id'], ($action == 'reload_pics'));
 
 ?>
 	<h2><span><?php echo $lang_profile_characters['characters'] ?></span></h2>
@@ -116,7 +110,9 @@ generate_profile_menu('characters');
 					<div class="infldset">
 						<table class="aligntop" cellspacing="0">
 							<tr>
-								<th scope="row" rowspan="6" style="width: 128px;"><img src="img/chars/<?php echo $selected_char['character_id']; ?>_128.jpg" width="128px" height="128px" alt="" /></th>
+								<th scope="row" rowspan="6" style="width: 128px;">
+									<img src="img/chars/<?php echo $selected_char['character_id']; ?>_128.jpg" width="128px" height="128px" alt="" />
+								</th>
 								<td><strong><?php echo $lang_profile_characters['name']; ?></strong></td>
 								<td><?php echo $selected_char['character_name']; ?></td>
 							</tr>
@@ -156,6 +152,7 @@ generate_profile_menu('characters');
 						</table>
 					</div>
 				</fieldset>
+				<a class="api_reload_avatars" href="profile.php?section=characters&amp;id=<?php echo $id ?>&amp;action=reload_pics">Reload Avatars</a>
 			</div>
 		</form>
 <?php

@@ -6,13 +6,15 @@ if (!defined('EVE_ENABLED')) {
 
 if (!defined(PUN_ROOT)) {
 	define('PUN_ROOT', './');
-} //End if/
+} //End if.
 
 if (file_exists(PUN_ROOT.'include/eve_alliance_functions.php')) {
-	include PUN_ROOT.'include/eve_alliance_functions.php';
+	require(PUN_ROOT.'include/eve_alliance_functions.php');
 } else {
-	include PUN_ROOT.'include/eve_corp_functions.php';
+	require(PUN_ROOT.'include/eve_corp_functions.php');
 } //End if - else.
+
+require(PUN_ROOT.'include/api/api_common.php');
 
 
 /**
@@ -592,7 +594,7 @@ function fetch_character_api($auth, &$error = 0) {
 		return false;
 	} //End if.
 	
-	$url = "http://api.eve-online.com/char/CharacterSheet.xml.aspx";
+	/*$url = "http://api.eve-online.com/char/CharacterSheet.xml.aspx";
 	
 	if (!$xml = post_request($url, $auth)) {
 		$error = API_BAD_REQUEST;
@@ -611,9 +613,18 @@ function fetch_character_api($auth, &$error = 0) {
 			error($char_sheet->error, __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
+	} //End if.*/
+	
+	$char_sheet = new Character();
+	
+	if (!$char_sheet->load_character($auth, $error)) {
+		if (defined('PUN_DEBUG')) {
+			error("[".$error."] Unable to load character.", __FILE__, __LINE__, $db->error());
+		} //End if.
+		return false;
 	} //End if.
 		
-		return $char_sheet;
+	return $char_sheet;
 		
 } //End fetch_character_api().
 
@@ -719,75 +730,23 @@ function purge_corp($id, $remove_group = true) {
 function add_corp($corpID, $allowed = true) {
 	global $db;
 	$url = "http://api.eve-online.com/corp/CorporationSheet.xml.aspx";
-	$corp_sheet;
 	
-	if (!$xml = post_request($url, array('corporationID' => $corpID))) {
+	$corp_sheet = new Corporation();
+	
+	if (!$corp_sheet->load_corp($corpID)) {
 		return false;
 	} //End if.
-		
-	if (!$corp_sheet = simplexml_load_string($xml)) {
-		if (defined('PUN_DEBUG')) {
-			error(print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
-		} //End if.
-		return false;
-	} //End if.
-		
-	if (isset($corp_sheet->error)) {
-		if (defined('PUN_DEBUG')) {
-			error($corp_sheet->error, __FILE__, __LINE__, $db->error());
-		} //End if.
-		return false;
-	} //End if.
-		
-	/*$sql = "INSERT INTO ".$db->prefix."api_allowed_corps
-				(
-					corporationID,
-					corporationName,
-					ticker,
-					ceoID,
-					ceoName,
-					description,
-					url,
-					allianceID,
-					taxRate,
-					allowed
-				)
-			VALUES
-				(
-					".(int)$corp_sheet->result->corporationID.",
-					'".$db->escape((string)$corp_sheet->result->corporationName)."',
-					'".$db->escape((string)$corp_sheet->result->ticker)."',
-					".(int)$corp_sheet->result->ceoID.",
-					'".$db->escape((string)$corp_sheet->result->ceoName)."',
-					'".$db->escape((string)$corp_sheet->result->description)."',
-					'".$db->escape((string)$corp_sheet->result->url)."',
-					".(int)$corp_sheet->result->allianceID.",
-					".(float)$corp_sheet->result->taxRate.",
-					".(($allowed) ? '1' : '0')."
-				)
-			ON DUPLICATE KEY UPDATE
-				corporationID=".(int)$corp_sheet->result->corporationID.",
-				corporationName='".$db->escape((string)$corp_sheet->result->corporationName)."',
-				ticker='".$db->escape((string)$corp_sheet->result->ticker)."',
-				ceoID=".(int)$corp_sheet->result->ceoID.",
-				ceoName='".$db->escape((string)$corp_sheet->result->ceoName)."',
-				description='".$db->escape((string)$corp_sheet->result->description)."',
-				url='".$db->escape((string)$corp_sheet->result->url)."',
-				allianceID=".(int)$corp_sheet->result->allianceID.",
-				taxRate=".(float)$corp_sheet->result->taxRate."
-				".(($allowed) ? ',allowed=1' : '')."
-			;
-	";*/
+	
 	$fields = array(
-			'corporationID' => (int)$corp_sheet->result->corporationID,
-			'corporationName' => $db->escape((string)$corp_sheet->result->corporationName),
-			'ticker' => $db->escape((string)$corp_sheet->result->ticker),
-			'ceoID' => (int)$corp_sheet->result->ceoID,
-			'ceoName' => $db->escape((string)$corp_sheet->result->ceoName),
-			'description' => $db->escape((string)$corp_sheet->result->description),
-			'url' => $db->escape((string)$corp_sheet->result->url),
-			'allianceID' => (int)$corp_sheet->result->allianceID,
-			'taxRate' => (float)$corp_sheet->result->taxRate
+			'corporationID' => $corp_sheet->corporationID,
+			'corporationName' => $corp_sheet->corporationName,
+			'ticker' => $corp_sheet->ticker,
+			'ceoID' => $corp_sheet->ceoID,
+			'ceoName' => $corp_sheet->ceoName,
+			'description' => $corp_sheet->description,
+			'url' => $corp_sheet->url,
+			'allianceID' => $corp_sheet->allianceID,
+			'taxRate' => $corp_sheet->taxRate
 		);
 	
 	if ($allowed) {
@@ -799,10 +758,10 @@ function add_corp($corpID, $allowed = true) {
 	} //End if.
 	
 	return array(
-		'corporationID' => (int)$corp_sheet->result->corporationID,
-		'corporationName' => (string)$corp_sheet->result->corporationName,
-		'allianceID' => (int)$corp_sheet->result->allianceID,
-		'allianceName' => (string)$corp_sheet->result->allianceName
+		'corporationID' => $corp_sheet->corporationID,
+		'corporationName' => $corp_sheet->corporationName,
+		'allianceID' => $corp_sheet->allianceID,
+		'allianceName' => $corp_sheet->allianceName
 	);
 	
 } //End add_corp().
@@ -878,13 +837,12 @@ function remove_api_keys($user_id) {
 
 /**
  * Requires that you pass it $user_id (the forum user ID) and an $api assoc array with apiKey,characterID and userID all set.
- * If you want to use an already existing SimpleXML object, pass it after the auth array (the auth array need not be full)
- * You may also pass it a 4th value, $error, which will be given the error number from the API server, should it encounter one.
+ * If you want to use an already existing Character object, pass it after the auth array (the auth array need not be full)
+ * You may also pass it a 4th value, $error, which will be given the error number of any errors, should it encounter one.
  *
  * Returns the characterID fetched. (if any)
  *
- * This function handles both inserts and updating, using the "ON DUPLICATE KEY" value of MySQL.
- * Support for PostgreSQL/SQLite will be done in the DB layer as, imo, it is easier to read.
+ * This function handles both inserts and updating.
  */
 function update_character_sheet($user_id, $api = array(), $sheet = false, &$error = 0) {
 	global $db;
@@ -897,39 +855,17 @@ function update_character_sheet($user_id, $api = array(), $sheet = false, &$erro
 		return false;
 	} //End if.
 	
-	$url = "http://api.eve-online.com/char/CharacterSheet.xml.aspx";
+	//$url = "http://api.eve-online.com/char/CharacterSheet.xml.aspx";
 	$char_sheet;
 	
 	if (!$sheet) {
-		if (!$xml = post_request($url, $api)) {
-			return false;
-		} //End if.
-			
-		if (!$char_sheet = simplexml_load_string($xml)) {
-			if (defined('PUN_DEBUG')) {
-				error("Unable to convert xml.".print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
-			} //End if.
-			return false;
-		} //End if.
 		
-		if (isset($char_sheet->error)) {
+		$char_sheet = new Character();
+		
+		if (!$char_sheet->load_character($api, $error)) {
 			if (defined('PUN_DEBUG')) {
-				error("API error while fetching character data.".$char_sheet->error, __FILE__, __LINE__, $db->error());
+				error("[".$error."] Could not load character.".print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
 			} //End if.
-			
-			$err = (int)$char_sheet->error['code'];
-			
-			if ($err >= 200 && $err < 300) {
-				$error = API_BAD_AUTH;
-			} else {
-				$error = API_SERVER_ERROR;
-			} //End if - else.
-			
-			return false;
-		} //End if.
-			
-		if (isset($char_sheet->html)) {
-			$error = API_SERVER_DOWN;
 			return false;
 		} //End if.
 			
@@ -937,88 +873,24 @@ function update_character_sheet($user_id, $api = array(), $sheet = false, &$erro
 		$char_sheet = $sheet;
 	} //End if - else.
 	
-	//We should be good from here.
-	/*
-	$sql = "
-			INSERT INTO ".$db->prefix."api_characters
-				(
-					user_id,
-					character_id,
-					character_name,
-					corp_id,
-					corp_name,
-					ally_id,
-					ally_name,
-					dob,
-					race,
-					blood_line,
-					ancestry,
-					gender,
-					clone_name,
-					clone_sp,
-					balance,
-					last_update
-				)
-			VALUES
-				(
-					".$user_id.",
-					".(int)$char_sheet->result->characterID.",
-					'".$db->escape((string)$char_sheet->result->name)."',
-					".(int)$char_sheet->result->corporationID.",
-					'".$db->escape((string)$char_sheet->result->corporationName)."',
-					".(int)$char_sheet->result->allianceID.",
-					'".$db->escape((string)$char_sheet->result->allianceName)."',
-					'".$db->escape((string)$char_sheet->result->DoB)."',
-					'".$db->escape((string)$char_sheet->result->race)."',
-					'".$db->escape((string)$char_sheet->result->bloodLine)."',
-					'".$db->escape((string)$char_sheet->result->ancestry)."',
-					'".$db->escape((string)$char_sheet->result->gender)."',
-					'".$db->escape((string)$char_sheet->result->cloneName)."',
-					".(int)$char_sheet->result->cloneSkillPoints.",
-					".(float)$char_sheet->result->balance.",
-					".time()."
-				)
-		ON DUPLICATE KEY UPDATE
-			user_id=".$user_id.",
-			character_id=".(int)$char_sheet->result->characterID.",
-			character_name='".$db->escape((string)$char_sheet->result->name)."',
-			corp_id=".(int)$char_sheet->result->corporationID.",
-			corp_name='".$db->escape((string)$char_sheet->result->corporationName)."',
-			ally_id=".(int)$char_sheet->result->allianceID.",
-			ally_name='".$db->escape((string)$char_sheet->result->allianceName)."',
-			dob='".$db->escape((string)$char_sheet->result->DoB)."',
-			race='".$db->escape((string)$char_sheet->result->race)."',
-			blood_line='".$db->escape((string)$char_sheet->result->bloodLine)."',
-			ancestry='".$db->escape((string)$char_sheet->result->ancestry)."',
-			gender='".$db->escape((string)$char_sheet->result->gender)."',
-			clone_name='".$db->escape((string)$char_sheet->result->cloneName)."',
-			clone_sp=".(int)$char_sheet->result->cloneSkillPoints.",
-			balance=".(float)$char_sheet->result->balance.",
-			last_update=".time()."
-	";
-	*/
-	
-	$fields = array(
+		$fields = array(
 			'user_id' => $user_id,
-			'character_id' => (int)$char_sheet->result->characterID,
-			'character_name'=> $db->escape((string)$char_sheet->result->name),
-			'corp_id'=> (int)$char_sheet->result->corporationID,
-			'corp_name'=> $db->escape((string)$char_sheet->result->corporationName),
-			'ally_id'=> (int)$char_sheet->result->allianceID,
-			'ally_name'=> $db->escape((string)$char_sheet->result->allianceName),
-			'dob'=> $db->escape((string)$char_sheet->result->DoB),
-			'race'=> $db->escape((string)$char_sheet->result->race),
-			'blood_line'=> $db->escape((string)$char_sheet->result->bloodLine),
-			'ancestry'=> $db->escape((string)$char_sheet->result->ancestry),
-			'gender'=> $db->escape((string)$char_sheet->result->gender),
-			'clone_name'=> $db->escape((string)$char_sheet->result->cloneName),
-			'clone_sp'=> (int)$char_sheet->result->cloneSkillPoints,
-			'balance'=> (float)$char_sheet->result->balance,
+			'character_id' => $char_sheet->characterID,
+			'character_name'=> $char_sheet->name,
+			'corp_id'=> $char_sheet->corporationID,
+			'corp_name'=> $char_sheet->corporationName,
+			'ally_id'=> $char_sheet->allianceID,
+			'ally_name'=> $char_sheet->allianceName,
+			'dob'=> $char_sheet->DoB,
+			'race'=> $char_sheet->race,
+			'blood_line'=> $char_sheet->bloodLine,
+			'ancestry'=> $char_sheet->ancestry,
+			'gender'=> $char_sheet->gender,
+			'clone_name'=> $char_sheet->cloneName,
+			'clone_sp'=> $char_sheet->cloneSkillPoints,
+			'balance'=> $char_sheet->balance,
 			'last_update'=> time()
 		);
-	
-	//Incase you're wondering, the values we reference from the XML object are not actually the types we want until we type cast them.
-	//They are in fact SimpleXML objects. (as in, child objects) Trying to add them without type casting can lead to interesting side effects. :)
 	
 	if (!$db->insert_or_update($fields, 'character_id', $db->prefix.'api_characters')) {
 		if (defined('PUN_DEBUG')) {
@@ -1027,7 +899,7 @@ function update_character_sheet($user_id, $api = array(), $sheet = false, &$erro
 		return false;
 	} //End if.
 	
-	return (int)$char_sheet->result->characterID;
+	return $char_sheet->characterID;
 	
 } //End update_character_sheet().
 
@@ -1273,27 +1145,60 @@ function fetch_selected_character($id, $limited = false) {
 	
 	return $db->fetch_assoc($result);
 	
-} //End fetch_last_poster_character().
+} //End fetch_selected_character().
 
 /**
  * Tries to sliently cache the pic of a character.
  * Will be updating this later to add the cache status to database as checking the filesystem isn't ideal.
  */
-function cache_char_pic($id) {
+function cache_char_pic($id, $force = false) {
+	
+	//This has been over hauled as file_get/put_contents is not PHP4.
+	if (!is_writable('img/chars')) {
+		return false;
+	} //End if.
+	
 	$img = 'img/chars/'.$id.'_64.jpg';
-	if (!file_exists($img)) {
-		$url = 'http://image.eveonline.com/Character/'.$id.'_64.jpg';
-		if (@file_put_contents($img, file_get_contents($url))) {
+	if (!file_exists($img) || $force) {
+		
+		if (!$file = fopen('http://image.eveonline.com/Character/'.$id.'_64.jpg', 'r')) {
 			return false;
 		} //End if.
+		
+		if (!$fout = fopen($img, 'w')) {
+			return false;
+		} //End if.
+		
+		while(!feof($file)) {
+			$buffer = fread($file, 1024);
+			fwrite($fout, $buffer);
+		} //End if.
+		
+		fflush($fout);
+		fclose($fout);
+		fclose($file);
+		
 	} //End if.
 	
 	$img = 'img/chars/'.$id.'_128.jpg';
-	if (!file_exists($img)) {
-		$url = 'http://image.eveonline.com/Character/'.$id.'_128.jpg';
-		if (@file_put_contents($img, file_get_contents($url))) {
+	if (!file_exists($img) || $force) {
+		if (!$file = fopen('http://image.eveonline.com/Character/'.$id.'_128.jpg', 'r')) {
 			return false;
 		} //End if.
+		
+		if (!$fout = fopen($img, 'w')) {
+			return false;
+		} //End if.
+		
+		while(!feof($file)) {
+			$buffer = fread($file, 1024);
+			fwrite($fout, $buffer);
+		} //End if.
+		
+		fflush($fout);
+		fclose($fout);
+		fclose($file);
+		
 	} //End if.
 	return true;
 } //End cache_char_pic().

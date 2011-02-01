@@ -205,6 +205,7 @@ for ($i = 0;$cur_post_id = $db->result($result, $i);$i++)
 	$post_ids[] = $cur_post_id;
 
 // Retrieve the posts (and their respective poster/online status)
+$characters = array();
 $result = $db->query('SELECT u.email, u.title, u.url, u.location, u.signature, u.email_setting, u.num_posts, u.registered, u.admin_note, p.id, p.poster AS username, p.poster_id, p.poster_ip, p.poster_email, p.message, p.hide_smilies, p.posted, p.edited, p.edited_by, g.g_id, g.g_user_title, o.user_id AS is_online FROM '.$db->prefix.'posts AS p INNER JOIN '.$db->prefix.'users AS u ON u.id=p.poster_id INNER JOIN '.$db->prefix.'groups AS g ON g.g_id=u.group_id LEFT JOIN '.$db->prefix.'online AS o ON (o.user_id=u.id AND o.user_id!=1 AND o.idle=0) WHERE p.id IN ('.implode(',', $post_ids).') ORDER BY p.id', true) or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
 while ($cur_post = $db->fetch_assoc($result))
 {
@@ -220,17 +221,14 @@ while ($cur_post = $db->fetch_assoc($result))
 	$char_tag = '';
 	$char;
 	if ($pun_config['o_eve_use_iga'] == '1') {
-		if (	$char = fetch_selected_character($cur_post['poster_id'])) {
-			$char_name = $char['character_name'];
-		} else if ($char = fetch_selected_character($cur_post['poster_id'], true)) {
-			$char_name = $char['character_name'];
-		} //End if.
+		if (empty($characters[$cur_post['poster_id']])) {
+			$char = fetch_selected_character($cur_post['poster_id']);
+		} else {
+			$char = $characters[$cur_post['poster_id']];
+		} //End if - else.
 		
+		$char_name = (!empty($char['character_name'])) ? $char['character_name'] : pun_htmlspecialchars($cur_post['username']);
 		
-		if (!file_exists('img/chars/'.$char['character_id'].'_64.jpg')) {
-			cache_char_pic($char['character_id']);
-		} //End if.
-	
 		$char_avatar = '<img src="img/chars/'.$char['character_id'].'_64.jpg" width="64px" height="64px" alt="" />';
 		
 	} //End if.

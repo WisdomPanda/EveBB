@@ -107,12 +107,12 @@ if (isset($_POST['form_sent']))
 			$errors[] = $lang_prof_reg['Bad Api Request'];
 		} else {
 			if ($pun_config['o_eve_restrict_reg_corp'] == '1') {
-				if (!is_allowed_corp((int)$char->result->corporationID)) {
+				if (!is_allowed_corp($char->corporationID)) {
 					$errors[] = $lang_prof_reg['Bad Character'];
 				}  //End if.
 			} //End if.
 			
-			$username = strip_special((string)$char->result->name);
+			$username = strip_special($char->name);
 			
 		} //End if - else.
 	} //End if.

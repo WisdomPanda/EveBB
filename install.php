@@ -1,5 +1,7 @@
 <?php
 
+ini_set("display_errors", "on");
+
 /**
  * Copyright (C) 2008-2010 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
@@ -170,6 +172,7 @@ else
 		$alerts[] = 'Database passwords do not match.';
 		
 	/*---------- EVE-BB DATA CHECKS ---------*/
+	//return;
 	if (strlen($api_key) != 64) {
 		$alerts[] = 'Incorrect API Key format. Found ('.strlen($api_key).') expected (64)';
 	} //End if.
@@ -181,31 +184,7 @@ else
 	if (!is_numeric($api_character_id)) {
 		$alerts[] = 'Incorrect API Character ID format.<br/> Please make sure you fetch your characters and select an active character from the list.';
 	} //End if.
-	
-	//Now we get the character data.
-	if (empty($alerts)) {
-		if (!$char_sheet = fetch_character_api(array('userID' => $api_user_id,'characterID' => $api_character_id,'apiKey' => $api_key))) {
-			$alerts[] = "Unable to fetch character API information. Please insure that the API server is functioning.";
-		} else {
-			$username = strip_special((string)$char_sheet->result->name);
-		} //End if - else.
-	} //End if.
-	
 	/*---------- EVE-BB DATA CHECKS ---------*/
-
-	// Validate username and passwords
-	if (pun_strlen($username) < 2)
-		$alerts[] = 'Usernames must be at least 2 characters long.';
-	else if (pun_strlen($username) > 25) // This usually doesn't happen since the form element only accepts 25 characters
-		$alerts[] = 'Usernames must not be more than 25 characters long.';
-	else if (!strcasecmp($username, 'Guest'))
-		$alerts[] = 'The username guest is reserved.';
-	else if (preg_match('/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/', $username) || preg_match('/((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(([0-9A-Fa-f]{1,4}:){0,5}:((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(::([0-9A-Fa-f]{1,4}:){0,5}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))/', $username))
-		$alerts[] = 'Usernames may not be in the form of an IP address.';
-	else if ((strpos($username, '[') !== false || strpos($username, ']') !== false) && strpos($username, '\'') !== false && strpos($username, '"') !== false)
-		$alerts[] = 'Usernames may not contain all the characters \', " and [ or ] at once.';
-	else if (preg_match('/(?:\[\/?(?:b|u|i|h|colou?r|quote|code|img|url|email|list)\]|\[(?:code|quote|list)=)/i', $username))
-		$alerts[] = 'Usernames may not contain any of the text formatting tags (BBCode) that the forum uses.';
 
 	if (pun_strlen($password1) < 4)
 		$alerts[] = 'Passwords must be at least 4 characters long.';
@@ -228,6 +207,64 @@ else
 	$default_style = preg_replace('#[\.\\\/]#', '', $default_style);
 	if (!file_exists(PUN_ROOT.'style/'.$default_style.'.css'))
 		$alerts[] = 'The default style chosen doesn\'t seem to exist.';
+	
+	
+	/*---------- EVE-BB DATA CHECKS ---------*/
+	//Now we get the character data.
+	if (empty($alerts)) {
+		//We need the escape feature of the DB, so it's been promoted!
+		// Load the appropriate DB layer class
+		switch ($db_type)
+		{
+			case 'mysql':
+				require PUN_ROOT.'include/dblayer/mysql.php';
+				break;
+	
+			case 'mysql_innodb':
+				require PUN_ROOT.'include/dblayer/mysql_innodb.php';
+				break;
+	
+			case 'mysqli':
+				require PUN_ROOT.'include/dblayer/mysqli.php';
+				break;
+	
+			case 'mysqli_innodb':
+				require PUN_ROOT.'include/dblayer/mysqli_innodb.php';
+				break;
+	
+			case 'pgsql':
+				require PUN_ROOT.'include/dblayer/pgsql.php';
+				break;
+	
+			case 'sqlite':
+				require PUN_ROOT.'include/dblayer/sqlite.php';
+				break;
+	
+			default:
+				error('\''.pun_htmlspecialchars($db_type).'\' is not a valid database type');
+		}
+		// Create the database object (and connect/select db)
+		$db = new DBLayer($db_host, $db_username, $db_password1, $db_name, $db_prefix, false);
+		if (!$char_sheet = fetch_character_api(array('userID' => $api_user_id,'characterID' => $api_character_id,'apiKey' => $api_key))) {
+			$alerts[] = "Unable to fetch character API information. Please insure that the API server is functioning.";
+		} else {
+			$username = strip_special($char_sheet->name);
+		} //End if - else.
+	} //End if.
+	/*---------- EVE-BB DATA CHECKS ---------*/
+	// Validate username and passwords
+	if (pun_strlen($username) < 2)
+		$alerts[] = 'Usernames must be at least 2 characters long.';
+	else if (pun_strlen($username) > 25) // This usually doesn't happen since the form element only accepts 25 characters
+		$alerts[] = 'Usernames must not be more than 25 characters long.';
+	else if (!strcasecmp($username, 'Guest'))
+		$alerts[] = 'The username guest is reserved.';
+	else if (preg_match('/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/', $username) || preg_match('/((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(([0-9A-Fa-f]{1,4}:){0,5}:((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(::([0-9A-Fa-f]{1,4}:){0,5}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))/', $username))
+		$alerts[] = 'Usernames may not be in the form of an IP address.';
+	else if ((strpos($username, '[') !== false || strpos($username, ']') !== false) && strpos($username, '\'') !== false && strpos($username, '"') !== false)
+		$alerts[] = 'Usernames may not contain all the characters \', " and [ or ] at once.';
+	else if (preg_match('/(?:\[\/?(?:b|u|i|h|colou?r|quote|code|img|url|email|list)\]|\[(?:code|quote|list)=)/i', $username))
+		$alerts[] = 'Usernames may not contain any of the text formatting tags (BBCode) that the forum uses.';
 }
 
 if (!isset($_POST['form_sent']) || !empty($alerts))
@@ -454,7 +491,7 @@ foreach ($alerts as $cur_alert)
 						<label class="required"><strong>API UserID <span>(Required)</span></strong><br /><input id="api_user_id" type="text" name="api_user_id" value="<?php echo pun_htmlspecialchars($api_user_id) ?>" size="50" maxlength="80" /><br /></label>
 						<label class="required"><strong>API Key <span>(Required)</span></strong><br /><input id="api_key" type="text" name="api_key" value="<?php echo pun_htmlspecialchars($api_key) ?>" size="50" maxlength="80" /><br /></label><br/>
 						<span id="api_holder"><a class="fetch_chars" href="index.php" onclick="fetchCharacters(); return false;"><span id="char_fetch_text">Fetch Characters</span></a></span>
-						<p>You can find your EVE-Online API Key <a href="http://www.eve-online.com/api" target="_blank">here.</a></p>
+						<p>You can find your EVE-Online API Key <a href="http://www.eve-online.com/api">here.</a></p>
 						<div class="clearer"></div>
 					</div>
 				</fieldset>
@@ -553,39 +590,6 @@ foreach ($alerts as $cur_alert)
 }
 else
 {
-	// Load the appropriate DB layer class
-	switch ($db_type)
-	{
-		case 'mysql':
-			require PUN_ROOT.'include/dblayer/mysql.php';
-			break;
-
-		case 'mysql_innodb':
-			require PUN_ROOT.'include/dblayer/mysql_innodb.php';
-			break;
-
-		case 'mysqli':
-			require PUN_ROOT.'include/dblayer/mysqli.php';
-			break;
-
-		case 'mysqli_innodb':
-			require PUN_ROOT.'include/dblayer/mysqli_innodb.php';
-			break;
-
-		case 'pgsql':
-			require PUN_ROOT.'include/dblayer/pgsql.php';
-			break;
-
-		case 'sqlite':
-			require PUN_ROOT.'include/dblayer/sqlite.php';
-			break;
-
-		default:
-			error('\''.pun_htmlspecialchars($db_type).'\' is not a valid database type');
-	}
-
-	// Create the database object (and connect/select db)
-	$db = new DBLayer($db_host, $db_username, $db_password1, $db_name, $db_prefix, false);
 
 	// Validate prefix
 	if (strlen($db_prefix) > 0 && (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $db_prefix) || strlen($db_prefix) > 40))
@@ -1846,6 +1850,33 @@ else
 	);
 
 	$db->create_table('api_alliance_list', $schema) or error('Unable to create api table', __FILE__, __LINE__, $db->error());
+	
+	//Skill Types
+	$schema = array(
+		'FIELDS'		=> array(
+			'typeID'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false
+			),
+			'typeName'		=> array(
+				'datatype'		=> 'VARCHAR(100)',
+				'allow_null'	=> false
+			),
+			'description'		=> array(
+				'datatype'		=> 'VARCHAR(3000)',
+				'allow_null'	=> false
+			),
+			'groupName'		=> array(
+				'datatype'		=> 'VARCHAR(100)',
+				'allow_null'	=> false
+			)
+		),
+		'INDEXES'		=> array(
+			'api_skill_types_idx'	=> array('typeID')
+		)
+	);
+
+	$db->create_table('api_skill_types', $schema) or error('Unable to create skill types table', __FILE__, __LINE__, $db->error());
 		
 	/*---------- EvE-BB INSTALL TABLE CONSTRUCTION ---------*/
 
@@ -1870,7 +1901,7 @@ else
 		
 	/*---------- EvE-BB INSTALL TABLE DATA ---------*/
 	//Our function to handle this relies on $db being fully formed, so we do this manually.
-	$db->query('INSERT INTO '.$db_prefix."api_auth (user_id, api_character_id, api_user_id, api_key) VALUES(2, ".(int)$api_character_id.", ".(int)$api_user_id.", '".$db->escape($api_key)."')")
+	$db->query('INSERT INTO '.$db_prefix."api_auth (user_id, api_character_id, api_user_id, api_key) VALUES(2, ".$api_character_id.", ".$api_user_id.", '".$db->escape($api_key)."')")
 		or error('Unable to add administrator user api data. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 	
 	$char;
@@ -1883,6 +1914,15 @@ else
 	} //End if.
 	
 	select_character(2, $char);
+	
+	//Now we get the (massive) skill types SQL and insert it.
+	if (!file_exists(PUN_ROOT.'install/api_skill_types_sql.php')) {
+		error('Can not find the install directory and it\'s associated data.');
+	} //End if.
+	require(PUN_ROOT.'install/api_skill_types_sql.php');
+	foreach ($api_skill_types as $sql) {
+		$db->query($sql) or error('Unable to load the skills into the database.<br/>'.$sql, __FILE__, __LINE__, $db->error());
+	} //End foreach().
 		
 	/*---------- EvE-BB INSTALL TABLE DATA ---------*/
 

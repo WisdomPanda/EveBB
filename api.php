@@ -29,7 +29,7 @@ if (isset($_GET['char_list'])) {
 } else if (isset($_GET['corp_name'])) {
 	$url = "http://api.eve-online.com/corp/CorporationSheet.xml.aspx";
 	$vars = array(
-			'corporationID' => intval($_GET['corpID'])
+			'corporationID' => $_GET['corp_name']
 			);
 			
 	if (!$xml = post_request($url, $vars)) {

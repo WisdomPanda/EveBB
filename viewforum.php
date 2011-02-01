@@ -126,6 +126,10 @@ if ($db->num_rows($result))
 	$result = $db->query($sql) or error('Unable to fetch topic list', __FILE__, __LINE__, $db->error());
 
 	$topic_count = 0;
+	
+	//This is our little cache, to help reduce load.
+	$characters = array();
+	
 	while ($cur_topic = $db->fetch_assoc($result))
 	{
 		++$topic_count;
