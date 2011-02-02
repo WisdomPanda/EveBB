@@ -1,6 +1,7 @@
 <?php
 
 define('EVE_ENABLED', 1);
+define('PUN_DEBUG', 1);
 require("include/eve_functions.php");
 
 

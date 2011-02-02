@@ -81,7 +81,7 @@ function task_runner() {
 			} //End if.
 		} else {
 			if ($db->num_rows($result) == 1) {
-				$run_ally = $run_char = true; //There is at least one character that needs to be updated.
+				$run_char = true; //There is at least one character that needs to be updated.
 			} //End if.
 		} //End if - else.
 	} else {
@@ -114,8 +114,6 @@ function task_runner() {
 		} else {
 			$log[] = 'Auth checked!<br/>';
 		} //End if - else.
-		//$sql = "INSERT INTO ".$db->prefix."config(conf_name, conf_value) VALUES('o_eve_last_auth_check', '".time()."') ON DUPLICATE KEY UPDATE conf_value='".time()."'";
-		//$db->query($sql);
 		$db->insert_or_update(array('conf_name' => 'o_eve_last_auth_check', 'conf_value' => "'".time()."'"), 'conf_name', $db->prefix.'config');
 	} //End if.
 	
@@ -125,8 +123,6 @@ function task_runner() {
 		} else {
 			$log[] = 'Rule applied!<br/>';
 		} //End if - else.
-		/*$sql = "INSERT INTO ".$db->prefix."config(conf_name, conf_value) VALUES('o_eve_last_rule_check', '".time()."') ON DUPLICATE KEY UPDATE conf_value='".time()."'";
-		$db->query($sql) or error('Unable to update config timers.', __FILE__, __LINE__< $db->error());*/
 		$db->insert_or_update(array('conf_name' => 'o_eve_last_rule_check', 'conf_value' => "'".time()."'"), 'conf_name', $db->prefix.'config');
 	} //End if.
 	
