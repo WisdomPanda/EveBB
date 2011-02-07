@@ -108,6 +108,74 @@ class DBLayer
 			return false;
 		}
 	}
+	
+	
+	/**
+	 * This function mimics the functionality for the 'ON DUPLICATE KEY UPDATE' command in MySQL5.
+	 * Since this is mysqli, we will just reconstruct the normal query.
+	 * You are still expected to pass the correct $primaryKey to reference however.
+	 */
+	function insert_or_update($fields, $primaryKey, $table, $fields_to_update = array()) {
+		if (is_array($primaryKey)) {
+			if (count($primaryKey) == 0) {
+				$this->error_msg = 'No Primary keys passed.';
+				return false;
+			} //End if.
+			foreach ($primaryKey as $key) {
+				if (!isset($fields[$key])) {
+					$this->error_msg = '[0] Primary key value missing.';
+					return false;
+				} //End if.
+			} //End foreach().
+		} else {
+			if (!isset($fields[$primaryKey])) {
+				$this->error_msg = '[1] Primary key value missing.';
+				return false;
+			} //End if.
+		} //End if - else.
+		
+		$table_fields = $table."(";
+		$insert_fields = "VALUES(";
+		$update_fields = "";
+		
+		//Do a full update?
+		if (empty($fields_to_update)) {
+			foreach($fields as $key => $value) {
+				
+				$update_fields .= "`".$key."`=".(is_string($value) ? "'".$value."'": $value).",";
+				$insert_fields .= (is_string($value) ? "'".$value."'": $value).",";
+				$table_fields .= '`'.$key.'`,';
+				
+			} //End foreach().
+			
+		} else {
+			
+			foreach($fields_to_update as $key => $value) {
+				$update_fields .= "`".$key."`=".(is_string($value) ? "'".$value."'": $value).",";
+			} //End foreach().
+			
+			foreach($fields as $key => $value) {
+				
+				$update_fields .= "`".$key."`=".(is_string($value) ? "'".$value."'": $value).",";
+				$insert_fields .= (is_string($value) ? "'".$value."'": $value).",";
+				$table_fields .= '`'.$key.'`,';
+				
+			} //End foreach().
+		} //End if - else.
+		
+		//Lob off the last character, which should be the comma.
+		$update_fields = substr($update_fields, 0, -1);
+		$insert_fields = substr($insert_fields, 0, -1);
+		$table_fields = substr($table_fields, 0, -1);
+		
+		$table_fields .= ")";
+		$insert_fields .= ")";
+		
+		$sql = "INSERT INTO ".$table_fields." ".$insert_fields." ON DUPLICATE KEY UPDATE ".$update_fields.";";
+		
+		return $this->query($sql);
+		
+	} //End insert_or_update().
 
 
 	function result($query_id = 0, $row = 0, $col = 0)

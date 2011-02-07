@@ -146,6 +146,18 @@ function check_cookie(&$pun_user)
 
 		$pun_user['is_guest'] = false;
 		$pun_user['is_admmod'] = $pun_user['g_id'] == PUN_ADMIN || $pun_user['g_moderator'] == '1';
+		
+		/* EVE-BB Multi-group support.*/
+		//We only look at their other groups if they aren't set as the purge group as primary.
+		if ($pun_user['g_id'] != $pun_config['o_eve_restricted_group']) {
+			$sql = "SELECT group_id FROM ".$db->prefix."groups_users WHERE user_id=".$pun_user['id'];
+			$result = $db->query($sql) or error('Unable to fetch group list', __FILE__, __LINE__, $db->error());
+			
+			while ($row = $db->fetch_assoc($result)) {
+				$pun_user['group_ids'][] = $row['group_id'];
+			} //End while loop.
+		} //End if.
+		/* EVE-BB Multi-group support.*/
 	}
 	else
 		set_default_user();

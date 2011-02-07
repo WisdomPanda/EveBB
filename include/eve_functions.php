@@ -16,32 +16,6 @@ if (file_exists(PUN_ROOT.'include/eve_alliance_functions.php')) {
 
 require(PUN_ROOT.'include/api/api_common.php');
 
-
-/**
- * AUTHORS NOTE
- *
- * The follow code is classed as a first draft. This means that it's only purpose is to *work*.
- * As such, there have been no major refractoring efforts or performance focusing.
- * This will be happening in the future as we look towards a release of 1.0.
- *
- * The code you see has been in testing and has passed our user load tests well.
- * We do however expect to see more issues crop up  with a larger release.
- * Should find a bug the in the features, please report it at www.eve-bb.com.
- *
- * Should you find a critical security issue, please PM it to WisdomPanda on the eve-bb.com forums.
- *
- * If you find a performance issue, panic not, I already have a list of bits for clean up and refractoring.
- *
- * Thank you for using/checking out EveBB, I hope you enjoy the experience!
- *
- * ~ WisdomPanda
- *
- * Side note: PostgreSQL and SQLite will be supported as of 1.0.0 again.
- * I was simply loathed to start fiddling the with the DB layer right off the bat.
- * (aka; all platforms should support the ability to update on a duplicate key. Will be enabling this in the db layer for pgsql/sqlite.)
- *
- */
-
 //Define some values.
 define(API_SERVER_DOWN, 1000);
 define(API_BAD_REQUEST, 1001);
@@ -407,6 +381,8 @@ function apply_rules() {
 		return false; //We do NOT want to carry on if the rules can't be verified.
 	} //End if.
 	
+	/* Complete re-write of application of rules will be incoming - this is the old stuff.*/
+	
 	$sql = '';
 	$characters = array();
 	
@@ -461,13 +437,13 @@ function apply_rules() {
 	} //End if.
 	
 	
-	//This whores on the DB alot, want to reduce it for scaling reasons.
+	//This whores on the DB a lot, want to reduce it for scaling reasons.
 	//Will need to pre-fetch the data first.
 	//Marked for cleanup.
 	foreach($characters as $row) {
 		
-		//No point looking at them if they're admin/mods... (group 0 = new user)
-		if (($row['group_id'] < 3 && $row['group_id'] != 0) || $row['g_moderator'] == 1 || $row['g_email_flood'] == 666) {
+		//No point looking at them if they're admin/mods or if their primary group is locked... (group 0 = new user)
+		if (($row['group_id'] < 3 && $row['group_id'] != 0) || $row['g_moderator'] == 1 || $row['g_locked'] == 1) {
 			continue;
 		} //End if.
 		

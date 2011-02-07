@@ -25,10 +25,9 @@ class Alliance {
 			return false;
 		} //End if.
 		
-		$sql = "TRUNCATE TABLE ".$db->prefix."api_alliance_corps";
-		if (!$db->query($sql)) {
+		if (!$db->truncate_table('api_alliance_corps')) {
 			if (defined('PUN_DEBUG')) {
-					error("Unable to delete corps.<br/>".$sql."<br/>".print_r($row, true)."<br/>", __FILE__, __LINE__, $db->error());
+					error("Unable to delete corps.", __FILE__, __LINE__, $db->error());
 				} //End if.
 			return false;
 		} //End if.

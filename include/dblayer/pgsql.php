@@ -139,14 +139,40 @@ class DBLayer
 	/**
 	 * This function mimics the functionality for the 'ON DUPLICATE KEY UPDATE' command in MySQL5.
 	 * With PostgreSQL, we will be taking the long way around of checking to see if it exists.
+	 * This function now excepts an array value for $primaryKey, allowing more complex inserts or updates.
 	 */
 	function insert_or_update($fields, $primaryKey, $table, $fields_to_update = array()) {
-		
-		if (empty($fields[$primaryKey])) {
-			return false;
-		} //End if.
-		
-		$sql = "SELECT ".$primaryKey." FROM ".$table." WHERE ".$primaryKey."=".(is_string($fields[$primaryKey]) ? "'".$fields[$primaryKey]."'": $fields[$primaryKey]);
+		$keyList = '';
+		if (is_array($primaryKey)) {
+			
+			if (count($primaryKey) == 0) {
+				$this->error_msg = 'No Primary keys passed.';
+				return false;
+			} //End if.
+
+			$sql = "SELECT ".$primaryKey[0]." FROM ".$table." WHERE ";
+			
+			foreach ($primaryKey as $key) {
+				if (!isset($fields[$key])) {
+					$this->error_msg = 'Primary key value missing.';
+					return false;
+				} //End if.
+				
+				$keyList .= $primaryKey."=".(is_string($fields[$primaryKey]) ? "'".$fields[$primaryKey]."'": $fields[$primaryKey])." AND ";
+				
+			} //End foreach().
+			
+			//Get rid fo the last " AND " bit.
+			$keyList = substr($keyList, 0, -4);
+			$sql .= $keyList;
+		} else {
+			if (!isset($fields[$primaryKey])) {
+				$this->error_msg = 'Primary key value missing.';
+				return false;
+			} //End if.
+			
+			$sql = "SELECT ".$primaryKey." FROM ".$table." WHERE ".$primaryKey."=".(is_string($fields[$primaryKey]) ? "'".$fields[$primaryKey]."'": $fields[$primaryKey]);
+		} //End if - else.
 		
 		if (!$result = $this->query($sql)) {
 			return false;
@@ -167,9 +193,11 @@ class DBLayer
 			} //End if - else.
 				
 			$update_fields = substr($update_fields, 0, -1);
-				
-			$sql = "UPDATE ".$table." SET ".$update_fields." WHERE ".$primaryKey."=".(is_string($value) ? "'".$fields[$primaryKey]."'": $fields[$primaryKey]);
-			
+			if (is_array($primaryKey)) {
+				$sql = "UPDATE ".$table." SET ".$update_fields." WHERE ".$keyList;
+			} else {
+				$sql = "UPDATE ".$table." SET ".$update_fields." WHERE ".$primaryKey."=".(is_string($value) ? "'".$fields[$primaryKey]."'": $fields[$primaryKey]);
+			} //End if - else.
 		} else {
 			//Insert that data, baby.
 			$table_fields = $table."(";

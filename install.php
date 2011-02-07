@@ -958,6 +958,11 @@ else
 				'datatype'		=> 'SMALLINT(6)',
 				'allow_null'	=> false,
 				'default'		=> '60'
+			),
+			'g_locked'				=> array(
+				'datatype'		=> 'TINYINT(1)',
+				'allow_null'	=> false,
+				'default'		=> '0'
 			)
 		),
 		'PRIMARY KEY'	=> array('g_id')
@@ -1650,7 +1655,6 @@ else
 			'api_characters_user_id_idx'	=> array('user_id'),
 			'api_characters_corp_id_idx'	=> array('corp_id'),
 			'api_characters_ally_id_idx'	=> array('ally_id'),
-			'api_characters_user_id_idx'	=> array('user_id'),
 			'api_characters_last_update_idx'	=> array('last_update')
 		)
 	);
@@ -1693,9 +1697,19 @@ else
 				'datatype'		=> 'TINYINT(4) UNSIGNED',
 				'allow_null'	=> false,
 				'default' => '0'
+			),
+			'priority'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default' => '1'
+			),
+			'role'		=> array(
+				'datatype'		=> 'VARCHAR(64)',
+				'allow_null'	=> false,
+				'default' => '0'
 			)
 		),
-		'PRIMARY KEY'	=> array('id', 'group_id')
+		'PRIMARY KEY'	=> array('id', 'group_id', 'role')
 	);
 
 	$db->create_table('api_groups', $schema) or error('Unable to create api table', __FILE__, __LINE__, $db->error());
@@ -1877,6 +1891,25 @@ else
 	);
 
 	$db->create_table('api_skill_types', $schema) or error('Unable to create skill types table', __FILE__, __LINE__, $db->error());
+	
+	//Multiple Group Table.
+	$schema = array(
+		'FIELDS'		=> array(
+			'user_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false
+			),
+			'group_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false
+			)
+		),
+		'INDEXES'		=> array(
+			'groups_users_idx'	=> array('user_id')
+		)
+	);
+
+	$db->create_table('groups_users', $schema) or error('Unable to create groups table', __FILE__, __LINE__, $db->error());
 		
 	/*---------- EvE-BB INSTALL TABLE CONSTRUCTION ---------*/
 
@@ -2028,7 +2061,8 @@ else
 		'o_eve_banner_size'	=> "'819200'",
 		'o_eve_banner_width'	=> "'1000'",
 		'o_eve_banner_height'	=> "'150'",
-		'o_eve_banner_text_enable' => "'1'"
+		'o_eve_banner_text_enable' => "'1'",
+		'o_eve_max_groups' => "'100'"
 		/*---------- EvE-BB INSTALL Options ---------*/
 	);
 

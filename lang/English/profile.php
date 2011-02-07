@@ -115,7 +115,7 @@ $lang_profile = array(
 'Instructions'					=>	'When you update your profile, you will be redirected back to this page.',
 
 // Administration stuff
-'Group membership legend'		=>	'Choose user group',
+'Group membership legend'		=>	'Choose primary user group',
 'Save'							=>	'Save',
 'Set mods legend'				=>	'Set moderator access',
 'Moderator in info'				=>	'Choose which forums this user should be allowed to moderate. Note: This only applies to moderators. Administrators always have full permissions in all forums.',
@@ -134,5 +134,16 @@ $lang_profile = array(
 'Update forums redirect'		=>	'Forum moderator rights updated. Redirecting …',
 'Ban redirect'					=>	'Redirecting …',
 'No delete admin message'		=>	'Administrators cannot be deleted. In order to delete this user, you must first move him/her to a different user group.',
+
+//Multiple Group Stuff.
+'delete_group_legend' 		=> 'Users Groups',
+'delete_group' 					=> 'You can view the current groups this user is a part of here.<br/>Note: Deleting these groups may be over written by the group rules you have specified.',
+'delete_group_none' 			=> 'None to display.',
+'delete_group_redirect' 		=> 'User removed from group successfully!<br/>Please wait while you are redirected...',
+'Delete link'						=>	'Delete',
+
+'add_group_legend' 			=> 'Add user to another group',
+'add_group_redirect' 		=> 'User added to group successfully!<br/>Please wait while you are redirected...',
+'Add' 								=> 'Add',
 
 );

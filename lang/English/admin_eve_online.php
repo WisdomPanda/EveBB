@@ -50,13 +50,23 @@ $lang_admin_eve_online = array(
 'group_rule' 			=> 'New Rule',
 'group_rule_add' 		=> 'Add Rule',
 'group_rule_add_redirect' => 'Group rule added succesfully! Redirecting...',
-'group_rule_info' 		=> 'A \'Group Rule\' is used to automatically assign new members to groups you\'ve created.<br /><a href="admin_eve_groups.php?action=refresh_rules">Click here to re-apply any rules.</a>',
-'group_rule_members_from' => 'Members from: ',
+'group_rule_info' 		=> 'A \'Group Rule\' is used to automatically assign new members to groups you\'ve created.<br/>
+These rules are given a priority level so that you can decide which group should be the \'active\' group, that applies titles, name colouring and such.<br/>
+<br/>
+Priority ranges from \'0 - top priority\', to \'99 - lowest priority\'. <br/>
+In the event that two rules have the same priority level, the active one will be decided by the order the Database presents them.<br/>
+As such, it is recommended that you manually set priorities to unique values to insure you experience the behaviour you are after.<br/>
+<br/>
+You may update a rules priority by simply creating it again with a different priority - it will over write any existing rule with the new value.<br/>
+<br/><a href="admin_eve_groups.php?action=refresh_rules">Click here to re-apply any rules.</a>',
+'group_rule_members_from' => 'Member of: ',
 'group_rule_members_to' => 'To group: ',
+'group_rule_priority' => 'With Priority: ',
+'group_rule_role' => 'Has Role: ',
 'purge_group' => 'Purged User Group',
 'purge_group_info' => 'Set the default group that purged users will end up in. Ideally set it to a group with very minimal access to the forum while still able to access their profile to update their characters.',
-'delete_group_rule_legend' => 'Delete an existing rule',
-'delete_group_rule' => 'Delete any unused or incorrect group rules.',
+'delete_group_rule_legend' => 'Existing Rules',
+'delete_group_rule' => 'Format displayed is: &lt;Role&gt; [Priority] Member of (corp/alliance) -&gt; (goes to) Group',
 'group_rule_del_redirect' => 'Group rule added succesfully! Redirecting...',
 'delete' => 'Delete',
 
@@ -113,6 +123,8 @@ Setting this below 4 Hours is not reccommended as<br/> each time this is called 
 Low load added, may be set to happen fairly often to catch the updates done by [Char Sheet Interval].',
 'o_eve_use_cron' => 'Use Cron Job',
 'o_eve_use_cron_info' => 'Enable the use a cron job for scheduled events, such as fetching character data.<br />Please see the README file for information in setting up a cron job.',
+'o_eve_max_groups' => 'Max Group Rule Priorities',
+'o_eve_max_groups_info' => 'Lets you adjust how many priorities are displayed in the drop down box on the Group Rules section. More is slower per load.',
 'o_eve_use_banner' => 'Use Forum Banner',
 'o_eve_use_banner_info' => 'Enable a banner for the top of your forum! Mmmm, pretty...',
 'o_eve_use_banner_text' => 'Use Forum Banner Text',

@@ -34,6 +34,54 @@ require PUN_ROOT.'lang/'.$pun_user['language'].'/prof_reg.php';
 // Load the profile.php language file
 require PUN_ROOT.'lang/'.$pun_user['language'].'/profile.php';
 
+if ($action == 'del_group') {
+	if ($pun_user['g_id'] != PUN_ADMIN) {
+		message($lang_common['No permission']);
+	} //End if.
+	
+	confirm_referrer('profile.php');
+	
+	$sql = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$id." AND group_id=".intval($_GET['g_id']);
+	if (!$db->query($sql)) {
+		if (defined('PUN_DEBUG')) {
+			error('Unable to delete group from table.');
+		} //End if.
+		message($lang_common['Bad request']);
+	} //End if.
+	
+	redirect('profile.php?section=admin&amp;id='.$id, $lang_profile['delete_group_redirect']);
+	
+} //End if.
+
+if ($action == 'add_group') {
+	if ($pun_user['g_id'] != PUN_ADMIN) {
+		message($lang_common['No permission']);
+	} //End if.
+	
+	confirm_referrer('profile.php');
+	
+	$g_id = intval($_GET['g_id']);
+	if ($g_id < 1 || $g_id == PUN_GUEST) {
+		if (defined('PUN_DEBUG')) {
+			error('You have specified an incorrect group id.', __FILE__, __LINE__, $db->error());
+		} //End if.
+		message($lang_common['Bad request']);
+	} //End if.
+	
+	$fields = array(
+		'user_id' => $id,
+		'group_id' => $g_id,
+	);
+	if (!$db->insert_or_update($fields, array('user_id', 'group_id'), $db->prefix.'groups_users')) {
+		if (defined('PUN_DEBUG')) {
+			error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
+		} //End if.
+		message($lang_common['Bad request']);
+	} //End if.
+	
+	redirect('profile.php?section=admin&amp;id='.$id, $lang_profile['add_group_redirect']);
+	
+} //End if.
 
 if ($action == 'change_pass')
 {
@@ -447,26 +495,31 @@ else if (isset($_POST['update_group_membership']))
 
 	$result = $db->query('SELECT g_moderator FROM '.$db->prefix.'groups WHERE g_id='.$new_group_id) or error('Unable to fetch group', __FILE__, __LINE__, $db->error());
 	$new_group_mod = $db->result($result);
+	
+	//Now lets remove the new group from the multiple group support table.
+	$sql = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$id." AND group_id=".$new_group_id;
+	if (!$db->query($sql)) {
+		if (defined('PUN_DEBUG')) {
+			error('Unable to delete extra group from table.');
+		} //End if.
+	} //End if.
 
 	// If the user was a moderator or an administrator, we remove him/her from the moderator list in all forums as well
-	if ($new_group_id != PUN_ADMIN && $new_group_mod != '1')
-	{
+	if ($new_group_id != PUN_ADMIN && $new_group_mod != '1') {
 		$result = $db->query('SELECT id, moderators FROM '.$db->prefix.'forums') or error('Unable to fetch forum list', __FILE__, __LINE__, $db->error());
 
-		while ($cur_forum = $db->fetch_assoc($result))
-		{
+		while ($cur_forum = $db->fetch_assoc($result)) {
 			$cur_moderators = ($cur_forum['moderators'] != '') ? unserialize($cur_forum['moderators']) : array();
 
-			if (in_array($id, $cur_moderators))
-			{
+			if (in_array($id, $cur_moderators)) {
 				$username = array_search($id, $cur_moderators);
 				unset($cur_moderators[$username]);
 				$cur_moderators = (!empty($cur_moderators)) ? '\''.$db->escape(serialize($cur_moderators)).'\'' : 'NULL';
 
 				$db->query('UPDATE '.$db->prefix.'forums SET moderators='.$cur_moderators.' WHERE id='.$cur_forum['id']) or error('Unable to update forum', __FILE__, __LINE__, $db->error());
-			}
-		}
-	}
+			} //End if.
+		} //End while loop.
+	} //End if
 
 	redirect('profile.php?section=admin&amp;id='.$id, $lang_profile['Group membership redirect']);
 }
@@ -921,6 +974,17 @@ if (!$db->num_rows($result))
 	message($lang_common['Bad request']);
 
 $user = $db->fetch_assoc($result);
+/* EVE-BB Multi-group support.*/
+//We only look at their other groups if they aren't set as the purge group as primary.
+if ($pun_user['g_id'] != $pun_config['o_eve_restricted_group']) {
+	$sql = "SELECT group_id FROM ".$db->prefix."groups_users WHERE user_id=".$pun_user['id'];
+	$result = $db->query($sql) or error('Unable to fetch group list', __FILE__, __LINE__, $db->error());
+	
+	while ($row = $db->fetch_assoc($result)) {
+		$user['group_ids'][] = $row['group_id'];
+	} //End while loop.
+} //End if.
+/* EVE-BB Multi-group support.*/
 
 $last_post = format_time($user['last_post']);
 
@@ -1611,7 +1675,7 @@ else
 	<div class="blockform">
 		<h2><span><?php echo pun_htmlspecialchars($user['username']).' - '.$lang_profile['Section admin'] ?></span></h2>
 		<div class="box">
-			<form id="profile7" method="post" action="profile.php?section=admin&amp;id=<?php echo $id ?>&amp;action=foo">
+			<form id="profile7" method="post" action="profile.php?section=admin&amp;id=<?php echo $id ?>&amp;action=foo" style="padding-bottom: 0;">
 				<div class="inform">
 				<input type="hidden" name="form_sent" value="1" />
 					<fieldset>
@@ -1642,18 +1706,76 @@ else
 <?php
 
 				$result = $db->query('SELECT g_id, g_title FROM '.$db->prefix.'groups WHERE g_id!='.PUN_GUEST.' ORDER BY g_title') or error('Unable to fetch user group list', __FILE__, __LINE__, $db->error());
-
-				while ($cur_group = $db->fetch_assoc($result))
-				{
-					if ($cur_group['g_id'] == $user['g_id'] || ($cur_group['g_id'] == $pun_config['o_default_user_group'] && $user['g_id'] == ''))
+				//We'll hook into this to get the add list as well. Less looping is always a good thing!
+				$add_group_select = '';
+				while ($cur_group = $db->fetch_assoc($result)) {
+					if ($cur_group['g_id'] == $user['g_id'] || ($cur_group['g_id'] == $pun_config['o_default_user_group'] && $user['g_id'] == '')) {
 						echo "\t\t\t\t\t\t\t\t".'<option value="'.$cur_group['g_id'].'" selected="selected">'.pun_htmlspecialchars($cur_group['g_title']).'</option>'."\n";
-					else
+					} else {
 						echo "\t\t\t\t\t\t\t\t".'<option value="'.$cur_group['g_id'].'">'.pun_htmlspecialchars($cur_group['g_title']).'</option>'."\n";
-				}
+					} //End if - else.
+					if ($user['g_id'] == $cur_group['g_id'] || in_array($cur_group['g_id'], $user['group_ids'])) {
+						continue;
+					} //End if.
+					$add_group_select .= "\t\t\t\t\t\t\t\t".'<option value="'.$cur_group['g_id'].'">'.pun_htmlspecialchars($cur_group['g_title']).'</option>'."\n";
+				} //End while loop.
 
 ?>
 							</select>
 							<input type="submit" name="update_group_membership" value="<?php echo $lang_profile['Save'] ?>" />
+						</div>
+					</fieldset>
+				</div>
+			</form>
+			<form id="profile_add_group" method="GET" action="profile.php" style="padding-top:0;">
+				<div class="inform">
+				<input type="hidden" name="form_sent" value="1" />
+					<fieldset>
+						<legend><?php echo $lang_profile['add_group_legend'] ?></legend>
+						<div class="infldset">
+							<input type="hidden" name="action" value="add_group" />
+							<input type="hidden" name="id" value="<?php echo $id ?>" />
+							<select id="group_id" name="g_id">
+<?php
+echo $add_group_select;
+?>
+							</select>
+							<input type="submit" name="g_id_submit" value="<?php echo $lang_profile['Add'] ?>" />
+						</div>
+					</fieldset>
+				</div>
+				<div class="inform">
+					<fieldset>
+						<legend><?php echo $lang_profile['delete_group_legend'] ?></legend>
+						<div class="infldset">
+							<p><?php echo $lang_profile['delete_group'] ?></p>
+							<table class="aligntop" cellspacing="0">
+<?php
+
+$sql = '
+	SELECT
+		ug.*,
+		g.g_id,
+		g.g_title
+	FROM
+		'.$db->prefix.'groups_users AS ug
+	INNER JOIN
+		'.$db->prefix.'groups AS g
+	ON
+		g.g_id=ug.group_id
+	WHERE
+		ug.user_id='.$id;
+
+$result = $db->query($sql) or error('Unable to fetch users group list', __FILE__, __LINE__, $db->error());
+if ($db->num_rows($result) > 0) {
+	while ($row = $db->fetch_assoc($result)) {
+		echo "\t\t\t\t\t\t\t\t".'<tr><th scope="row"><a href="profile.php?section=admin&amp;action=del_group&amp;g_id='.$row['g_id'].'&amp;id='.$id.'">'.$lang_profile['Delete link'].'</a></th><td>'.pun_htmlspecialchars($row['g_title']).'</td></tr>'."\n";
+	} //End while loop.
+} else {
+	echo "\t\t\t\t\t\t\t\t".'<tr><td>'.$lang_profile['delete_group_none'].'</td></tr>'."\n";
+} //End if - else.
+?>
+							</table>
 						</div>
 					</fieldset>
 				</div>

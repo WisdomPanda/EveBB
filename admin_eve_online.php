@@ -178,9 +178,10 @@ if ($action == "update_settings") {
 		'o_eve_banner_width',
 		'o_eve_banner_height',
 		'o_eve_banner_text_enable',
-		'o_eve_use_cron');
+		'o_eve_use_cron',
+		'o_eve_max_groups');
 		
-		$log ='';
+		$log = '';
 		
 		foreach ($settings as $key) {
 			//Lets check if it's set in both $_POST and $pun_config...
@@ -317,6 +318,13 @@ generate_admin_menu('eve_online');
 									<td>
 										<input type="text" name="o_eve_cache_char_sheet_interval" size="25" tabindex="1" value="<?php echo $pun_config['o_eve_cache_char_sheet_interval']; ?>"/>
 										<span><?php echo $lang_admin_eve_online['o_eve_cache_char_sheet_interval_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_eve_online['o_eve_max_groups'] ?></th>
+									<td>
+										<input type="text" name="o_eve_max_groups" size="25" tabindex="1" value="<?php echo $pun_config['o_eve_max_groups']; ?>"/>
+										<span><?php echo $lang_admin_eve_online['o_eve_max_groups_info'] ?></span>
 									</td>
 								</tr>
 							</table>

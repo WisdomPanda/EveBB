@@ -98,12 +98,26 @@ class DBLayer
 	/**
 	 * This function mimics the functionality for the 'ON DUPLICATE KEY UPDATE' command in MySQL5.
 	 * Since this is mysqli, we will just reconstruct the normal query.
+	 * You are still expected to pass the correct $primaryKey to reference however.
 	 */
 	function insert_or_update($fields, $primaryKey, $table, $fields_to_update = array()) {
-		
-		if (empty($fields[$primaryKey])) {
-			return false;
-		} //End if.
+		if (is_array($primaryKey)) {
+			if (count($primaryKey) == 0) {
+				$this->error_msg = 'No Primary keys passed.';
+				return false;
+			} //End if.
+			foreach ($primaryKey as $key) {
+				if (!isset($fields[$key])) {
+					$this->error_msg = '[0] Primary key value missing.';
+					return false;
+				} //End if.
+			} //End foreach().
+		} else {
+			if (!isset($fields[$primaryKey])) {
+				$this->error_msg = '[1] Primary key value missing.';
+				return false;
+			} //End if.
+		} //End if - else.
 		
 		$table_fields = $table."(";
 		$insert_fields = "VALUES(";

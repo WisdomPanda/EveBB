@@ -21,8 +21,34 @@ if ($id < 1)
 // Load the viewforum.php language file
 require PUN_ROOT.'lang/'.$pun_user['language'].'/forum.php';
 
+//Let's quickly build their group list for the SQL.
+$group_list = '';
+if (!empty($pun_user['group_ids'])) {
+	foreach ($pun_user['group_ids'] as $g) {
+		$group_list .= ' AND fp.group_id='.$g;
+	} //End foreach().
+} //End if.
+
+/*Eve-BB note: Longish SQL, made it a little bit more readable - sidescroll is yucky. :(*/
 // Fetch some info about the forum
-$result = $db->query('SELECT f.forum_name, f.redirect_url, f.moderators, f.num_topics, f.sort_by, fp.post_topics FROM '.$db->prefix.'forums AS f LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND f.id='.$id) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
+$result = $db->query('
+	SELECT
+		f.forum_name,
+		f.redirect_url,
+		f.moderators,
+		f.num_topics,
+		f.sort_by,
+		fp.post_topics
+	FROM
+		'.$db->prefix.'forums AS f
+	LEFT JOIN
+		'.$db->prefix.'forum_perms AS fp
+	ON
+		(fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
+	WHERE
+		(fp.read_forum IS NULL OR fp.read_forum=1)
+	AND f.id='.$id
+	) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
 if (!$db->num_rows($result))
 	message($lang_common['Bad request']);
 
