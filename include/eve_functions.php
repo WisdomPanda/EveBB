@@ -454,6 +454,7 @@ function apply_rules() {
 		
 		//First, lets purge their extra groups - this will reassign all of them
 		$sql = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$row['id']." AND group_id NOT IN (SELECT sg.g_id FROM ".$db->prefix."groups AS sg WHERE sg.g_locked=1)";
+		
 		if (!$db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
 				error("Unable to clear group listing.<br/>".$sql, __FILE__, __LINE__, $db->error());
