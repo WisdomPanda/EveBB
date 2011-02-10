@@ -349,6 +349,10 @@ function check_rules() {
 			continue;
 		} //End if.
 		
+		if ($row['id'] == 0) {
+			continue; //No issue here.
+		} //End if.
+		
 		if ($row['type'] == 0) {
 			if (!in_array($row['id'], $corp_ids)) {
 				//error("Rule not found to be valid: No corp id.", __FILE__, __LINE__);
@@ -380,8 +384,6 @@ function apply_rules() {
 		} //End if.
 		return false; //We do NOT want to carry on if the rules can't be verified.
 	} //End if.
-	
-	/* Complete re-write of application of rules will be incoming - this is the old stuff.*/
 	
 	$sql = '';
 	$characters = array();
@@ -443,70 +445,103 @@ function apply_rules() {
 	foreach($characters as $row) {
 		
 		//No point looking at them if they're admin/mods or if their primary group is locked... (group 0 = new user)
-		if (($row['group_id'] < 3 && $row['group_id'] != 0) || $row['g_moderator'] == 1 || $row['g_locked'] == 1) {
+		/*if (($row['group_id'] < 3 && $row['group_id'] != 0) || $row['g_moderator'] == 1 || $row['g_locked'] == 1) {
 			continue;
-		} //End if.
+		} //End if.*/
 		
 		//This is where any future refinements will go.
 		//Watch this space.
 		
-		//First we see if there is a rule setup for their corp, as that takes priority.
-		$sql = "SELECT * FROM ".$db->prefix."api_groups WHERE id=".$row['corp_id']." AND type=0;";
-		if (!$corp_result = $db->query($sql)) {
-			if (defined('PUN_DEBUG')) {
-				error("Unable to get group corp listing.<br/>".$sql, __FILE__, __LINE__, $db->error());
-			} //End if.
-			return false;
-		} //End if.
-		
-		if ($db->num_rows($corp_result) > 0) {
-			//We've found a rule.
-			$corp_rule = $db->fetch_assoc($corp_result);
-			$sql = "UPDATE ".$db->prefix."users SET group_id=".$corp_rule['group_id']." WHERE id=".$row['id'].";";
-			if (!$db->query($sql)) {
-				if (defined('PUN_DEBUG')) {
-					error("Unable to update groups.".$sql, __FILE__, __LINE__, $db->error());
-				} //End if.
-				return false;
-			} //End if.
-			
-			continue; //We're done, alliance rules don't over write the corp rule.
-		} //End if.
-		
-		//Next we check alliances.
-		$sql = "SELECT * FROM ".$db->prefix."api_groups WHERE id=".$row['ally_id']." AND type=1;";
-		if (!$ally_result = $db->query($sql)) {
-			if (defined('PUN_DEBUG')) {
-				error("Unable to get group alliance listing.", __FILE__, __LINE__, $db->error());
-			} //End if.
-			return false;
-		} //End if.
-		
-		if ($db->num_rows($ally_result) > 0) {
-			//We've found a rule.
-			$rule = $db->fetch_assoc($ally_result);
-			$sql = "UPDATE ".$db->prefix."users SET group_id=".$rule['group_id']." WHERE id=".$row['id'].";";
-			if (!$db->query($sql)) {
-				if (defined('PUN_DEBUG')) {
-					error("Unable to update groups.".$sql, __FILE__, __LINE__, $db->error());
-				} //End if.
-				return false;
-			} //End if.
-			continue; //Alliance rules are the final step if there was one found.
-		} //End if.
-		
-		//Lets dump them into the default group, just to be safe.
-
-		$sql = "UPDATE ".$db->prefix."users SET group_id=".$pun_config['o_eve_restricted_group']." WHERE id=".$row['id'].";";
+		//First, lets purge their extra groups - this will reassign all of them
+		$sql = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$row['id']." AND group_id NOT IN (SELECT sg.g_id FROM ".$db->prefix."groups AS sg WHERE sg.g_locked=1)";
 		if (!$db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
-				error("Unable to update groups.".$sql, __FILE__, __LINE__, $db->error());
+				error("Unable to clear group listing.<br/>".$sql, __FILE__, __LINE__, $db->error());
 			} //End if.
 			return false;
+		} //End if.
+		
+		$sql = "SELECT * FROM ".$db->prefix."api_groups WHERE id=".$row['corp_id']." OR id=".$row['ally_id']." OR id=0;";
+		if (!$any_result = $db->query($sql)) {
+			if (defined('PUN_DEBUG')) {
+				error("Unable to get group listing.<br/>".$sql, __FILE__, __LINE__, $db->error());
+			} //End if.
+			return false;
+		} //End if.
+		
+		$last_group = array();
+		$moved = false;
+		
+		$roles = convert_roles($row['roles']);
+		
+		while ($rule = $db->fetch_assoc($any_result)) {
+			
+			//We know they've already qualified to be in this group from the SQL, so what we're checking now is their roles, as well as multiple group assignments.
+			//The function we use turns our BC Math string into an array of bools so that we can test the role simply by going
+			//if $role[stringFromDB] is true then move else continue.
+			//Pretty simple, no?
+			
+			//Putting this here so we don't make it harder to read.
+			$skip = false;
+			if ($row['g_locked'] == 1) {
+				$skip = true;
+			} else if (($row['group_id'] < 3 && $row['group_id'] != 0) || $row['g_moderator'] == 1) {
+				$skip = true;
+			} //End if.
+			
+			if ($roles[$rule['role']]) {
+				//They have auth!
+				if ((!isset($last_group['priority']) || $rule['priority'] < $last_group['priority']) && !$skip) {
+					if (isset($last_group['priority'])) {
+						$fields = array(
+							'user_id' => $row['id'],
+							'group_id' => $last_group['group_id']
+							);
+						if (!$db->insert_or_update($fields, array('user_id', 'group_id'), $db->prefix.'groups_users')) {
+							if (defined('PUN_DEBUG')) {
+								error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
+							} //End if.
+							return false;
+						} //End if.
+					} //End if.
+					$sql = "UPDATE ".$db->prefix."users SET group_id=".$rule['group_id']." WHERE id=".$row['id'].";";
+					if (!$db->query($sql)) {
+						if (defined('PUN_DEBUG')) {
+							error("Unable to update groups.".$sql, __FILE__, __LINE__, $db->error());
+						} //End if.
+						return false;
+					} //End if.
+				} else {
+					$fields = array(
+						'user_id' => $row['id'],
+						'group_id' => $rule['group_id']
+						);
+					if (!$db->insert_or_update($fields, array('user_id', 'group_id'), $db->prefix.'groups_users')) {
+						if (defined('PUN_DEBUG')) {
+							error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
+						} //End if.
+						return false;
+					} //End if.
+				} //End if - else.
+
+				$last_group = $rule;
+				$moved = true;
+			} //End if.
+			
+		} //End while loop.
+		
+		//They haven't been moved and they aren't in a locked group, TROUBLES!
+		if (!$moved && $row['g_locked'] != 1) {
+			$sql = "UPDATE ".$db->prefix."users SET group_id=".$pun_config['o_eve_restricted_group']." WHERE id=".$row['id'].";";
+			if (!$db->query($sql)) {
+				if (defined('PUN_DEBUG')) {
+					error("Unable to update groups.".$sql, __FILE__, __LINE__, $db->error());
+				} //End if.
+				return false;
+			} //End if.
 		} //End if.
 		
 	} //End foreach().
-	
 	return true;
 	
 	
@@ -836,7 +871,7 @@ function update_character_sheet($user_id, $api = array(), $sheet = false, &$erro
 		
 		if (!$char_sheet->load_character($api, $error)) {
 			if (defined('PUN_DEBUG')) {
-				error("[".$error."] Could not load character.".print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
+				error("[".$error."] Could not load character.", __FILE__, __LINE__, $db->error());
 			} //End if.
 			return false;
 		} //End if.
@@ -845,24 +880,25 @@ function update_character_sheet($user_id, $api = array(), $sheet = false, &$erro
 		$char_sheet = $sheet;
 	} //End if - else.
 	
-		$fields = array(
-			'user_id' => $user_id,
-			'character_id' => $char_sheet->characterID,
-			'character_name'=> $char_sheet->name,
-			'corp_id'=> $char_sheet->corporationID,
-			'corp_name'=> $char_sheet->corporationName,
-			'ally_id'=> $char_sheet->allianceID,
-			'ally_name'=> $char_sheet->allianceName,
-			'dob'=> $char_sheet->DoB,
-			'race'=> $char_sheet->race,
-			'blood_line'=> $char_sheet->bloodLine,
-			'ancestry'=> $char_sheet->ancestry,
-			'gender'=> $char_sheet->gender,
-			'clone_name'=> $char_sheet->cloneName,
-			'clone_sp'=> $char_sheet->cloneSkillPoints,
-			'balance'=> $char_sheet->balance,
-			'last_update'=> time()
-		);
+	$fields = array(
+		'user_id' => $user_id,
+		'character_id' => $char_sheet->characterID,
+		'character_name'=> $char_sheet->name,
+		'corp_id'=> $char_sheet->corporationID,
+		'corp_name'=> $char_sheet->corporationName,
+		'ally_id'=> $char_sheet->allianceID,
+		'ally_name'=> $char_sheet->allianceName,
+		'dob'=> $char_sheet->DoB,
+		'race'=> $char_sheet->race,
+		'blood_line'=> $char_sheet->bloodLine,
+		'ancestry'=> $char_sheet->ancestry,
+		'gender'=> $char_sheet->gender,
+		'clone_name'=> $char_sheet->cloneName,
+		'clone_sp'=> $char_sheet->cloneSkillPoints,
+		'balance'=> $char_sheet->balance,
+		'last_update'=> time(),
+		'roles' => $char_sheet->corporationRoles
+	);
 	
 	if (!$db->insert_or_update($fields, 'character_id', $db->prefix.'api_characters')) {
 		if (defined('PUN_DEBUG')) {
@@ -1118,6 +1154,34 @@ function fetch_selected_character($id, $limited = false) {
 	return $db->fetch_assoc($result);
 	
 } //End fetch_selected_character().
+
+/**
+ * This function takes a string created from BC maths and subs out the roles to create a bool array, index with the role values as strings.
+ * Director would be: '1' => true, for example.
+ */
+function convert_roles($roles) {
+	global $api_roles;
+	
+	//Lets first set the scale to 0.
+	bcscale(0);
+	$auth = array();
+	
+	//Now then, we loop through the api_roles array, backwards!
+	$temp_api_roles = array_reverse($api_roles);
+	foreach($temp_api_roles as $key => $value) {
+		$auth[$value] = false;
+		if ($value == 0) {
+			$auth[$value] = true;
+			continue; //The 'Any' value is in there, which will get set to true always.
+		} //End if.
+		if (bcdiv($roles, $value) == 1) {
+			$roles = bcsub($roles, $value);
+			$auth[$value] = true;
+		} //End if.
+	} //End 'i' for loop().
+	
+	return $auth;
+} //End convert_roles().
 
 /**
  * Tries to sliently cache the pic of a character.

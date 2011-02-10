@@ -23,18 +23,20 @@ class Character {
 	public $balance;
 	
 	//Array types.
-	public $implants = array();
-	public $attributes = array();
-	public $skills = array();
-	public $certs = array();
-	public $corporationRoles = array();
-	public $corporationRolesAtHQ = array();
-	public $corporationRolesAtBase = array();
-	public $corporationRolesAtOther = array();
-	public $corporationTitles = array();
+	//public $implants = array();
+	//public $attributes = array();
+	//public $skills = array();
+	//public $certs = array();
+	public $corporationRoles;
+	//public $corporationRolesAtHQ = array();
+	//public $corporationRolesAtBase = array();
+	//public $corporationRolesAtOther = array();
+	//public $corporationTitles = array();
 	
 	//Parsing types...
 	private $current_tag = '';
+	private $in_rowsets = false;
+	private $in_roles = false;
 		
 	public function load_character($auth, &$error = 0) {
 		global $db;
@@ -54,6 +56,9 @@ class Character {
 			$error = API_BAD_REQUEST;
 			return false;
 		} //End if.
+		
+		$this->corporationRoles = '0';
+		bcscale(0);
 
 		$xml_parser = xml_parser_create();
 		xml_set_object($xml_parser, $this);
@@ -87,9 +92,27 @@ class Character {
 		
 	function startElement($parser, $name, $attrs) {
 		$this->current_tag = $name;
+		
+		if ($name == 'ROWSET') {
+			$this->in_rowset = true;
+			
+			if ($attrs['NAME'] == 'corporationRoles') {
+				$this->in_roles = true;
+			} //End if.
+			return;
+		} //End if.
+		
+		if ($name == 'ROW' && $this->in_roles) {
+			$this->corporationRoles = bcadd($this->corporationRoles, $attrs['ROLEID']);
+		} //End if.
+		
 	} //startElement
 		
 	function characterData($parser, $data) {
+		if ($this->in_rowset) {
+			return; //We don't care about the characterData while in a rowset.
+		} //End if.
+		
 		if (preg_match('/^[a-zA-Z0-9\.\\\'\/\" \-\:]+$/', $data)) {
 			eval('$this->'.$this->current_tag.'="'.addslashes($data).'";');
 		} //End if.
@@ -97,6 +120,10 @@ class Character {
 		
 	function endElement($parser, $name) {
 		$this->current_tag = '';
+		if ($name == 'ROWSET') {
+			$this->in_rowset = false;
+			$this->in_roles = false;
+		} //End if.
 	} //End endElement.
 	
 } //End Character Class.

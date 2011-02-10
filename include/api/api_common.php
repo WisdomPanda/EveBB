@@ -5,8 +5,6 @@
  * Panda
  */
 
-
-
 if (function_exists('simplexml_load_string')) {
 	
 	//Yay', PHP5. Let's use SimpleXML enabled classes.
@@ -81,5 +79,4 @@ $api_roles = array(
 'Starbase Config' => '9007199254740992',
 'Trader' => '18014398509481984'
 );
-
 ?>

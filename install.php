@@ -1648,6 +1648,11 @@ else
 				'datatype'		=> 'INT(10) UNSIGNED',
 				'allow_null'	=> false,
 				'default' => '0'
+			),
+			'roles'		=> array(
+				'datatype'		=> 'VARCHAR(64)',
+				'allow_null'	=> false,
+				'default' => '0'
 			)
 		),
 		'PRIMARY KEY'	=> array('character_id'),

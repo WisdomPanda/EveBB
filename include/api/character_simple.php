@@ -23,16 +23,16 @@ class Character {
 		public $cloneSkillPoints;
 		public $balance;
 		
-		//Array types.
-		public $implants = array();
-		public $attributes = array();
-		public $skills = array();
-		public $certs = array();
-		public $corporationRoles = array();
-		public $corporationRolesAtHQ = array();
-		public $corporationRolesAtBase = array();
-		public $corporationRolesAtOther = array();
-		public $corporationTitles = array();
+		//Unused types, will be uncommented as they are used; default type is array.
+		//public $implants = array();
+		//public $attributes = array();
+		//public $skills = array();
+		//public $certs = array();
+		public $corporationRoles;
+		//public $corporationRolesAtHQ = array();
+		//public $corporationRolesAtBase = array();
+		//public $corporationRolesAtOther = array();
+		//public $corporationTitles = array();
 		
 		public function load_character($auth, &$error = 0) {
 			global $db;
@@ -80,7 +80,18 @@ class Character {
 				return false;
 			} //End if.
 			
-			//There is currently no implemented use for the arrays that are provided on the character sheet, so skipping them for now.
+			$this->corporationRoles = '0';
+			bcscale(0);
+			
+			foreach ($char_sheet->result->rowset as $rowset) {
+				if ($rowset['name'] == 'corporationRoles') {
+				
+					foreach($rowset->row as $row) {
+						$this->corporationRoles = bcadd($this->corporationRoles, $row['roleID']);
+					} //End foreach().
+				} //End if.
+
+			} //End foreach().
 			
 			$this->characterID = (int)$char_sheet->result->characterID;
 			$this->name = $db->escape((string)$char_sheet->result->name);
@@ -96,7 +107,6 @@ class Character {
 			$this->cloneName = $db->escape((string)$char_sheet->result->cloneName);
 			$this->cloneSkillPoints = (int)$char_sheet->result->cloneSkillPoints;
 			$this->balance = (float)$char_sheet->result->balance;
-			
 			
 			return (int)$char_sheet->result->characterID;
 		} //End load_character().
