@@ -1890,7 +1890,7 @@ else
 				'allow_null'	=> false
 			)
 		),
-		'INDEXES'		=> array(
+		'PRIMARY KEY'		=> array(
 			'api_skill_types_idx'	=> array('typeID')
 		)
 	);
@@ -1909,8 +1909,8 @@ else
 				'allow_null'	=> false
 			)
 		),
-		'INDEXES'		=> array(
-			'groups_users_idx'	=> array('user_id')
+		'PRIMARY KEY'		=> array(
+			'groups_users_idx'	=> array('user_id', 'group_id')
 		)
 	);
 
