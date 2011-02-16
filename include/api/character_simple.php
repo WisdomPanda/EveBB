@@ -8,39 +8,39 @@
 class Character {
 	
 		//Single value types.
-		public $characterID;
-		public $name;
-		public $corporationID;
-		public $corporationName;
-		public $allianceID;
-		public $allianceName;
-		public $DoB;
-		public $race;
-		public $bloodLine;
-		public $ancestry;
-		public $gender;
-		public $cloneName;
-		public $cloneSkillPoints;
-		public $balance;
+		var $characterID;
+		var $name;
+		var $corporationID;
+		var $corporationName;
+		var $allianceID;
+		var $allianceName;
+		var $DoB;
+		var $race;
+		var $bloodLine;
+		var $ancestry;
+		var $gender;
+		var $cloneName;
+		var $cloneSkillPoints;
+		var $balance;
 		
 		//Unused types, will be uncommented as they are used; default type is array.
 		//public $implants = array();
 		//public $attributes = array();
 		//public $skills = array();
 		//public $certs = array();
-		public $corporationRoles;
+		var $corporationRoles;
 		//public $corporationRolesAtHQ = array();
 		//public $corporationRolesAtBase = array();
 		//public $corporationRolesAtOther = array();
 		//public $corporationTitles = array();
 		
-		public function load_character($auth, &$error = 0) {
-			global $db;
+		function load_character($auth) {
+			global $db, $_LAST_ERROR;
 			$error = 0;
 			
 			//If any of them are not set and if sheet is false...
 			if (!isset($auth['apiKey']) || !isset($auth['userID']) || !isset($auth['characterID'])) {
-				$error = API_BAD_AUTH;
+				$_LAST_ERROR = API_BAD_AUTH;
 				return false;
 			} //End if.
 			
@@ -48,7 +48,7 @@ class Character {
 			$char_sheet;
 			
 			if (!$xml = post_request($url, $auth)) {
-				$error = API_BAD_REQUEST;
+				$_LAST_ERROR = API_BAD_REQUEST;
 				return false;
 			} //End if.
 				
@@ -67,16 +67,16 @@ class Character {
 				$err = (int)$char_sheet->error['code'];
 				
 				if ($err >= 200 && $err < 300) {
-					$error = API_BAD_AUTH;
+					$_LAST_ERROR = API_BAD_AUTH;
 				} else {
-					$error = API_SERVER_ERROR;
+					$_LAST_ERROR = API_SERVER_ERROR;
 				} //End if - else.
 				
 				return false;
 			} //End if.
 				
 			if (isset($char_sheet->html) || isset($char_sheet->body)) {
-				$error = API_SERVER_DOWN;
+				$_LAST_ERROR = API_SERVER_DOWN;
 				return false;
 			} //End if.
 			
@@ -107,7 +107,7 @@ class Character {
 			$this->cloneName = $db->escape((string)$char_sheet->result->cloneName);
 			$this->cloneSkillPoints = (int)$char_sheet->result->cloneSkillPoints;
 			$this->balance = (float)$char_sheet->result->balance;
-			
+			$_LAST_ERROR = 0;
 			return (int)$char_sheet->result->characterID;
 		} //End load_character().
 	

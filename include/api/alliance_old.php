@@ -7,21 +7,23 @@
 
 class Alliance {
 	
-	private $in_alliance = false;
-	private $in_corps = false;
-	private $current_tag;
-	private $current_alliance;
+	var  $in_alliance = false;
+	var  $in_corps = false;
+	var  $current_tag;
+	var  $current_alliance;
 	
 	/**
 	 * Because of the size of the list, we get this function to handle the DB side of things, otherwise it'd have a (more) massive memory footprint.
 	 */
 	function update_list() {
 		
-		global $db;
+		global $db, $_LAST_ERROR;
+		$_LAST_ERROR = 0;
 		
 		$url = 'http://api.eve-online.com/eve/AllianceList.xml.aspx';
 		
 		if (!$xml = post_request($url)) {
+			$_LAST_ERROR = API_BAD_REQUEST;
 			return false;
 		} //End if.
 		

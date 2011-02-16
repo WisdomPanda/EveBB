@@ -7,21 +7,24 @@
 
 class Corporation {
 	
-	public $corporationID;
-	public $corporationName;
-	public $ticker;
-	public $ceoID;
-	public $ceoName;
-	public $description;
-	public $url;
-	public $allianceID;
-	public $taxRate;
+	var $corporationID;
+	var $corporationName;
+	var $ticker;
+	var $ceoID;
+	var $ceoName;
+	var $description;
+	var $url;
+	var $allianceID;
+	var $taxRate;
 	
-	public function load_corp($corpID) {
-		global $db;
+	function load_corp($corpID) {
+		global $db, $_LAST_ERROR;
+		$_LAST_ERROR = 0;
+		
 		$url = "http://api.eve-online.com/corp/CorporationSheet.xml.aspx";
 		
 		if (!$xml = post_request($url, array('corporationID' => $corpID))) {
+			$_LAST_ERROR = API_BAD_REQUEST;
 			return false;
 		} //End if.
 		

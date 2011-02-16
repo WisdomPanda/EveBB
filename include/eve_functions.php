@@ -22,6 +22,8 @@ define(API_BAD_REQUEST, 1001);
 define(API_BAD_AUTH, 1002);
 define(API_SERVER_ERROR, 1003);
 
+$_LAST_ERROR = 0;
+
 /**
  * This function handles all our task running needs.
  * Just like to group similar things together in a function pretty much.
@@ -131,7 +133,7 @@ function task_runner() {
  * force will override the default behaviour of only getting characters that require updates.
  */
 function task_update_characters($limit = 1, $force = false, $full_force = false) {
-	global $db, $pun_config, $lang_eve_bb;
+	global $db, $pun_config, $lang_eve_bb, $_LAST_ERROR;
 	
 	$sql = "SELECT c.character_name,c.last_update,c.character_id,a.* FROM `".$db->prefix."api_characters` AS c,`".$db->prefix."api_auth`AS a WHERE a.api_character_id=c.character_id ";
 	
@@ -150,19 +152,21 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 	} //End if.
 	
 	$log = array();
-	$error = 0;
+	
+	$_LAST_ERROR = 0;
+	
 	
 	while ($row = $db->fetch_assoc($result)) {
-		if (update_character_sheet($row['user_id'], array('apiKey' => $row['api_key'],'userID' => $row['api_user_id'],'characterID' => $row['api_character_id']), false, $error)) {
+		if (update_character_sheet($row['user_id'], array('apiKey' => $row['api_key'],'userID' => $row['api_user_id'],'characterID' => $row['api_character_id']), false)) {
 			$log [] = sprintf($lang_eve_bb['char_sheet_updated'], $row['character_id'], $row['character_name']);
 		} else {
-			if ($error == API_BAD_AUTH) {
+			if ($_LAST_ERROR == API_BAD_AUTH) {
 				$log [] = sprintf($lang_eve_bb['char_sheet_failed'], $row['character_id'], $row['character_name']);
-			} else if ($error == API_BAD_FETCH || $error == API_SERVER_ERROR) {
+			} else if ($_LAST_ERROR == API_BAD_FETCH || $_LAST_ERROR == API_SERVER_ERROR) {
 				if (defined('PUN_DEBUG')) {
 					$log [] = sprintf("Unable to fetch API data.", $row['character_id'], $row['character_name']);
 				} //End if.
-			} else if ($error == API_SERVER_DOWN) {
+			} else if ($_LAST_ERROR == API_SERVER_DOWN) {
 				if (defined('PUN_DEBUG')) {
 					$log [] = sprintf("API Server is down.");
 				} //End if.
@@ -171,7 +175,7 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 			
 		} //End if - else.
 	} //End while loop.
-	
+	$_LAST_ERROR = 0;
 	return $log;
 } //End task_update_characters().
 
@@ -595,43 +599,23 @@ function is_allowed_corp($corpID) {
  * Returns a SimpleXML Object. Don't try and use it like an array...
  */
 
-function fetch_character_api($auth, &$error = 0) {
-	
+function fetch_character_api($auth) {
+	global $_LAST_ERROR;
+	$_LAST_ERROR = 0;
 	if (!isset($auth['apiKey']) || !isset($auth['userID']) || !isset($auth['characterID'])) {
-		$error = API_BAD_AUTH;
+		$_LAST_ERROR = API_BAD_AUTH;
 		return false;
 	} //End if.
-	
-	/*$url = "http://api.eve-online.com/char/CharacterSheet.xml.aspx";
-	
-	if (!$xml = post_request($url, $auth)) {
-		$error = API_BAD_REQUEST;
-		return false;
-	} //End if.
-		
-	if (!$char_sheet = simplexml_load_string($xml)) {
-		if (defined('PUN_DEBUG')) {
-			error(print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
-		} //End if.
-		return false;
-	} //End if.
-	
-	if (isset($char_sheet->error)) {
-		if (defined('PUN_DEBUG')) {
-			error($char_sheet->error, __FILE__, __LINE__, $db->error());
-		} //End if.
-		return false;
-	} //End if.*/
 	
 	$char_sheet = new Character();
 	
-	if (!$char_sheet->load_character($auth, $error)) {
+	if (!$char_sheet->load_character($auth)) {
 		if (defined('PUN_DEBUG')) {
-			error("[".$error."] Unable to load character.", __FILE__, __LINE__, $db->error());
+			error("[".$_LAST_ERROR."] Unable to load character.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
-		
+	
 	return $char_sheet;
 		
 } //End fetch_character_api().
@@ -852,14 +836,14 @@ function remove_api_keys($user_id) {
  *
  * This function handles both inserts and updating.
  */
-function update_character_sheet($user_id, $api = array(), $sheet = false, &$error = 0) {
+function update_character_sheet($user_id, $api = array(), $sheet = false) {
 	global $db;
-	
-	$error = 0;
+	global $_LAST_ERROR;
+	$_LAST_ERROR = 0;
 	
 	//If any of them are not set and if sheet is false...
 	if ((!isset($api['apiKey']) || !isset($api['userID']) || !isset($api['characterID'])) && !$sheet) {
-		$error = API_BAD_AUTH;
+		$_LAST_ERROR = API_BAD_AUTH;
 		return false;
 	} //End if.
 	
@@ -870,9 +854,9 @@ function update_character_sheet($user_id, $api = array(), $sheet = false, &$erro
 		
 		$char_sheet = new Character();
 		
-		if (!$char_sheet->load_character($api, $error)) {
+		if (!$char_sheet->load_character($api)) {
 			if (defined('PUN_DEBUG')) {
-				error("[".$error."] Could not load character.", __FILE__, __LINE__, $db->error());
+				error("[".$_LAST_ERROR."] Could not load character.", __FILE__, __LINE__, $db->error());
 			} //End if.
 			return false;
 		} //End if.

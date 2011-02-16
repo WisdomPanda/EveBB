@@ -7,53 +7,51 @@
 class Character {
 	
 	//Single value types.
-	public $characterID;
-	public $name;
-	public $corporationID;
-	public $corporationName;
-	public $allianceID;
-	public $allianceName;
-	public $DoB;
-	public $race;
-	public $bloodLine;
-	public $ancestry;
-	public $gender;
-	public $cloneName;
-	public $cloneSkillPoints;
-	public $balance;
+	var $characterID;
+	var $name;
+	var $corporationID;
+	var $corporationName;
+	var $allianceID;
+	var $allianceName;
+	var $DoB;
+	var $race;
+	var $bloodLine;
+	var $ancestry;
+	var $gender;
+	var $cloneName;
+	var $cloneSkillPoints;
+	var $balance;
 	
 	//Array types.
-	//public $implants = array();
-	//public $attributes = array();
-	//public $skills = array();
-	//public $certs = array();
-	public $corporationRoles;
-	//public $corporationRolesAtHQ = array();
-	//public $corporationRolesAtBase = array();
-	//public $corporationRolesAtOther = array();
-	//public $corporationTitles = array();
+	//var $implants = array();
+	//var $attributes = array();
+	//var $skills = array();
+	//var $certs = array();
+	var $corporationRoles;
+	//var $corporationRolesAtHQ = array();
+	//var $corporationRolesAtBase = array();
+	//var $corporationRolesAtOther = array();
+	//var $corporationTitles = array();
 	
 	//Parsing types...
-	private $current_tag = '';
-	private $in_rowsets = false;
-	private $in_roles = false;
+	var $current_tag = '';
+	var $in_rowsets = false;
+	var $in_roles = false;
 		
-	public function load_character($auth, &$error = 0) {
-		global $db;
+	function load_character($auth) {
+		global $db, $_LAST_ERROR;
 		$depth = array();
-		
-		$error = 0;
 		
 		//If any of them are not set and if sheet is false...
 		if (!isset($auth['apiKey']) || !isset($auth['userID']) || !isset($auth['characterID'])) {
-			$error = API_BAD_AUTH;
+			$_LAST_ERROR = API_BAD_AUTH;
 			return false;
 		} //End if.
 		
 		$url = "http://api.eve-online.com/char/CharacterSheet.xml.aspx";
 		
 		if (!$xml = post_request($url, $auth)) {
-			$error = API_BAD_REQUEST;
+			$_LAST_ERROR = API_BAD_REQUEST;
 			return false;
 		} //End if.
 		
@@ -86,7 +84,7 @@ class Character {
 		$this->cloneName = $db->escape($this->CLONENAME);
 		$this->cloneSkillPoints = $this->CLONESKILLPOINTS;
 		$this->balance = $this->BALANCE;
-		
+		$_LAST_ERROR = 0;
 		return $this->characterID;
 	} //End load_character().
 		
