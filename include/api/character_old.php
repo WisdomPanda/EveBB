@@ -28,6 +28,7 @@ class Character {
 	//var $skills = array();
 	//var $certs = array();
 	var $corporationRoles;
+	var $skillQueue;
 	//var $corporationRolesAtHQ = array();
 	//var $corporationRolesAtBase = array();
 	//var $corporationRolesAtOther = array();
@@ -40,7 +41,6 @@ class Character {
 		
 	function load_character($auth) {
 		global $db, $_LAST_ERROR;
-		$depth = array();
 		
 		//If any of them are not set and if sheet is false...
 		if (!isset($auth['apiKey']) || !isset($auth['userID']) || !isset($auth['characterID'])) {
@@ -87,6 +87,40 @@ class Character {
 		$_LAST_ERROR = 0;
 		return $this->characterID;
 	} //End load_character().
+	
+	function load_skill_queue($auth) {
+		global $db, $_LAST_ERROR;
+		
+		//If any of them are not set and if sheet is false...
+		if (!isset($auth['apiKey']) || !isset($auth['userID']) || !isset($auth['characterID'])) {
+			$_LAST_ERROR = API_BAD_AUTH;
+			return false;
+		} //End if.
+		
+		$url = "http://api.eve-online.com/char/SkillQueue.xml.aspx";
+		
+		if (!$xml = post_request($url, $auth)) {
+			$_LAST_ERROR = API_BAD_REQUEST;
+			return false;
+		} //End if.
+		
+		$this->skillQueue = array();
+
+		$xml_parser = xml_parser_create();
+		xml_set_object($xml_parser, $this);
+		xml_set_element_handler($xml_parser, "startElement", "endElement");
+		xml_set_character_data_handler($xml_parser, "characterData");
+		
+		if (!xml_parse($xml_parser, $xml, true)) {
+			error(sprintf("XML error: %s at line %d",
+			xml_error_string(xml_get_error_code($xml_parser)),
+			xml_get_current_line_number($xml_parser)), __FILE__, __LINE__);
+		} //End if.
+		xml_parser_free($xml_parser);
+		
+		$_LAST_ERROR = 0;
+		return true;
+	} //End load_skill_queue().
 		
 	function startElement($parser, $name, $attrs) {
 		$this->current_tag = $name;
@@ -96,12 +130,27 @@ class Character {
 			
 			if ($attrs['NAME'] == 'corporationRoles') {
 				$this->in_roles = true;
-			} //End if.
+			} else if ($attrs['NAME'] == 'skillqueue') {
+				$this->in_queue = true;
+			} //End if - else if.
+			
 			return;
 		} //End if.
 		
-		if ($name == 'ROW' && $this->in_roles) {
-			$this->corporationRoles = bcadd($this->corporationRoles, $attrs['ROLEID']);
+		if ($name == 'ROW') {
+			if ($this->in_roles) {
+				$this->corporationRoles = bcadd($this->corporationRoles, $attrs['ROLEID']);
+			} else if ($this->in_queue) {
+				$this->skillQueue[] = array(
+						'queuePosition' => $attrs['QUEUEPOSITION'],
+						'typeID' => $attrs['TYPEID'],
+						'level' => $attrs['LEVEL'],
+						'startSP' => $attrs['STARTSP'],
+						'endSP' => $attrs['ENDSP'],
+						'startTime' => $attrs['STARTTIME'],
+						'endTime' => $attrs['ENDTIME']
+					);
+			} //End if - else if.
 		} //End if.
 		
 	} //startElement
@@ -121,6 +170,7 @@ class Character {
 		if ($name == 'ROWSET') {
 			$this->in_rowset = false;
 			$this->in_roles = false;
+			$this->in_queue = false;
 		} //End if.
 	} //End endElement.
 	

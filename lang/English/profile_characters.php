@@ -26,7 +26,8 @@ $lang_profile_characters = array(
 'dob'								=> 'Date of Birth:',
 'clone'							=> 'Clone:',
 'wallet'							=> 'Wallet:',
-'api_link'							=> 'You can find your EVE-Online API Key <a href="http://www.eve-online.com/api">here.</a>'
+'api_link'							=> 'You can find your EVE-Online API Key <a href="http://www.eve-online.com/api">here.</a>',
+'skill_queue' 					=> 'Skill Queue',
 
 
 );

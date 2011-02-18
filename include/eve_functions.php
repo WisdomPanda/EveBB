@@ -31,7 +31,7 @@ $_LAST_ERROR = 0;
 function task_runner() {
 	global $db, $pun_config;
 	
-	$run_auth = $run_ally = $run_rules = $run_char = $force_char = false;
+	$run_skills = $run_auth = $run_ally = $run_rules = $run_char = $force_char = false;
 	$action = $_GET['action'];
 	$log = array();
 	
@@ -45,9 +45,14 @@ function task_runner() {
 			$run_ally = true;
 		} //End if.
 		
-		if ($action == 'update_all') {
-			$run_ally = $run_char = true;
+		if ($action == 'update_skills') {
+			$run_skills = true;
 		} //End if.
+		
+		if ($action == 'update_all') {
+			$run_skills = $run_ally = $run_char = true;
+		} //End if.
+		
 	} else if ($pun_config['o_eve_use_cron'] == '0') {
 		//We need to fetch any characters that need to be updated.
 		$sql = "SELECT last_update FROM  ".$db->prefix."api_characters WHERE last_update<".(time()-($pun_config['o_eve_cache_char_sheet_interval']*60*60))." ORDER BY  last_update DESC LIMIT 0,1";
@@ -66,18 +71,18 @@ function task_runner() {
 	
 	if ($pun_config['o_eve_use_cron'] == '0') {
 	
-	if (!isset($pun_config['o_eve_last_auth_check']) || !isset($pun_config['o_eve_last_rule_check'])) {
-		$run_auth = $run_rules = true;
-	} else {
-		//See if it's time to check them...
-		if ($pun_config['o_eve_last_auth_check'] < time()-($pun_config['o_eve_auth_interval']*60*60)) {
-			$run_auth = true;
-		} //End if.
-		
-		if ($pun_config['o_eve_last_rule_check'] < time()-($pun_config['o_eve_rules_interval']*60*60)) {
-			$run_rules = true;
-		} //End if.
-	} //End if - else.
+		if (!isset($pun_config['o_eve_last_auth_check']) || !isset($pun_config['o_eve_last_rule_check'])) {
+			$run_auth = $run_rules = true;
+		} else {
+			//See if it's time to check them...
+			if ($pun_config['o_eve_last_auth_check'] < time()-($pun_config['o_eve_auth_interval']*60*60)) {
+				$run_auth = true;
+			} //End if.
+			
+			if ($pun_config['o_eve_last_rule_check'] < time()-($pun_config['o_eve_rules_interval']*60*60)) {
+				$run_rules = true;
+			} //End if.
+		} //End if - else.
 	
 	} //End if.
 	
@@ -113,6 +118,10 @@ function task_runner() {
 		$log = array_merge($log, task_update_alliance());
 	} //End if.
 	
+	if ($run_skills) {
+		$log = array_merge($log, task_update_skills(defined('EVE_CRON_ACTIVE')));
+	} //End if.
+	
 	if ($run_auth || $run_rules) {
 		//We ran one or the other, so now we need to rebuild the config.
 		if (!defined('FORUM_CACHE_FUNCTIONS_LOADED')) {
@@ -128,6 +137,101 @@ function task_runner() {
 } //End task_runner().
 
 /**
+ * Updates the list of currently training skills for the selected characters.
+ *
+ */
+function task_update_skills($cron = false, $character = 0) {
+	global $db, $pun_config, $lang_eve_bb, $_LAST_ERROR;
+	
+	$sql = "
+		SELECT
+			c.character_name,
+			c.last_update,
+			c.character_id,
+			a.*,
+			s.last_update
+		FROM
+			".$db->prefix."api_characters AS c
+		INNER JOIN
+			".$db->prefix."api_auth AS a
+		ON
+			a.api_character_id=c.character_id
+		LEFT JOIN
+			".$db->prefix."api_skill_queue AS s
+		ON
+			s.character_id=c.character_id";
+	
+	if (!$cron && $character == 0) {
+		$sql .= " WHERE s.last_update<".(time()-($pun_config['o_eve_cache_char_sheet_interval']*60*60)); //(update_time - (time-x hours)) x being set in config.
+	} else if ($character != 0) {
+		$sql .= " WHERE c.character_id=".$character;
+	} //End if - else if.
+	
+	$sql .= " ORDER BY s.last_update ASC";
+	
+	if (!$result = $db->query($sql)) {
+		$err = $db->error();
+		$log[] = "Unable to fetch character skill information.<br/>".$err['error_msg'].'<br/>'.$sql;
+		return $log;
+	} //End if.
+	
+	$log = array();
+	
+	$_LAST_ERROR = 0;
+	
+	while ($row = $db->fetch_assoc($result)) {
+		$now = time();
+		$char = new Character();
+		
+		if ($char->load_skill_queue(array('apiKey' => $row['api_key'],'userID' => $row['api_user_id'],'characterID' => $row['api_character_id']))) {
+			$sql = "DELETE FROM ".$db->prefix."api_skill_queue WHERE character_id=".$row['character_id'];
+			if (!$db->query($sql)) {
+				$log [] = sprintf("[%s] %s - Unable to purge existing skill information.", $row['character_id'], $row['character_name']);
+				continue;
+			} //End if.
+			
+			foreach($char->skillQueue as $skill) {
+				
+				$fields = array(
+					'character_id' => $row['character_id'],
+					'queuePosition' => $skill['queuePosition'],
+					'typeID' => $skill['typeID'],
+					'level' => $skill['level'],
+					'startSP' => $skill['startSP'],
+					'endSP' => $skill['endSP'],
+					'startTime' => $skill['startTime'],
+					'endTime' => $skill['endTime'],
+					'last_update' => $now,
+				);
+				
+				if (!$db->insert_or_update($fields, array('character_id', 'typeID'), $db->prefix."api_skill_queue")) {
+					$log[] = sprintf("[%s] %s - Unable to add skill.".print_r($db->error, true), $row['character_id'], $row['character_name']);
+				} //End if.
+				
+			} //End foreach().
+			
+			$log [] = sprintf($lang_eve_bb['skill_queue_updated'], $row['character_id'], $row['character_name']);
+		} else {
+			if ($_LAST_ERROR == API_BAD_AUTH) {
+				$log [] = sprintf($lang_eve_bb['char_sheet_failed'], $row['character_id'], $row['character_name']);
+			} else if ($_LAST_ERROR == API_BAD_FETCH || $_LAST_ERROR == API_SERVER_ERROR) {
+				if (defined('PUN_DEBUG')) {
+					$log [] = sprintf("[%s] %s - Unable to fetch API data.", $row['character_id'], $row['character_name']);
+				} //End if.
+			} else if ($_LAST_ERROR == API_SERVER_DOWN) {
+				if (defined('PUN_DEBUG')) {
+					$log [] = sprintf("[%s] %s - API Server is down, aborting future tries.", $row['character_id'], $row['character_name']);
+				} //End if.
+				return $log; //Die early, as there is little point us trying to get the rest.
+			} //End if.
+			
+		} //End if - else.
+	} //End while loop.
+	$_LAST_ERROR = 0;
+	return $log;
+} //End update_skills.
+
+/**
  * Fetchs all API's in need of update and updates them.
  * Best to run this via cronjob, as it will be waiting on the servers end.
  * force will override the default behaviour of only getting characters that require updates.
@@ -135,7 +239,7 @@ function task_runner() {
 function task_update_characters($limit = 1, $force = false, $full_force = false) {
 	global $db, $pun_config, $lang_eve_bb, $_LAST_ERROR;
 	
-	$sql = "SELECT c.character_name,c.last_update,c.character_id,a.* FROM `".$db->prefix."api_characters` AS c,`".$db->prefix."api_auth`AS a WHERE a.api_character_id=c.character_id ";
+	$sql = "SELECT c.character_name,c.last_update,c.character_id,a.* FROM ".$db->prefix."api_characters AS c,".$db->prefix."api_auth AS a WHERE a.api_character_id=c.character_id ";
 	
 	if (!$full_force) {
 		$sql .= " AND c.last_update<".(time()-($pun_config['o_eve_cache_char_sheet_interval']*60*60)); //(update_time - (time-x hours)) x being set in config.
@@ -147,8 +251,8 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 	
 	if (!$result = $db->query($sql)) {
 		$err = $db->error();
-		return "Unable to fetch character information.<br/>".$err['error_msg'];
-		//throw new Exception("Unable to fetch character information.<br/>".$err['error_msg']);
+		$log[] = "Unable to fetch character information.<br/>".$err['error_msg'];
+		return $log;
 	} //End if.
 	
 	$log = array();
@@ -1141,7 +1245,65 @@ function fetch_selected_character($id, $limited = false) {
 } //End fetch_selected_character().
 
 /**
- * This function takes a string created from BC maths and subs out the roles to create a bool array, index with the role values as strings.
+ * Take an Eve-o time string (ex: '2011-02-10 00:16:04') and converts it to a time stamp.
+ */
+function convert_to_stamp($timeString, $use_gmt = false) {
+	$time = explode(' ',$timeString);
+	
+	$date = explode('-', $time[0]);
+	$time = explode(':', $time[1]);
+	
+	for($i =0; $i < 3; $i++) {
+		$date[$i] = intval($date[$i]);
+		$time[$i] = intval($time[$i]);
+	} //End foreach().
+	
+	if ($use_gmt) {
+		gmmktime($time[0], $time[1], $time[2], $date[1], $date[2], $date[0]);
+	} //End if.
+	return mktime($time[0], $time[1], $time[2], $date[1], $date[2], $date[0]);
+} //End convert_to_stamp().
+
+/**
+ * Takes one (or two) dates, works out the difference and prints them like: 1y 3d 11h 6m
+ */
+function format_time_diff($start, $end = 0) {
+	$format = '';
+	if ($end == 0) {
+		$end = time();
+	} //End if.
+	
+	if ($start > $end) {
+		return '0m';
+	} //End if.
+	
+	$diff = $end - $start;
+	
+	//Start computing!
+	$years = floor($diff / 31556926); //Exactly 1 year, according to Google. :)
+	$diff -= $years * 31556926;
+	$format .= $years == 0 ? '' : sprintf('%dy ', $years);
+	
+	$days = floor($diff / 86400); //One day.
+	$diff -= $days * 86400;
+	$format .= $days == 0 ? '' : sprintf('%dd ', $days);
+	
+	$hours = floor($diff / 3600); //One hour
+	$diff -= $hours * 3600;
+	$format .= $hours == 0 ? '' : sprintf('%dh ', $hours);
+	
+	$minutes = floor($diff / 60); //One minute
+	$format .= sprintf('%dm ', $minutes);
+	$diff -= $minutes * 60;
+	
+	$format .= sprintf('%ds', $diff);
+	
+	return $format;
+	
+} //End format_time_diff().
+
+/**
+ * This function takes a string created from BC maths and subs out the roles to create a bool array, indexed with the role values as strings.
  * Director would be: '1' => true, for example.
  */
 function convert_roles($roles) {

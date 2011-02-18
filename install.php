@@ -1897,6 +1897,53 @@ else
 
 	$db->create_table('api_skill_types', $schema) or error('Unable to create skill types table', __FILE__, __LINE__, $db->error());
 	
+	//SkillQueue table.
+	$schema = array(
+		'FIELDS'		=> array(
+			'character_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false
+			),
+			'queuePosition'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false
+			),
+			'typeID'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false
+			),
+			'level'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false
+			),
+			'startSP'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false
+			),
+			'endSP'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false
+			),
+			'startTime'		=> array(
+				'datatype'		=> 'VARCHAR(25)',
+				'allow_null'	=> false
+			),
+			'endTime'		=> array(
+				'datatype'		=> 'VARCHAR(25)',
+				'allow_null'	=> false
+			),
+			'last_update'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false
+			)
+		),
+		'PRIMARY KEY'		=> array(
+			'api_skill_queue_idx'	=> array('character_id', 'typeID')
+		)
+	);
+
+	$db->create_table('api_skill_queue', $schema) or error('Unable to create skill queue table', __FILE__, __LINE__, $db->error());
+	
 	//Multiple Group Table.
 	$schema = array(
 		'FIELDS'		=> array(
@@ -1917,7 +1964,6 @@ else
 	$db->create_table('groups_users', $schema) or error('Unable to create groups table', __FILE__, __LINE__, $db->error());
 		
 	/*---------- EvE-BB INSTALL TABLE CONSTRUCTION ---------*/
-
 
 	$now = time();
 

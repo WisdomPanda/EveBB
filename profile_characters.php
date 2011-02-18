@@ -98,6 +98,34 @@ generate_profile_menu('characters');
 	if (empty($error)) {
 		$selected_char = $db->fetch_assoc($result);
 		
+		$sql = "
+			SELECT
+				*
+			FROM
+				".$db->prefix."api_skill_queue AS s
+			LEFT JOIN
+				".$db->prefix."api_skill_types AS t
+			ON
+				s.typeID=t.typeID
+			WHERE
+				s.character_id=".$selected_char['character_id']."
+			ORDER BY
+				s.queuePosition
+			ASC LIMIT 0,1;";
+		if (!$skills = $db->query($sql)) {
+			$skills = array(); //No point crying over it...
+		} //End if.
+		
+		if ($db->num_rows($skills) > 0) {
+			$skills = $db->fetch_assoc($skills);
+			$now = time();
+			$offset = date('Z');
+			$now = $offset > 0 ? $now - $offset : $now + offset;
+			$end_stamp = convert_to_stamp($skills['endTime'], true);
+		} //End if.
+		
+		$level = array(1 => 'I', 2 => 'II', 3 => 'III', 4=> 'IV', 5 => 'V');
+		
 		cache_char_pic($selected_char['character_id'], ($action == 'reload_pics'));
 
 ?>
@@ -137,7 +165,7 @@ generate_profile_menu('characters');
 								<td><?php echo $selected_char['ancestry']; ?></td>
 							</tr>
 							<tr>
-								<td rowspan="3">&nbsp;</td>
+								<td rowspan="4">&nbsp;</td>
 								<td><strong><?php echo $lang_profile_characters['dob']; ?></strong></td>
 								<td><?php echo $selected_char['dob']; ?></td>
 							</tr>
@@ -149,6 +177,14 @@ generate_profile_menu('characters');
 								<td><strong><?php echo $lang_profile_characters['wallet']; ?></strong></td>
 								<td><?php echo number_format($selected_char['balance']); ?> Isk</td>
 							</tr>
+							<tr>
+								<td><strong><?php echo $lang_profile_characters['skill_queue']; ?></strong></td>
+								<td>
+									<strong><?php echo $skills['typeName'].' '.$level[$skills['level']]; ?></strong><br/>
+									<em id="skill_timer"><?php echo format_time_diff($now, $end_stamp); ?></em> remaining...
+								</td>
+							</tr>
+							
 						</table>
 					</div>
 				</fieldset>
@@ -156,7 +192,6 @@ generate_profile_menu('characters');
 			</div>
 		</form>
 <?php
-
 	} else {
 ?>
 

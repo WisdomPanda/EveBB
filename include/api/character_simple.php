@@ -29,6 +29,7 @@ class Character {
 		//public $skills = array();
 		//public $certs = array();
 		var $corporationRoles;
+		var $skillQueue;
 		//public $corporationRolesAtHQ = array();
 		//public $corporationRolesAtBase = array();
 		//public $corporationRolesAtOther = array();
@@ -36,7 +37,7 @@ class Character {
 		
 		function load_character($auth) {
 			global $db, $_LAST_ERROR;
-			$error = 0;
+			$_LAST_ERROR = 0;
 			
 			//If any of them are not set and if sheet is false...
 			if (!isset($auth['apiKey']) || !isset($auth['userID']) || !isset($auth['characterID'])) {
@@ -110,6 +111,72 @@ class Character {
 			$_LAST_ERROR = 0;
 			return (int)$char_sheet->result->characterID;
 		} //End load_character().
+		
+		function load_skill_queue($auth) {
+			global $db, $_LAST_ERROR;
+			$_LAST_ERROR = 0;
+			
+			//If any of them are not set and if sheet is false...
+			if (!isset($auth['apiKey']) || !isset($auth['userID']) || !isset($auth['characterID'])) {
+				$_LAST_ERROR = API_BAD_AUTH;
+				return false;
+			} //End if.
+			
+			$url = "http://api.eve-online.com/char/SkillQueue.xml.aspx";
+			$queue;
+			
+			if (!$xml = post_request($url, $auth)) {
+				$_LAST_ERROR = API_BAD_REQUEST;
+				return false;
+			} //End if.
+				
+			if (!$queue = simplexml_load_string($xml)) {
+				if (defined('PUN_DEBUG')) {
+					error("Unable to convert xml.".print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
+				} //End if.
+				return false;
+			} //End if.
+			
+			if (isset($queue->error)) {
+				if (defined('PUN_DEBUG')) {
+					error("API error while fetching character data.".$char_sheet->error, __FILE__, __LINE__, $db->error());
+				} //End if.
+				
+				$err = (int)$queue->error['code'];
+				
+				if ($err >= 200 && $err < 300) {
+					$_LAST_ERROR = API_BAD_AUTH;
+				} else {
+					$_LAST_ERROR = API_SERVER_ERROR;
+				} //End if - else.
+				
+				return false;
+			} //End if.
+				
+			if (isset($char_sheet->html) || isset($char_sheet->body)) {
+				$_LAST_ERROR = API_SERVER_DOWN;
+				return false;
+			} //End if.
+			
+			$this->skillQueue = array();
+			
+			foreach ($queue->result->rowset->row as $row) {
+				
+				$this->skillQueue[] = array(
+						'queuePosition' => $db->escape($row['queuePosition']),
+						'typeID' => $db->escape($row['typeID']),
+						'level' => $db->escape($row['level']),
+						'startSP' => $db->escape($row['startSP']),
+						'endSP' => $db->escape($row['endSP']),
+						'startTime' => $db->escape($row['startTime']),
+						'endTime' => $db->escape($row['endTime'])
+					);
+				
+			} //End foreach().
+			
+			return true;
+			
+		} //End load_skill_queue().
 	
 } //End Character Class.
 
