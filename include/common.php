@@ -11,7 +11,7 @@ if (!defined('PUN_ROOT'))
 
 // Define the version and database revision that this code was written for
 define('FORUM_VERSION', '1.4.2');
-define('EVE_BB_VERSION', '0.9.2');
+define('EVE_BB_VERSION', '1.0.0');
 
 define('FORUM_DB_REVISION', 8);
 define('FORUM_SI_REVISION', 1);
