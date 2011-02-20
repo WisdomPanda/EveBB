@@ -206,9 +206,12 @@ if (isset($_POST['form_sent']))
 		$new_uid = $db->insert_id();
 		
 		/*********** EvE-BB Inserts ***********/
-			$db->query('INSERT INTO '.$db->prefix.'api_auth(user_id, api_user_id, api_character_id, api_key) VALUES('.$new_uid.', '.$api_user_id.', '.$api_character_id.', \''.$api_key.'\')') or error('Unable to create api details', __FILE__, __LINE__, $db->error());
+			//$db->query('INSERT INTO '.$db->prefix.'api_auth(user_id, api_user_id, api_character_id, api_key) VALUES('.$new_uid.', '.$api_user_id.', '.$api_character_id.', \''.$api_key.'\')') or error('Unable to create api details', __FILE__, __LINE__, $db->error());
 			//This shouldn't fail unless we have a database issue, which is a problem anyways.
-			update_character_sheet($new_uid, array(), $char);
+			//update_character_sheet($new_uid, array(), $char);
+			
+			//We now add all their characters at once!
+			update_characters($new_uid, $auth);
 			select_character($new_uid, $api_character_id);
 			add_corp_from_character($api_character_id, ($pun_config['o_eve_restrict_reg_corp'] == '1' ? true : false));
 			apply_rules();

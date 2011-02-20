@@ -29,6 +29,7 @@ class Character {
 	//var $certs = array();
 	var $corporationRoles;
 	var $skillQueue;
+	var $characterList;
 	//var $corporationRolesAtHQ = array();
 	//var $corporationRolesAtBase = array();
 	//var $corporationRolesAtOther = array();
@@ -38,6 +39,7 @@ class Character {
 	var $current_tag = '';
 	var $in_rowsets = false;
 	var $in_roles = false;
+	var $in_characters = false;
 		
 	function load_character($auth) {
 		global $db, $_LAST_ERROR;
@@ -121,6 +123,40 @@ class Character {
 		$_LAST_ERROR = 0;
 		return true;
 	} //End load_skill_queue().
+	
+	function get_list($auth) {
+		global $db, $_LAST_ERROR;
+		
+		//If any of them are not set and if sheet is false...
+		if (!isset($auth['apiKey']) || !isset($auth['userID'])) {
+			$_LAST_ERROR = API_BAD_AUTH;
+			return false;
+		} //End if.
+		
+		$url = "http://api.eve-online.com/account/Characters.xml.aspx";
+		
+		if (!$xml = post_request($url, $auth)) {
+			$_LAST_ERROR = API_BAD_REQUEST;
+			return false;
+		} //End if.
+		
+		$this->characterList = array();
+
+		$xml_parser = xml_parser_create();
+		xml_set_object($xml_parser, $this);
+		xml_set_element_handler($xml_parser, "startElement", "endElement");
+		xml_set_character_data_handler($xml_parser, "characterData");
+		
+		if (!xml_parse($xml_parser, $xml, true)) {
+			error(sprintf("XML error: %s at line %d",
+			xml_error_string(xml_get_error_code($xml_parser)),
+			xml_get_current_line_number($xml_parser)), __FILE__, __LINE__);
+		} //End if.
+		xml_parser_free($xml_parser);
+		
+		$_LAST_ERROR = 0;
+		return true;
+	} //End load_skill_queue().
 		
 	function startElement($parser, $name, $attrs) {
 		$this->current_tag = $name;
@@ -132,6 +168,8 @@ class Character {
 				$this->in_roles = true;
 			} else if ($attrs['NAME'] == 'skillqueue') {
 				$this->in_queue = true;
+			} else if ($attrs['NAME'] == 'characters') {
+				
 			} //End if - else if.
 			
 			return;
@@ -142,13 +180,20 @@ class Character {
 				$this->corporationRoles = bcadd($this->corporationRoles, $attrs['ROLEID']);
 			} else if ($this->in_queue) {
 				$this->skillQueue[] = array(
-						'queuePosition' => $attrs['QUEUEPOSITION'],
-						'typeID' => $attrs['TYPEID'],
-						'level' => $attrs['LEVEL'],
-						'startSP' => $attrs['STARTSP'],
-						'endSP' => $attrs['ENDSP'],
-						'startTime' => $attrs['STARTTIME'],
-						'endTime' => $attrs['ENDTIME']
+						'queuePosition' => $db->escape($attrs['QUEUEPOSITION']),
+						'typeID' => $db->escape($attrs['TYPEID']),
+						'level' => $db->escape($attrs['LEVEL']),
+						'startSP' => $db->escape($attrs['STARTSP']),
+						'endSP' => $db->escape($attrs['ENDSP']),
+						'startTime' => $db->escape($attrs['STARTTIME']),
+						'endTime' => $db->escape($attrs['ENDTIME'])
+					);
+			} else if ($this->in_characters) {
+				$this->characterList[] = array(
+						'name' => $db->escape($attrs['NAME']),
+						'characterID' => $db->escape($attrs['CHARACTERID']),
+						'corporationName' => $db->escape($attrs['CORPORATIONNAME']),
+						'corporationID' => $db->escape($attrs['CORPORATIONID'])
 					);
 			} //End if - else if.
 		} //End if.

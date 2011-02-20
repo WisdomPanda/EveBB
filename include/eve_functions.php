@@ -528,7 +528,6 @@ function apply_rules() {
 	";
 	
 	if (!$result = $db->query($sql)) {
-		
 		if (defined('PUN_DEBUG')) {
 			error("Unable to get character list.", __FILE__, __LINE__, $db->error());
 		} //End if.
@@ -547,20 +546,12 @@ function apply_rules() {
 	} //End if.
 	
 	
-	//This whores on the DB a lot, want to reduce it for scaling reasons.
-	//Will need to pre-fetch the data first.
-	//Marked for cleanup.
+	//This does whore on the DB quite a bit, but it has kept it readable.
 	foreach($characters as $row) {
-		
-		//No point looking at them if they're admin/mods or if their primary group is locked... (group 0 = new user)
-		/*if (($row['group_id'] < 3 && $row['group_id'] != 0) || $row['g_moderator'] == 1 || $row['g_locked'] == 1) {
-			continue;
-		} //End if.*/
-		
 		//This is where any future refinements will go.
 		//Watch this space.
 		
-		//First, lets purge their extra groups - this will reassign all of them
+		//First, lets purge their extra groups - this will reassign all of them, assuming they're not locked.
 		$sql = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$row['id']." AND group_id NOT IN (SELECT sg.g_id FROM ".$db->prefix."groups AS sg WHERE sg.g_locked=1)";
 		
 		if (!$db->query($sql)) {
@@ -601,6 +592,9 @@ function apply_rules() {
 			if ($roles[$rule['role']]) {
 				//They have auth!
 				if ((!isset($last_group['priority']) || $rule['priority'] < $last_group['priority']) && !$skip) {
+					//This sets their primary group.
+					//We take their previous group, move it into the multiple groups, then set their current group to the one we are looking at.
+					//Basically we are using the push principle; the new one always gets added to the top.
 					if (isset($last_group['priority'])) {
 						$fields = array(
 							'user_id' => $row['id'],
@@ -621,6 +615,7 @@ function apply_rules() {
 						return false;
 					} //End if.
 				} else {
+					//We have skipped past them due to a lock or have hit a lower priority group.
 					$fields = array(
 						'user_id' => $row['id'],
 						'group_id' => $rule['group_id']
@@ -868,28 +863,6 @@ function add_corp($corpID, $allowed = true) {
 function add_api_keys($user_id, $api_user_id, $api_character_id, $api_key) {
 	global $db;
 	
-	/*$sql = '
-		INSERT INTO
-			'.$db->prefix."api_auth
-				(
-					user_id,
-					api_character_id,
-					api_user_id,
-					api_key
-				)
-		VALUES
-			(
-				".$user_id.",
-				".(int)$api_character_id.",
-				".(int)$api_user_id.",
-				'".$db->escape($api_key)."'
-			)
-		ON DUPLICATE KEY UPDATE
-			user_id=".$user_id.",
-			api_character_id=".(int)$api_character_id.",
-			api_user_id=".(int)$api_user_id.",
-			api_key='".$db->escape($api_key)."'";*/
-	
 	$fields = array(
 			'user_id' => $user_id,
 			'api_character_id' => (int)$api_character_id,
@@ -909,20 +882,30 @@ function add_api_keys($user_id, $api_user_id, $api_character_id, $api_key) {
 } //End add_api_keys().
 
 /**
- * Removes all API keys associated with a user.
+ * Removes all API keys associated with a user or a single character, depending what you pass it.
  */
-function remove_api_keys($user_id) {
+function remove_api_keys($user_id = 0, $character_id = 0) {
 	global $db;
 	
-	$sql = '
-		DELETE FROM
-			'.$db->prefix."api_auth
-		WHERE
-			user_id=".$user_id.";";
+	if ($user_id > 0) {
+		$sql = '
+			DELETE FROM
+				'.$db->prefix."api_auth
+			WHERE
+				user_id=".$user_id.";";
+	} else if ($character_id > 0) {
+		$sql = '
+			DELETE FROM
+				'.$db->prefix."api_auth
+			WHERE
+				api_character_id=".$character_id.";";
+	} else {
+		return false;
+	} //End if - else.
 	
 	if (!$db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to removeAPI keys.", __FILE__, __LINE__, $db->error());
+			error("Unable to remove API keys.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if/
@@ -930,6 +913,109 @@ function remove_api_keys($user_id) {
 	return true;
 	
 } //End remove_api_keys().
+
+/**
+ * This function replaces the individual access of update_character_sheet and instead lets us handle just the api keys.
+ * Internally, this function still calls update_character_sheet.
+ * Requires the user_id and a full auth array.
+ *
+ * This function defaults to updating the characters it fetches.
+ * If you do not wish to do this, pass the additional $update value.
+ *
+ * Returns the character object used to get the list.
+ */
+function update_characters($user_id, $auth, $update = true) {
+	global $db;
+	global $_LAST_ERROR;
+	$_LAST_ERROR = 0;
+	
+	if ((!isset($auth['apiKey']) || !isset($auth['userID']))) {
+		$_LAST_ERROR = API_BAD_AUTH;
+		return false;
+	} //End if.
+	
+	//First stop, we need to make sure the auth is correct.
+	$characters = new Character(); //Despite it's singular name, the character class handles fetching the list.
+	
+	if (!$characters->get_list($auth)) {
+		if (defined('PUN_DEBUG')) {
+				error("[".$_LAST_ERROR."] Could not load character list.", __FILE__, __LINE__, $db->error());
+		} //End if.
+		return false;
+	} //End if.
+	
+	if (count($characters->characterList) == 0) {
+		if (defined('PUN_DEBUG')) {
+				error("[".$_LAST_ERROR."] No characters found in list.", __FILE__, __LINE__, $db->error());
+		} //End if.
+		return false;
+	} //End if.
+	
+	if ($update) {
+		//We need to run some extra checks to see if any characters have been removed off the account.
+		$sql = "
+			SELECT
+				a.api_character_id
+			FROM
+				".$db->prefix."api_auth AS a
+			WHERE
+				a.api_user_id=".$auth['userID'];
+		if (!$result = $db->query($sql)) {
+			if (defined('PUN_DEBUG')) {
+					error("Unable to fetch existing characters.", __FILE__, __LINE__, $db->error());
+			} //End if.
+			return false;
+		} //End if.
+		
+		$current_characters = array();
+		
+		while($row = $db->fetch_assoc($result)) {
+			$current_characters[$row['api_character_id']] = 1;
+		} //End while loop.
+		
+		$log = array();
+		//Getting the list was successful and we want to update, huzzah!
+		foreach($characters->characterList as $char) {
+			$auth['characterID'] = $char['characterID'];
+			
+			//We unset this value in the current_characters array since it's confirmed to exist.
+			unset($current_characters[$char['characterID']]);
+			
+			//Now lets try and update it...
+			if (!update_character_sheet($user_id, $auth)) {
+				//Since we are loading multiple characters, lets try and continue.
+				//Debugging will stop the loading in update_character_sheet.
+				$log[] = "[".$_LAST_ERROR."] Could not load character.";
+			} else {
+				//Lets add the keys to the db.
+				add_api_keys($user_id, $auth['userID'], $auth['characterID'], $auth['apiKey']);
+			} //End if - else.
+			
+		} //End foreach().
+		
+		if (!empty($current_characters)) {
+			//We have characters in the DB that are not associated with this account anymore.
+			//Let's make them inactive and remove the api keys.
+			//We need to make the characters inactive so that their data will still be able to be referenced by the database.
+			foreach ($current_characters as $char => $value) {
+				$sql = "UPDATE ".$db->prefix."api_characters SET active=0 WHERE character_id=".$char;
+				$db->query($sql);
+				
+				remove_api_keys(0, $char);
+			} //End foreach().
+		} //End if.
+		
+		//Return the log instead of the character array.
+		//You can test this via is_array.
+		if (!empty($log)) {
+			return $log;
+		} //End if.
+		
+	} //End if.
+	
+	return $characters;
+	
+} //End update_characters().
 
 /**
  * Requires that you pass it $user_id (the forum user ID) and an $api assoc array with apiKey,characterID and userID all set.
@@ -951,7 +1037,6 @@ function update_character_sheet($user_id, $api = array(), $sheet = false) {
 		return false;
 	} //End if.
 	
-	//$url = "http://api.eve-online.com/char/CharacterSheet.xml.aspx";
 	$char_sheet;
 	
 	if (!$sheet) {

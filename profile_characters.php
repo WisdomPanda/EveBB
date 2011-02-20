@@ -16,39 +16,152 @@ if ($action == 'select_character') {
 			message("Unable to select that character.");
 		} //End if.
 		
-		apply_rules();
+		apply_rules(); //We need to make sure they get moved correctly.
 		
 		redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['select_redirect']);
 	} //End if.
 } //End if.
 
+if ($action == 'refresh_keys') {
+	if (!isset($_GET['keys'])) {
+		message("Incorrect vars.");
+	} //End if.
+
+	$api_user_id = intval($_GET['keys']);
+	
+	if ($api_user_id == 0) {
+		message("Malformed Vars.");
+	} //End if.
+	
+	//Need to fetch the API key to match.
+	$sql = "SELECT * FROM ".$db->prefix."api_auth WHERE api_user_id=".$api_user_id;
+	if (!$result = $db->query($sql)) {
+		if (defined('PUN_DEBUG')) {
+			error("Unable to get ApiUserID.", __FILE__, __LINE__, $db->error());
+		} //End if.
+		message('[DB ERR] Unable to refresh your api details.');
+	} //End if.
+	
+	if ($db->num_rows($result) == 0) {
+		message('Bad API details sent or they don\'t exist in the DB. (Unlikely)');
+	} //End if.
+	
+	$result = $db->fetch_assoc($result);
+	
+	$auth = array('userID' => $result['api_user_id'],'apiKey' => $result['api_key']);
+	$result = update_characters($id, $auth);
+	
+	if ($result === false) {
+		message('['.$_LAST_ERROR.'] Unable to update your api details.');
+	} else if (is_array($result)) {
+		message(sprintf($lang_profile_characters['add_errors'], implode('<br/>', $result)));
+	}  //End if - else if.
+	
+	redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['add_redirect']);
+} //End if.
+
 if ($action == 'add_character') {
 	if (isset($_POST['form_sent_characters'])) {
 		
-		if (!isset($_POST['api_character_id']) | !isset($_POST['api_user_id']) || !isset($_POST['api_key'])) {
+		if (!isset($_POST['api_user_id']) || !isset($_POST['api_key'])) {
 			message("Incorrect vars.");
 		} //End if.
-		
-		$api_character_id = intval($_POST['api_character_id']);
+
 		$api_user_id = intval($_POST['api_user_id']);
 		$api_key = strip_special($_POST['api_key']);
 		
-		if ($api_character_id == 0 || $id == 0 || $api_user_id == 0 || strlen($api_key) == 0) {
+		if ($id == 0 || $api_user_id == 0 || strlen($api_key) == 0) {
 			message("Malformed Vars.");
 		} //End if.
 		
-		//Now we make sure we can access the character sheet...
-		$auth = array('userID' => $api_user_id,'characterID' => $api_character_id,'apiKey' => $api_key);
+		$auth = array('userID' => $api_user_id,'apiKey' => $api_key);
+		$result = update_characters($id, $auth);
+		
+		if ($result === false) {
+			message('['.$_LAST_ERROR.'] Unable to update your api details.');
+		} else if (is_array($result)) {
+			message(sprintf($lang_profile_characters['add_errors'], implode('<br/>', $result)));
+		}  //End if - else if.
+		/*
 		if (!$char = fetch_character_api($auth)) {
 			message("Unable to fetch character information.");
 		} //End if.
 		
 		//Ok, now we're in business.
 		add_api_keys($id, $api_user_id, $api_character_id, $api_key);
-		update_character_sheet($id, array(), $char); //Pass it a dummy array and our already fetched character sheet.
+		update_character_sheet($id, array(), $char); //Pass it a dummy array and our already fetched character sheet.*/
 		
 		redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['add_redirect']);
 	} //End if.
+} //End if.
+
+if ($action == 'remove_keys') {
+	if (!isset($_GET['keys'])) {
+		message("Incorrect vars.");
+	} //End if.
+
+	$api_user_id = intval($_GET['keys']);
+	
+	if ($api_user_id == 0) {
+		message("Malformed Vars.");
+	} //End if.
+	
+	$sql = "SELECT DISTINCT api_user_id FROM ".$db->prefix."api_auth WHERE user_id=".$id.";";
+	if (!$result = $db->query($sql)) {
+		if (defined('PUN_DEBUG')) {
+			error("Unable to get user ID's.", __FILE__, __LINE__, $db->error());
+		} //End if.
+		message('[DB ERR] Unable to remove your api details.');
+	} //End if.
+	
+	if ($db->num_rows($result) < 2) {
+		message($lang_profile_characters['need_more_keys']);
+	} //End if.
+	
+	$sql = "
+		SELECT
+			sc.*,
+			a.api_user_id
+		FROM
+			".$db->prefix."api_selected_char AS sc
+		INNER JOIN
+			".$db->prefix."api_auth AS a
+		ON
+			a.api_character_id=sc.character_id
+		WHERE
+			sc.user_id=".$id."
+	";
+	
+	if (!$result = $db->query($sql)) {
+		if (defined('PUN_DEBUG')) {
+			error("Unable to get character.", __FILE__, __LINE__, $db->error());
+		} //End if.
+		message("Unable to fetch character data.");
+	} //End if.
+	
+	if ($db->num_rows($result) != 1) {
+		if (defined('PUN_DEBUG')) {
+			error("No Characters.", __FILE__, __LINE__, $db->error());
+		} //End if.
+		message('You apparently have no characters. Way to break it.');
+	} //End if.
+	
+	$result = $db->fetch_assoc($result);
+	
+	if ($result['api_user_id'] == $api_user_id) {
+		message($lang_profile_characters['change_character_first']);
+	} //End if.
+	
+	//Looks like we're good to go.
+	$sql = "DELETE FROM ".$db->prefix."api_auth WHERE api_user_id=".$api_user_id;
+	if (!$db->query($sql)) {
+		if (defined('PUN_DEBUG')) {
+			error("Unable to dlete keys.", __FILE__, __LINE__, $db->error());
+		} //End if.
+		message('Can\'t delete your keys.');
+	} //End if.
+	
+	redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['removed_redirect']);
 } //End if.
 
 $page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_common['Profile'], $lang_profile['Section characters']);
@@ -76,14 +189,20 @@ generate_profile_menu('characters');
 	$sql = "
 		SELECT
 			sc.*,
-			c.*
+			c.*,
+			a.api_user_id
 		FROM
-			".$db->prefix."api_selected_char AS sc,
+			".$db->prefix."api_selected_char AS sc
+		INNER JOIN
 			".$db->prefix."api_characters AS c
+		ON
+			sc.character_id=c.character_id
+		INNER JOIN
+			".$db->prefix."api_auth AS a
+		ON
+			a.api_character_id=c.character_id
 		WHERE
 			sc.user_id=".$id."
-		AND
-			sc.character_id=c.character_id
 	";
 	
 	if (!$result = $db->query($sql)) {
@@ -122,11 +241,11 @@ generate_profile_menu('characters');
 			$offset = date('Z');
 			$now = $offset > 0 ? $now - $offset : $now + offset;
 			$end_stamp = convert_to_stamp($skills['endTime'], true);
-		} //End if.
+		} else {
+			$skills = array();
+		} //End if - else.
 		
 		$level = array(1 => 'I', 2 => 'II', 3 => 'III', 4=> 'IV', 5 => 'V');
-		
-		cache_char_pic($selected_char['character_id'], ($action == 'reload_pics'));
 
 ?>
 	<h2><span><?php echo $lang_profile_characters['characters'] ?></span></h2>
@@ -180,15 +299,15 @@ generate_profile_menu('characters');
 							<tr>
 								<td><strong><?php echo $lang_profile_characters['skill_queue']; ?></strong></td>
 								<td>
-									<strong><?php echo $skills['typeName'].' '.$level[$skills['level']]; ?></strong><br/>
-									<em id="skill_timer"><?php echo format_time_diff($now, $end_stamp); ?></em> remaining...
+									<strong><?php echo (isset($skills['typeName']) ? $skills['typeName'].' '.$level[$skills['level']] : $lang_profile_characters['unknown']); ?></strong><br/>
+									<?php  echo (isset($skills['typeName']) ? sprintf($lang_profile_characters['skill_queue_remaining'], format_time_diff($now, $end_stamp)) : $lang_profile_characters['next_update']); ?>
 								</td>
 							</tr>
 							
 						</table>
 					</div>
 				</fieldset>
-				<a class="api_reload_avatars" href="profile.php?section=characters&amp;id=<?php echo $id ?>&amp;action=reload_pics">Reload Avatars</a>
+				<a class="api_reload_avatars" href="profile.php?section=characters&amp;id=<?php echo $id ?>&amp;action=reload_pics"><?php echo $lang_profile_characters['reload_avatars']; ?></a>
 			</div>
 		</form>
 <?php
@@ -219,10 +338,37 @@ generate_profile_menu('characters');
 						<table class="aligntop" cellspacing="0">
 <?php
 
-$sql = "SELECT * FROM ".$db->prefix."api_characters WHERE user_id=".$id.";";
+//Since we are using INNER JOIN, we shouldn't need to check if the character is active or not - inactive characters don't have API keys.
+$sql = "
+	SELECT
+		*
+	FROM
+		".$db->prefix."api_characters AS c
+	INNER JOIN
+		".$db->prefix."api_auth AS a
+	ON
+		a.api_character_id=c.character_id
+	WHERE c.user_id=".$id.";";
 $result = $db->query($sql) or message("Unable to fetch character list.");
-
+$hide_key = 'xxxxxxxxxx';
+$current_keys = null;
 while ($row = $db->fetch_assoc($result)) {
+	cache_char_pic($row['character_id'], ($action == 'reload_pics'));
+	if ($row['api_user_id'] != $current_keys) {
+		echo '
+							<tr>
+								<th scope="row" colspan="3">
+									Characters for '.$row['api_user_id'].' / '.$hide_key.substr($row['api_key'], -4).'
+									<span id="remove_api_keys">
+									<a href="profile.php?section=characters&amp;action=refresh_keys&amp;keys='.$row['api_user_id'].'&amp;id='.$id.'">'.$lang_profile_characters['refresh_keys'].'</a>
+									</span>
+									<span id="remove_api_keys">
+									'.($row['api_user_id'] == $selected_char['api_user_id'] ? '' :
+									'<a href="profile.php?section=characters&amp;action=remove_keys&amp;keys='.$row['api_user_id'].'&amp;id='.$id.'">'.$lang_profile_characters['remove_keys'].'</a>').'
+									</span>
+								</th>
+							</tr>';
+	} //End if.
 	echo '
 							<tr>
 								<th scope="row" style="width: 64px;"><img src="img/chars/'.$row['character_id'].'_64.jpg" width="64px" height="64px" alt="" /></th>
@@ -233,6 +379,7 @@ while ($row = $db->fetch_assoc($result)) {
 								</td>
 								<td><input type="radio" name="select_character" value="'.$row['character_id'].'" '.(($row['character_id'] == $selected_char['character_id']) ? ' checked="checked"' : '').' />&#160;<strong>'.$lang_profile_characters['select'].'</strong></td>
 							</tr>';
+	$current_keys = $row['api_user_id'];
 } //End while loop.
 
 ?>
@@ -252,7 +399,6 @@ while ($row = $db->fetch_assoc($result)) {
 						<p><?php echo $lang_profile_characters['add_char_info'] ?></p>
 						<label class="required"><strong>API UserID <span>(Required)</span></strong><br /><input id="api_user_id" type="text" name="api_user_id" value="<?php echo pun_htmlspecialchars($api_user_id) ?>" size="50" maxlength="80" /><br /></label>
 						<label class="required"><strong>API Key <span>(Required)</span></strong><br /><input id="api_key" type="text" name="api_key" value="<?php echo pun_htmlspecialchars($api_key) ?>" size="50" maxlength="80" /><br /></label><br/>
-						<span id="api_holder"><a class="fetch_chars" href="index.php" onclick="fetchCharacters(); return false;"><span id="char_fetch_text"><?php echo $lang_profile_characters['fetch_chars']; ?></span></a></span>
 						<p><?php echo $lang_profile_characters['api_link']; ?></p>
 						<div class="clearer"></div>
 					</div>

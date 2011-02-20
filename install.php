@@ -1653,6 +1653,11 @@ else
 				'datatype'		=> 'VARCHAR(64)',
 				'allow_null'	=> false,
 				'default' => '0'
+			),
+			'active'		=> array(
+				'datatype'		=> 'TINYINT(1)',
+				'allow_null'	=> false,
+				'default' => '1'
 			)
 		),
 		'PRIMARY KEY'	=> array('character_id'),
@@ -1890,9 +1895,7 @@ else
 				'allow_null'	=> false
 			)
 		),
-		'PRIMARY KEY'		=> array(
-			'api_skill_types_idx'	=> array('typeID')
-		)
+		'PRIMARY KEY'		=> array('typeID')
 	);
 
 	$db->create_table('api_skill_types', $schema) or error('Unable to create skill types table', __FILE__, __LINE__, $db->error());
@@ -1937,9 +1940,7 @@ else
 				'allow_null'	=> false
 			)
 		),
-		'PRIMARY KEY'		=> array(
-			'api_skill_queue_idx'	=> array('character_id', 'typeID')
-		)
+		'PRIMARY KEY'		=> array('character_id', 'typeID')
 	);
 
 	$db->create_table('api_skill_queue', $schema) or error('Unable to create skill queue table', __FILE__, __LINE__, $db->error());
@@ -1956,9 +1957,7 @@ else
 				'allow_null'	=> false
 			)
 		),
-		'PRIMARY KEY'		=> array(
-			'groups_users_idx'	=> array('user_id', 'group_id')
-		)
+		'PRIMARY KEY'		=> array('user_id', 'group_id')
 	);
 
 	$db->create_table('groups_users', $schema) or error('Unable to create groups table', __FILE__, __LINE__, $db->error());
@@ -1996,6 +1995,9 @@ else
 	if (!$corp = add_corp_from_character($char)) {
 		error("Unable to fetch corporation data from the API server. Please verify it is currently online and try again.", __FILE__, __LINE__, $db->error());
 	} //End if.
+	
+	//We try, but don't care past this point.
+	update_characters($new_uid, array('userID' => $api_user_id, 'apiKey' => $api_key));
 	
 	select_character(2, $char);
 	
