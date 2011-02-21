@@ -852,7 +852,7 @@ function add_corp($corpID, $allowed = true) {
 		'corporationID' => $corp_sheet->corporationID,
 		'corporationName' => $corp_sheet->corporationName,
 		'allianceID' => $corp_sheet->allianceID,
-		'allianceName' => $corp_sheet->allianceName
+		'allianceName' => ((!isset($corp_sheet->allianceName)) ? '' : $corp_sheet->allianceName)
 	);
 	
 } //End add_corp().
@@ -1076,7 +1076,7 @@ function update_character_sheet($user_id, $api = array(), $sheet = false) {
 	
 	if (!$db->insert_or_update($fields, 'character_id', $db->prefix.'api_characters')) {
 		if (defined('PUN_DEBUG')) {
-		error("Unable to run update query for character data.<br/>".$sql, __FILE__, __LINE__, $db->error());
+		error("Unable to run update query for character data.<br/>", __FILE__, __LINE__, $db->error());
 	} //End if.
 		return false;
 	} //End if.

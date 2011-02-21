@@ -1997,7 +1997,7 @@ else
 	} //End if.
 	
 	//We try, but don't care past this point.
-	update_characters($new_uid, array('userID' => $api_user_id, 'apiKey' => $api_key));
+	update_characters(2, array('userID' => $api_user_id, 'apiKey' => $api_key));
 	
 	select_character(2, $char);
 	
