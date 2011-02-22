@@ -166,7 +166,9 @@ while ($cur_forum = $db->fetch_assoc($result))
 		$last_post_user = pun_htmlspecialchars($cur_forum['last_poster']);
 		if ($pun_config['o_eve_use_iga'] == '1') {
 			$char = fetch_last_forum_poster_character($cur_forum['fid']);
-			$last_post_user = pun_htmlspecialchars($char['character_name']);
+			if ($char['character_name'] != null) {
+				$last_post_user = pun_htmlspecialchars($char['character_name']);
+			} //End if.
 		} //End if.
 		$last_post = '<a href="viewtopic.php?pid='.$cur_forum['last_post_id'].'#p'.$cur_forum['last_post_id'].'">'.format_time($cur_forum['last_post']).'</a> <span class="byuser">'.$lang_common['by'].' '.$last_post_user.'</span>';
 	} else if ($cur_forum['redirect_url'] != '') {

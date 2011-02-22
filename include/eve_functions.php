@@ -1137,18 +1137,25 @@ function fetch_last_forum_poster_character($id) {
 			sc.*,
 			c.*
 		FROM
-			".$db->prefix."forums AS lp,
-			".$db->prefix."posts AS p,
-			".$db->prefix."api_selected_char AS sc,
+			".$db->prefix."forums AS lp
+		LEFT JOIN
+			".$db->prefix."posts AS p
+		ON
+			lp.last_post_id=p.id
+		LEFT JOIN
+			".$db->prefix."users AS u
+		ON
+			u.id=p.poster_id
+		LEFT JOIN
+			".$db->prefix."api_selected_char AS sc
+		ON
+			p.poster_id=sc.user_id
+		LEFT JOIN
 			".$db->prefix."api_characters AS c
+		ON
+			sc.character_id=c.character_id
 		WHERE
 			lp.id=".$id."
-		AND
-			lp.last_post_id=p.id
-		AND
-			p.poster_id=sc.user_id
-		AND
-			sc.character_id=c.character_id
 	";
 	
 	if (!$result = $db->query($sql)) {
@@ -1160,12 +1167,18 @@ function fetch_last_forum_poster_character($id) {
 	
 	if ($db->num_rows($result) == 0) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to find character data.", __FILE__, __LINE__, $db->error());
+			error("Unable to find character/user data.", __FILE__, __LINE__, $db->error());
 		}//End if.
 		return false;
 	} //End if.
 	
-	return $db->fetch_assoc($result);
+	$char = $db->fetch_assoc($result);
+	
+	if ($char['group_id'] == PUN_GUEST) {
+		$char['character_name'] = null; //We want to make sure their user name is used.
+	} //End if.
+	
+	return $char;
 	
 } //End fetch_last_forum_poster_character().
 
@@ -1183,15 +1196,18 @@ function fetch_last_poster_character($id, $is_topic = false) {
 				sc.*,
 				c.*
 			FROM
-				".$db->prefix."posts AS p,
-				".$db->prefix."api_selected_char AS sc,
+				".$db->prefix."posts AS p
+			LEFT JOIN
+				".$db->prefix."api_selected_char AS sc
+			ON
+				p.poster_id=sc.user_id
+			LEFT JOIN
 				".$db->prefix."api_characters AS c
+			ON
+				sc.character_id=c.character_id
 			WHERE
 				p.id=".$id."
-			AND
-				p.poster_id=sc.user_id
-			AND
-				sc.character_id=c.character_id
+				
 		";
 	} else {
 		$sql = "
@@ -1202,18 +1218,21 @@ function fetch_last_poster_character($id, $is_topic = false) {
 			c.*,
 			t.*
 		FROM
-			".$db->prefix."posts AS p,
-			".$db->prefix."api_selected_char AS sc,
-			".$db->prefix."api_characters AS c,
+			".$db->prefix."posts AS p
+		INNER JOIN
 			".$db->prefix."topics AS t
+		ON
+			p.id=t.last_post_id
+		LEFT JOIN
+			".$db->prefix."api_selected_char AS sc
+		ON
+			p.poster_id=sc.user_id
+		LEFT JOIN
+			".$db->prefix."api_characters AS c
+		ON
+			sc.character_id=c.character_id
 		WHERE
 			t.id=".$id."
-		AND
-			p.id=t.last_post_id
-		AND
-			p.poster_id=sc.user_id
-		AND
-			sc.character_id=c.character_id
 		";
 	} //End if - else.
 	
@@ -1249,18 +1268,21 @@ function fetch_topic_poster_character($id) {
 			c.*,
 			t.*
 		FROM
-			".$db->prefix."posts AS p,
-			".$db->prefix."api_selected_char AS sc,
-			".$db->prefix."api_characters AS c,
+			".$db->prefix."posts AS p
+		INNER JOIN
 			".$db->prefix."topics AS t
+		ON
+			p.id=t.first_post_id
+		LEFT JOIN
+			".$db->prefix."api_selected_char AS sc
+		ON
+			p.poster_id=sc.user_id
+		LEFT JOIN
+			".$db->prefix."api_characters AS c
+		ON
+			sc.character_id=c.character_id
 		WHERE
 			t.id=".$id."
-		AND
-			p.id=t.first_post_id
-		AND
-			p.poster_id=sc.user_id
-		AND
-			sc.character_id=c.character_id
 	";
 	
 	if (!$result = $db->query($sql)) {

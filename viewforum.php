@@ -171,10 +171,14 @@ if ($db->num_rows($result))
 			$topic_id = ($cur_topic['moved_to'] != 0) ? $cur_topic['moved_to'] : $cur_topic['id'];
 			
 			$char = fetch_last_poster_character($topic_id, true);
-			$last_post_user = pun_htmlspecialchars($char['character_name']);
+			if (strlen($char['character_name']) > 0) {
+				$last_post_user = pun_htmlspecialchars($char['character_name']);
+			} //End if.
 			
 			$char = fetch_topic_poster_character($topic_id);
-			$poster = pun_htmlspecialchars($char['character_name']);
+			if (strlen($char['character_name']) > 0) {
+				$poster = pun_htmlspecialchars($char['character_name']);
+			} //End if.
 		} //End if.
 
 		if ($cur_topic['moved_to'] == null)

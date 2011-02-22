@@ -46,8 +46,6 @@ function check_cookie(&$pun_user)
 				o.logged,
 				o.idle
 			FROM
-				'.$db->prefix.'api_characters AS c,
-				'.$db->prefix.'api_selected_char AS sc,
 				'.$db->prefix.'users AS u
 			INNER JOIN
 				'.$db->prefix.'groups AS g
@@ -57,12 +55,16 @@ function check_cookie(&$pun_user)
 				'.$db->prefix.'online AS o
 			ON
 				o.user_id=u.id
+			LEFT JOIN
+				'.$db->prefix.'api_selected_char AS sc
+			ON
+				u.id=sc.user_id
+			LEFT JOIN
+				'.$db->prefix.'api_characters AS c
+			ON
+				sc.character_id=c.character_id
 			WHERE
 				u.id='.intval($cookie['user_id']).'
-			AND
-				u.id=sc.user_id
-			AND
-				sc.character_id=c.character_id
 				') or error('Unable to fetch user information', __FILE__, __LINE__, $db->error());
 		
 		$pun_user = $db->fetch_assoc($result);
@@ -158,9 +160,9 @@ function check_cookie(&$pun_user)
 			} //End while loop.
 		} //End if.
 		/* EVE-BB Multi-group support.*/
-	}
-	else
+	} else {
 		set_default_user();
+	} //End if - else.
 }
 
 
