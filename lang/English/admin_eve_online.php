@@ -53,7 +53,7 @@ $lang_admin_eve_online = array(
 'group_rule_info' 		=> 'A \'Group Rule\' is used to automatically assign new members to groups you\'ve created.<br/>
 These rules are given a priority level so that you can decide which group should be the \'active\' group, that applies titles, name colouring and such.<br/>
 <br/>
-Priority ranges from \'0 - top priority\', to \'99 - lowest priority\'. <br/>
+Priority ranges from \'0 - top priority\', to \'%s - lowest priority\'. <br/>
 In the event that two rules have the same priority level, the active one will be decided by the order the Database presents them.<br/>
 As such, it is recommended that you manually set priorities to unique values to insure you experience the behaviour you are after.<br/>
 <br/>

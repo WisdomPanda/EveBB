@@ -211,8 +211,8 @@ while ($cur_group = $db->fetch_assoc($result))
 												<td>
 													<select id="priority" name="priority" tabindex="1">
 <?php
-
-for ($i = 0; $i < $pun_config['o_eve_max_groups']; $i++) {
+$iter = (!empty($pun_config['o_eve_max_groups'])) ? $pun_config['o_eve_max_groups'] : 100;
+for ($i = 0; $i < $iter; $i++) {
 		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$i.'">'.$i.'</option>'."\n";
 } //End 'i' for loop.
 
@@ -222,7 +222,7 @@ for ($i = 0; $i < $pun_config['o_eve_max_groups']; $i++) {
 											</tr>
 												<tr>
 												<td colspan="2">
-													<span><?php echo $lang_admin_eve_online['group_rule_info'] ?></span>
+													<span><?php echo sprintf($lang_admin_eve_online['group_rule_info'], $iter); ?></span>
 												</td>
 											</tr>
 										</table>
