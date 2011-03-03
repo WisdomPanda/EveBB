@@ -571,7 +571,6 @@ function apply_rules() {
 		
 		$last_group = array();
 		$moved = false;
-		
 		$roles = convert_roles($row['roles']);
 		
 		while ($rule = $db->fetch_assoc($any_result)) {
@@ -584,14 +583,17 @@ function apply_rules() {
 			//Putting this here so we don't make it harder to read.
 			$skip = false;
 			if ($row['g_locked'] == 1) {
+				$log .= "Skip is true.<br/>";
 				$skip = true;
-			} else if (($row['group_id'] < 3 && $row['group_id'] != 0) || $row['g_moderator'] == 1) {
+			} else if (($row['group_id'] < 3 && $row['group_id'] != 0) || $row['g_moderator'] == 1 || $row['g_id'] == PUN_ADMIN) {
+				$log .= "Skip is true.<br/>";
 				$skip = true;
 			} //End if.
 			
 			if ($roles[$rule['role']]) {
 				//They have auth!
 				if ((!isset($last_group['priority']) || $rule['priority'] < $last_group['priority']) && !$skip) {
+					$log .= "Applying the first rule.<br/>";
 					//This sets their primary group.
 					//We take their previous group, move it into the multiple groups, then set their current group to the one we are looking at.
 					//Basically we are using the push principle; the new one always gets added to the top.
@@ -635,7 +637,7 @@ function apply_rules() {
 		} //End while loop.
 		
 		//They haven't been moved and they aren't in a locked group, TROUBLES!
-		if (!$moved && $row['g_locked'] != 1) {
+		if (!$moved && $row['g_locked'] != 1 && $row['g_id'] != PUN_ADMIN) {
 			$sql = "UPDATE ".$db->prefix."users SET group_id=".$pun_config['o_eve_restricted_group']." WHERE id=".$row['id'].";";
 			if (!$db->query($sql)) {
 				if (defined('PUN_DEBUG')) {
@@ -646,6 +648,8 @@ function apply_rules() {
 		} //End if.
 		
 	} //End foreach().
+	
+	
 	return true;
 	
 	
@@ -1436,6 +1440,30 @@ function convert_roles($roles) {
 	
 	return $auth;
 } //End convert_roles().
+
+/**
+ * Gets a file from a remote place and puts it where you specify, in the cache folder.
+ * For now this will be restricted to the cache folder. You can always manually move it from there.
+ */
+function fetch_file($url, $cache_name) {
+	if (!$file = fopen($url, 'r')) {
+		return false;
+	} //End if.
+	
+	if (!$fout = fopen(FORUM_CACHE_DIR.$cache_name, 'w')) {
+		return false;
+	} //End if.
+	
+	while(!feof($file)) {
+		$buffer = fread($file, 1024);
+		fwrite($fout, $buffer);
+	} //End if.
+	
+	fflush($fout);
+	fclose($fout);
+	fclose($file);
+	return true;
+} //End fetch_file().
 
 /**
  * Tries to sliently cache the pic of a character.
