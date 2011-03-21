@@ -144,7 +144,7 @@ class DBLayer
 					return false;
 				} //End if.
 				
-				$keyList .= $primaryKey."=".(is_string($fields[$primaryKey]) ? "'".$fields[$primaryKey]."'": $fields[$primaryKey])." AND ";
+				$keyList .= $key."=".(is_string($fields[$key]) ? "'".$fields[$key]."'": $fields[$key])." AND ";
 				
 			} //End foreach().
 			
