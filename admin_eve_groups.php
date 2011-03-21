@@ -34,7 +34,7 @@ if ($action == "add_group_rule") {
 		$priority = intval($_POST['priority']);
 		$role = (string)$_POST['role'];
 		
-		if (($from < 4 && $from !=  0) || $to < 1 || ($type > 1 && $type < 0) || !in_array($role, $api_roles)) {
+		if (($from < 4 && $from !=  0) || $to < 1 || !($type > 1 || $type < 0) || !in_array($role, $api_roles)) {
 			message("Incorrect variables sent.");
 		} //End if.
 		
@@ -70,7 +70,7 @@ if ($action == "add_group_rule") {
 			'role' => $role
 		);
 		
-		$db->insert_or_update($fields, array('id', 'group_id', 'role'), $db->prefix.'api_groups') or error("Unable to update group rule information.", __FILE__, __LINE__, $db->error());
+		$db->insert_or_update($fields, array('id', 'group_id', 'role'), $db->prefix.'api_groups') or error("Unable to update group rule information.".@current(@end($db->saved_queries)), __FILE__, __LINE__, $db->error());
 		
 		redirect('admin_eve_groups.php', $lang_admin_eve_online['group_rule_add_redirect']);
 		
