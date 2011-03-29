@@ -34,7 +34,7 @@ if ($action == "add_group_rule") {
 		$priority = intval($_POST['priority']);
 		$role = (string)$_POST['role'];
 		
-		if (($from < 4 && $from !=  0) || $to < 1 || !($type > 1 || $type < 0) || !in_array($role, $api_roles)) {
+		if (($from < 4 && $from !=  0) || $to < 1 || ($type > 1 || $type < 0) || !in_array($role, $api_roles)) {
 			message("Incorrect variables sent.");
 		} //End if.
 		
@@ -84,7 +84,7 @@ if ($action == "del_group") {
 	$type = intval($_GET['type']);
 	
 	if ($corp < 1 || $group < 4 || ($type > 1 || $type < 0)) {
-		message("Incorrect variables sent.");
+		message("Incorrect variables sent for delete.");
 	} //End if.
 	
 	remove_rule($corp, $group, $type) or message("Unable to modify group rule information.");

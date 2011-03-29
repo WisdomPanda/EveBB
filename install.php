@@ -248,7 +248,7 @@ else
 		if (!$char_sheet = fetch_character_api(array('userID' => $api_user_id,'characterID' => $api_character_id,'apiKey' => $api_key))) {
 			$alerts[] = "Unable to fetch character API information. Please insure that the API server is functioning.";
 		} else {
-			$username = strip_special($char_sheet->name);
+			$username = substr(strip_special($char_sheet->name), 0, 25);
 		} //End if - else.
 	} //End if.
 	/*---------- EVE-BB DATA CHECKS ---------*/
@@ -2195,6 +2195,25 @@ else
 		}
 	}
 
+	//All has gone well! Now lets send them their login details.
+	if (!function_exists('pun_mail')) {
+		include(PUN_ROOT.'include/email.php');
+	} //End if.
+
+	//Try and send it via localhost.
+	$pun_config['o_smtp_host'] = "localhost";
+	$pun_config['o_smtp_user'] = "";
+	$pun_config['o_smtp_pass'] = "";
+	
+	pun_mail($email, 'Your new EveBB login details',
+"Your new EveBB install has successfully completed!
+
+Your Details
+
+Username: ".$username."
+Password: ".$password1."
+
+We hope you enjoy your new EveBB install!");
 
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -2236,6 +2255,11 @@ if (!$written)
 				<div class="forminfo">
 					<p>To finalize the installation, you need to click on the button below to download a file called config.php. You then need to upload this file to the root directory of your EveBB installation.</p>
 					<p>Once you have uploaded config.php, EveBB will be fully installed! At that point, you may <a href="index.php">go to the forum index</a>.</p>
+					<p>Your Details<br/>
+					<br/>
+					Username: <?php echo $username; ?>
+					Password: <?php echo $password1; ?>
+					</p>
 				</div>
 				<input type="hidden" name="generate_config" value="1" />
 				<input type="hidden" name="db_type" value="<?php echo $db_type; ?>" />
@@ -2271,6 +2295,11 @@ else
 			<div class="inform">
 				<div class="forminfo">
 					<p>EveBB has been fully installed! You may now <a href="index.php">go to the forum index</a>.</p>
+					<p>Your Details<br/>
+					<br/>
+					Username: <?php echo $username; ?>
+					Password: <?php echo $password1; ?>
+					</p>
 				</div>
 			</div>
 		</div>

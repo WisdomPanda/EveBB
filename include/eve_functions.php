@@ -292,51 +292,52 @@ function task_check_auth() {
 	
 	//We catch any exceptions thrown, so their text is more for debugging than real input.
 	
-	//Get the allowed corps.
-	$sql = "SELECT corporationID FROM ".$db->prefix."api_allowed_corps WHERE allowed=1;";
+	$sql = "
+		SELECT
+			noauth.user_id,
+			noauth.character_id,
+			user.group_id
+		FROM
+			".$db->prefix."api_selected_char AS noauth
+		INNER JOIN
+			".$db->prefix."users AS user
+		ON
+			noauth.user_id=user.id
+		WHERE
+			user.group_id != ".PUN_ADMIN."
+		AND
+			noauth.character_id
+		NOT IN
+			(
+				SELECT
+					s.character_id
+				FROM
+					".$db->prefix."api_selected_char AS s
+				INNER JOIN
+					".$db->prefix."api_characters AS c
+				ON
+					s.character_id=c.character_id
+				INNER JOIN
+					".$db->prefix."api_allowed_corps AS ac
+				ON
+					ac.corporationID=c.corp_id
+			)";
 	if (!$result = $db->query($sql)) {
-		$err = $db->error();
-		return "Unable to allowed corporation information.<br/>".$err['error_msg'];
-		//throw new Exception("Unable to allowed corporation information.<br/>".$err['error_msg']);
-	} //End if.
-	
-	if ($db->num_rows($result) == 0) {
-		error($lang_common['api_no_allowed_corp_err']);
-	} //End if.
-	
-	$corps = array();
-	
-	while ($row = $db->fetch_assoc($result)) {
-		$corps[] = $row['corporationID'];
-	} //End while loop.
-	
-	
-	//Get the users.
-	$sql = "SELECT c.corp_id,c.character_name,c.last_update,c.character_id,a.user_id FROM ".$db->prefix."api_characters AS c,".$db->prefix."api_auth AS a WHERE a.api_character_id=c.character_id";
-	if (!$result = $db->query($sql)) {
-		$err = $db->error();
 		return false;
-		//throw new Exception("Unable to find user auth information.<br/>".$err['error_msg']);
 	} //End if.
 	
 	if ($db->num_rows($result) == 0) {
-		if (defined('PUN_DEBUG')) {
+		/*if (defined('PUN_DEBUG')) {
 			error($lang_common['api_no_users']);
-		} //End if.
+		} //End if.*/
+		return true;
 	} //End if.
 	
 	$users = array();
 	
 	while ($row = $db->fetch_assoc($result)) {
-		if (!in_array($row['corp_id'], $corps)) {
-			$users[] = $row;
-		} //End if.
+		$users[] = $row;
 	} //End while loop.
-	
-	if (count($users) == 0) {
-		//Hurrah, all auth'd!
-		return true;
-	} //End if.
 	
 	//OMGAH! UUUUNNNNNNCLLLLLEEEEEEEAAAAAAAANNNNNNNNNNNNNZZZZZ
 	//PURRRRGGGGEEEEEEE THHHHHEEEEEEEMMMMMMMMMMMMMMM
@@ -353,6 +354,10 @@ function purge_unclean($users, $group_id) {
 	global $db, $lang_common;
 	
 	$log = array();
+	
+	if (defined('PUN_DEBUG')) {
+		error("We have hit the purge stage. This means someone has been marked as not in a permitted corp. (Disable Debug mode to clear this message.)<br/>Dumping user list: ".print_r($users, true));
+	} //End if.
 	
 	foreach ($users as $row) {
 		$sql = "UPDATE ".$db->prefix."users SET group_id=".$group_id." WHERE id=".$row['user_id'].";";
@@ -583,10 +588,10 @@ function apply_rules() {
 			//Putting this here so we don't make it harder to read.
 			$skip = false;
 			if ($row['g_locked'] == 1) {
-				$log .= "Skip is true.<br/>";
+				$log .= "Skip is true. [Lock]<br/>";
 				$skip = true;
-			} else if (($row['group_id'] < 3 && $row['group_id'] != 0) || $row['g_moderator'] == 1 || $row['g_id'] == PUN_ADMIN) {
-				$log .= "Skip is true.<br/>";
+			} else if (($row['group_id'] < 3 && $row['group_id'] > 0) || $row['g_moderator'] == 1) {
+				$log .= "Skip is true. [Group]<br/>";
 				$skip = true;
 			} //End if.
 			
@@ -602,6 +607,7 @@ function apply_rules() {
 							'user_id' => $row['id'],
 							'group_id' => $last_group['group_id']
 							);
+							$log .= "Adjusting primary group, adding current group to list: [".$rule['group_id']."]<br/>";
 						if (!$db->insert_or_update($fields, array('user_id', 'group_id'), $db->prefix.'groups_users')) {
 							if (defined('PUN_DEBUG')) {
 								error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
@@ -610,6 +616,7 @@ function apply_rules() {
 						} //End if.
 					} //End if.
 					$sql = "UPDATE ".$db->prefix."users SET group_id=".$rule['group_id']." WHERE id=".$row['id'].";";
+					$log .= "Moving to new primary group: [".$row['g_id']."] -> [".$rule['group_id']."]<br/>";
 					if (!$db->query($sql)) {
 						if (defined('PUN_DEBUG')) {
 							error("Unable to update groups.".$sql, __FILE__, __LINE__, $db->error());
@@ -622,6 +629,7 @@ function apply_rules() {
 						'user_id' => $row['id'],
 						'group_id' => $rule['group_id']
 						);
+					$log .= "Adding new group to list: [".$rule['group_id']."]<br/>";
 					if (!$db->insert_or_update($fields, array('user_id', 'group_id'), $db->prefix.'groups_users')) {
 						if (defined('PUN_DEBUG')) {
 							error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
@@ -637,8 +645,9 @@ function apply_rules() {
 		} //End while loop.
 		
 		//They haven't been moved and they aren't in a locked group, TROUBLES!
-		if (!$moved && $row['g_locked'] != 1 && $row['g_id'] != PUN_ADMIN) {
+		if (!$moved && $row['g_locked'] != 1 && $row['g_id'] != PUN_ADMIN && $row['g_id'] != PUN_MOD) {
 			$sql = "UPDATE ".$db->prefix."users SET group_id=".$pun_config['o_eve_restricted_group']." WHERE id=".$row['id'].";";
+			//error("User is being moved for no reason.<br/> SQL: ".$sql."<br/>Data Dump: ".print_r($row, true)."<br/>Moved: ".$moved."<br/>".$log, __FILE__, __LINE__, $db->error());
 			if (!$db->query($sql)) {
 				if (defined('PUN_DEBUG')) {
 					error("Unable to update groups.".$sql, __FILE__, __LINE__, $db->error());
