@@ -53,7 +53,7 @@ if (isset($_GET['patch'])) {
 		message('fopen is not enabled. Please fix this before trying again.');
 	} //End if.
 	
-	$latest_version = trim(@file_get_contents('http://www.eve-bb.com/latest_version.txt'));
+	$latest_version = trim(@file_get_contents('http://www.eve-bb.com/latest_version'));
 	
 	if (empty($latest_version)) {
 		message('Update check failed.');
