@@ -6,7 +6,7 @@ $lang_admin_index = array(
 'fopen disabled message'			=>	'Unable to check for upgrade since \'allow_url_fopen\' is disabled on this system.',
 'Upgrade check failed message'		=>	'Check for upgrade failed for unknown reasons.',
 'Running latest version message'	=>	'You are running the latest version of Eve-BB.',
-'New version available message'		=>	'A new version of Eve-BB has been released. You can download the latest version at %s.',
+'New version available message'		=>	'A new version of Eve-BB has been released.<br/><br/><a href="update.php">Start the patching process</a>.<br/><br/> You can also download the latest version at %s.<br/>',
 'PHPinfo disabled message'			=>	'The PHP function phpinfo() has been disabled on this server.',
 'Not available'						=>	'Not available',
 'Forum admin head'					=>	'Forum administration',
