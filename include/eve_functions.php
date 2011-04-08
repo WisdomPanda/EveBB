@@ -667,10 +667,10 @@ function apply_rules() {
 /**
  * Removes a rule. Simplicity function basically.
  */
-function remove_rule($id, $group_id, $type = 0) {
+function remove_rule($id, $group_id, $type = 0, $role = 0) {
 	global $db;
 	
-	$sql = "DELETE FROM ".$db->prefix."api_groups WHERE id=".$id." AND group_id=".$group_id." AND type=".$type.";";
+	$sql = "DELETE FROM ".$db->prefix."api_groups WHERE id=".$id." AND group_id=".$group_id." AND type=".$type." AND role=".$role.";";
 	if (!$db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
 			error("Unable to remove rule.<br/>".$sql, __FILE__, __LINE__, $db->error());

@@ -79,15 +79,16 @@ if ($action == "add_group_rule") {
 
 if ($action == "del_group") {
 	
-	$corp = intval($_GET['corp_id']);
+	$id = intval($_GET['id']);
+	$role = $_GET['role'];
 	$group = intval($_GET['g_id']);
 	$type = intval($_GET['type']);
 	
-	if ($corp < 1 || $group < 4 || ($type > 1 || $type < 0)) {
+	if (($type > 1 || $type < 0) || !check_numeric($_GET['role'])) {
 		message("Incorrect variables sent for delete.");
 	} //End if.
 	
-	remove_rule($corp, $group, $type) or message("Unable to modify group rule information.");
+	remove_rule($id, $group, $type, $role) or message("Unable to modify group rule information.");
 	apply_rules();
 	redirect('admin_eve_groups.php', $lang_admin_eve_online['group_rule_del_redirect']);
 } //End if.
@@ -244,7 +245,7 @@ for ($i = 0; $i < $iter; $i++) {
 
 $sql = '
 	SELECT
-		ag.*, c.corporationName, c.corporationID, a.allianceName, a.allianceID, g.g_title
+		ag.*, c.corporationName, c.corporationID, a.allianceName, a.allianceID, g.g_title, g.g_id
 	FROM
 		'.$db->prefix.'api_groups AS ag
 	INNER JOIN
@@ -276,7 +277,7 @@ while ($row = $db->fetch_assoc($result)) {
 	echo "\t\t\t\t\t\t\t\t".'
 	<tr>
 		<th scope="row">
-			<a href="admin_eve_groups.php?action=del_group&amp;g_id='.$row['g_id'].'&amp;corp_id='.((empty($row['allianceID'])) ? $row['corporationID'].'&amp;type=0' : $row['allianceID'].'&amp;type=1').'">
+			<a href="admin_eve_groups.php?action=del_group&amp;g_id='.$row['g_id'].'&amp;role='.$row['role'].'&amp;id='.$row['id'].'&amp;type='.$row['type'].'">
 				'.$lang_admin_eve_online['delete'].'
 			</a>
 		</th>

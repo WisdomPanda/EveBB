@@ -67,7 +67,7 @@ You may update a rules priority by simply creating it again with a different pri
 'purge_group_info' => 'Set the default group that purged users will end up in. Ideally set it to a group with very minimal access to the forum while still able to access their profile to update their characters.',
 'delete_group_rule_legend' => 'Existing Rules',
 'delete_group_rule' => 'Format displayed is: &lt;Role&gt; [Priority] Member of (corp/alliance) -&gt; (goes to) Group',
-'group_rule_del_redirect' => 'Group rule added succesfully! Redirecting...',
+'group_rule_del_redirect' => 'Group rule deleted succesfully! Redirecting...',
 'delete' => 'Delete',
 
 //Allowed List stuff

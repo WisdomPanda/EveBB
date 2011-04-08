@@ -1292,7 +1292,7 @@ function maintenance_message()
 //
 // Display $message and redirect user to $destination_url
 //
-function redirect($destination_url, $message)
+function redirect($destination_url, $message, $link_back = true)
 {
 	global $db, $pun_config, $lang_common, $pun_user;
 
@@ -1386,7 +1386,7 @@ function redirect($destination_url, $message)
 	<h2><?php echo $lang_common['Redirecting'] ?></h2>
 	<div class="box">
 		<div class="inbox">
-			<p><?php echo $message.'<br /><br /><a href="'.$destination_url.'">'.$lang_common['Click redirect'].'</a>' ?></p>
+			<p><?php echo $message.($link_back ? '<br /><br /><a href="'.$destination_url.'">'.$lang_common['Click redirect'].'</a>' : '') ?></p>
 		</div>
 	</div>
 </div>
