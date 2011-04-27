@@ -8,12 +8,7 @@ if (!defined(PUN_ROOT)) {
 	define('PUN_ROOT', './');
 } //End if.
 
-if (file_exists(PUN_ROOT.'include/eve_alliance_functions.php')) {
-	require(PUN_ROOT.'include/eve_alliance_functions.php');
-} else {
-	require(PUN_ROOT.'include/eve_corp_functions.php');
-} //End if - else.
-
+require(PUN_ROOT.'include/eve_alliance_functions.php');
 require(PUN_ROOT.'include/api/api_common.php');
 
 //Define some values.
