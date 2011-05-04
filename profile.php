@@ -1798,6 +1798,8 @@ if ($db->num_rows($result) > 0) {
 			{
 
 ?>
+			</form>
+			<form id="profile8" method="post" action="profile.php?section=admin&amp;id=<?php echo $id ?>&amp;action=foo" style="padding-bottom: 0;">
 				<div class="inform">
 					<fieldset>
 						<legend><?php echo $lang_profile['Set mods legend'] ?></legend>

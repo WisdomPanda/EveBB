@@ -184,6 +184,10 @@ while ($cur_forum = $db->fetch_assoc($result))
 
 		foreach ($mods_array as $mod_username => $mod_id)
 		{
+			if (!check_numeric($mod_id)) {
+				continue;
+			} //End if.
+			
 			if ($pun_user['g_view_users'] == '1')
 				$moderators[] = '<a href="profile.php?id='.$mod_id.'">'.pun_htmlspecialchars($mod_username).'</a>';
 			else
