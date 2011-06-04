@@ -53,7 +53,7 @@ if ($action == 'del_group') {
 	
 } //End if.
 
-if ($action == 'add_group') {
+if ($action == 'add_group' && !isset($_POST['delete_user'])) {
 	if ($pun_user['g_id'] != PUN_ADMIN) {
 		message($lang_common['No permission']);
 	} //End if.
@@ -1779,6 +1779,8 @@ if ($db->num_rows($result) > 0) {
 						</div>
 					</fieldset>
 				</div>
+			</form>
+			<form id="profile_delete_ban_user" method="POST" action="profile.php?section=admin&amp;id=<?php echo $id ?>" style="padding-top:0;">
 				<div class="inform">
 					<fieldset>
 <?php

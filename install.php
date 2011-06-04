@@ -2211,6 +2211,7 @@ else
 Your Details
 
 Username: ".$username."
+
 Password: ".$password1."
 
 We hope you enjoy your new EveBB install!");
@@ -2257,7 +2258,7 @@ if (!$written)
 					<p>Once you have uploaded config.php, EveBB will be fully installed! At that point, you may <a href="index.php">go to the forum index</a>.</p>
 					<p>Your Details<br/>
 					<br/>
-					Username: <?php echo $username; ?>
+					Username: <?php echo $username; ?><br/>
 					Password: <?php echo $password1; ?>
 					</p>
 				</div>

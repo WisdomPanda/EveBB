@@ -58,7 +58,7 @@ class Character {
 		} //End if.
 		
 		$this->corporationRoles = '0';
-		bcscale(0);
+		bscale(0);
 
 		$xml_parser = xml_parser_create();
 		xml_set_object($xml_parser, $this);
@@ -177,7 +177,7 @@ class Character {
 		
 		if ($name == 'ROW') {
 			if ($this->in_roles) {
-				$this->corporationRoles = bcadd($this->corporationRoles, $attrs['ROLEID']);
+				$this->corporationRoles = badd($this->corporationRoles, $attrs['ROLEID']);
 			} else if ($this->in_queue) {
 				$this->skillQueue[] = array(
 						'queuePosition' => $db->escape($attrs['QUEUEPOSITION']),

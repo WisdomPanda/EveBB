@@ -10,12 +10,13 @@ if (!defined(PUN_ROOT)) {
 
 require(PUN_ROOT.'include/eve_alliance_functions.php');
 require(PUN_ROOT.'include/api/api_common.php');
+require(PUN_ROOT.'include/bcmath.php');
 
 //Define some values.
-define(API_SERVER_DOWN, 1000);
-define(API_BAD_REQUEST, 1001);
-define(API_BAD_AUTH, 1002);
-define(API_SERVER_ERROR, 1003);
+define('API_SERVER_DOWN', 1000);
+define('API_BAD_REQUEST', 1001);
+define('API_BAD_AUTH', 1002);
+define('API_SERVER_ERROR', 1003);
 
 $_LAST_ERROR = 0;
 
@@ -1425,7 +1426,7 @@ function convert_roles($roles) {
 	global $api_roles;
 	
 	//Lets first set the scale to 0.
-	bcscale(0);
+	bscale(0);
 	$auth = array();
 	
 	//Now then, we loop through the api_roles array, backwards!
@@ -1436,8 +1437,8 @@ function convert_roles($roles) {
 			$auth[$value] = true;
 			continue; //The 'Any' value is in there, which will get set to true always.
 		} //End if.
-		if (bcdiv($roles, $value) == 1) {
-			$roles = bcsub($roles, $value);
+		if (bdiv($roles, $value) == 1) {
+			$roles = bsub($roles, $value);
 			$auth[$value] = true;
 		} //End if.
 	} //End 'i' for loop().

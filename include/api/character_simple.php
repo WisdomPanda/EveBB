@@ -83,13 +83,13 @@ class Character {
 		} //End if.
 		
 		$this->corporationRoles = '0';
-		bcscale(0);
+		bscale(0);
 		
 		foreach ($char_sheet->result->rowset as $rowset) {
 			if ($rowset['name'] == 'corporationRoles') {
 			
 				foreach($rowset->row as $row) {
-					$this->corporationRoles = bcadd($this->corporationRoles, $row['roleID']);
+					$this->corporationRoles = badd($this->corporationRoles, $row['roleID']);
 				} //End foreach().
 			} //End if.
 		} //End foreach().
