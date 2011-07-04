@@ -6,7 +6,7 @@
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 
 
@@ -216,6 +216,11 @@ if (isset($_POST['form_sent']))
 			add_corp_from_character($api_character_id, ($pun_config['o_eve_restrict_reg_corp'] == '1' ? true : false));
 			apply_rules();
 			cache_char_pic($api_character_id);
+			
+			foreach ($_HOOKS['users'] as $hook) {
+				$hook->register($new_uid);
+			} //End foreach().
+			
 		/*********** EvE-BB Inserts ***********/
 
 		// If the mailing list isn't empty, we may need to send out some alerts
@@ -226,7 +231,7 @@ if (isset($_POST['form_sent']))
 			{
 				$mail_subject = $lang_common['Banned email notification'];
 				$mail_message = sprintf($lang_common['Banned email register message'], $username, $email1)."\n";
-				$mail_message .= sprintf($lang_common['User profile'], $pun_config['o_base_url'].'/profile.php?id='.$new_uid)."\n";
+				$mail_message .= sprintf($lang_common['User profile'], get_base_url().'/profile.php?id='.$new_uid)."\n";
 				$mail_message .= "\n".'--'."\n".$lang_common['Email signature'];
 
 				pun_mail($pun_config['o_mailing_list'], $mail_subject, $mail_message);
@@ -237,7 +242,7 @@ if (isset($_POST['form_sent']))
 			{
 				$mail_subject = $lang_common['Duplicate email notification'];
 				$mail_message = sprintf($lang_common['Duplicate email register message'], $username, implode(', ', $dupe_list))."\n";
-				$mail_message .= sprintf($lang_common['User profile'], $pun_config['o_base_url'].'/profile.php?id='.$new_uid)."\n";
+				$mail_message .= sprintf($lang_common['User profile'], get_base_url().'/profile.php?id='.$new_uid)."\n";
 				$mail_message .= "\n".'--'."\n".$lang_common['Email signature'];
 
 				pun_mail($pun_config['o_mailing_list'], $mail_subject, $mail_message);
@@ -247,8 +252,8 @@ if (isset($_POST['form_sent']))
 			if ($pun_config['o_regs_report'] == '1')
 			{
 				$mail_subject = $lang_common['New user notification'];
-				$mail_message = sprintf($lang_common['New user message'], $username, $pun_config['o_base_url'].'/')."\n";
-				$mail_message .= sprintf($lang_common['User profile'], $pun_config['o_base_url'].'/profile.php?id='.$new_uid)."\n";
+				$mail_message = sprintf($lang_common['New user message'], $username, get_base_url().'/')."\n";
+				$mail_message .= sprintf($lang_common['User profile'], get_base_url().'/profile.php?id='.$new_uid)."\n";
 				$mail_message .= "\n".'--'."\n".$lang_common['Email signature'];
 
 				pun_mail($pun_config['o_mailing_list'], $mail_subject, $mail_message);
@@ -267,16 +272,22 @@ if (isset($_POST['form_sent']))
 			$mail_message = trim(substr($mail_tpl, $first_crlf));
 
 			$mail_subject = str_replace('<board_title>', $pun_config['o_board_title'], $mail_subject);
-			$mail_message = str_replace('<base_url>', $pun_config['o_base_url'].'/', $mail_message);
+			$mail_message = str_replace('<base_url>', get_base_url().'/', $mail_message);
 			$mail_message = str_replace('<username>', $username, $mail_message);
 			$mail_message = str_replace('<password>', $password1, $mail_message);
-			$mail_message = str_replace('<login_url>', $pun_config['o_base_url'].'/login.php', $mail_message);
+			$mail_message = str_replace('<login_url>', get_base_url().'/login.php', $mail_message);
 			$mail_message = str_replace('<board_mailer>', $pun_config['o_board_title'].' '.$lang_common['Mailer'], $mail_message);
 
 			pun_mail($email1, $mail_subject, $mail_message);
 
 			message($lang_register['Reg email'].' <a href="mailto:'.$pun_config['o_admin_email'].'">'.$pun_config['o_admin_email'].'</a>.', true);
 		}
+		
+		// Regenerate the users info cache
+		if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
+			require PUN_ROOT.'include/cache.php';
+
+		generate_users_info_cache();
 
 		pun_setcookie($new_uid, $password_hash, time() + $pun_config['o_timeout_visit']);
 
@@ -286,6 +297,10 @@ if (isset($_POST['form_sent']))
 		
 		message(sprintf($lang_register['api_register_success'], $username, $password1), true);
 	}
+	
+	foreach ($_HOOKS['users'] as $hook) {
+		$hook->register_failed($errors);
+	} //End foreach().
 }
 
 

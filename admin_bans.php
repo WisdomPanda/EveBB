@@ -9,7 +9,7 @@
 // Tell header.php to use the admin template
 define('PUN_ADMIN_CONSOLE', 1);
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 require PUN_ROOT.'include/common_admin.php';
 
@@ -52,9 +52,18 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 			}
 		}
 
-		// Make sure we're not banning an admin
-		if (isset($group_id) && $group_id == PUN_ADMIN)
-			message(sprintf($lang_admin_bans['User is admin message'], pun_htmlspecialchars($ban_user)));
+		// Make sure we're not banning an admin or moderator
+		if (isset($group_id))
+		{
+			if ($group_id == PUN_ADMIN)
+				message(sprintf($lang_admin_bans['User is admin message'], pun_htmlspecialchars($ban_user)));
+			
+			$result = $db->query('SELECT g_moderator FROM '.$db->prefix.'groups WHERE g_id='.$group_id) or error('Unable to fetch group info', __FILE__, __LINE__, $db->error());
+			$is_moderator_group = $db->result($result);
+			
+			if ($is_moderator_group)
+				message(sprintf($lang_admin_bans['User is mod message'], pun_htmlspecialchars($ban_user)));
+		} //End if.
 
 		// If we have a $user_id, we can try to find the last known IP of that user
 		if (isset($user_id))
@@ -184,6 +193,25 @@ else if (isset($_POST['add_edit_ban']))
 	else if (strtolower($ban_user) == 'guest')
 		message($lang_admin_bans['Cannot ban guest message']);
 
+ // Make sure we're not banning an admin or moderator
+if (!empty($ban_user))
+{
+	$result = $db->query('SELECT group_id FROM '.$db->prefix.'users WHERE username=\''.$db->escape($ban_user).'\' AND id>1') or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+	if ($db->num_rows($result))
+	{
+		$group_id = $db->result($result);
+		          
+		if ($group_id == PUN_ADMIN)
+			message(sprintf($lang_admin_bans['User is admin message'], pun_htmlspecialchars($ban_user)));
+		
+		$result = $db->query('SELECT g_moderator FROM '.$db->prefix.'groups WHERE g_id='.$group_id) or error('Unable to fetch group info', __FILE__, __LINE__, $db->error());
+		$is_moderator_group = $db->result($result);
+		
+		if ($is_moderator_group)
+			message(sprintf($lang_admin_bans['User is mod message'], pun_htmlspecialchars($ban_user)));
+	} //End if.
+} //End if.
+
 	// Validate IP/IP range (it's overkill, I know)
 	if ($ban_ip != '')
 	{
@@ -304,7 +332,7 @@ else if (isset($_GET['find_ban']))
 
 	$expire_after = isset($_GET['expire_after']) ? trim($_GET['expire_after']) : '';
 	$expire_before = isset($_GET['expire_before']) ? trim($_GET['expire_before']) : '';
-	$order_by = isset($_GET['order_by']) && in_array($_GET['order_by'], array('username', 'ip', 'email', 'expire')) ? $_GET['order_by'] : 'username';
+	$order_by = isset($_GET['order_by']) && in_array($_GET['order_by'], array('username', 'ip', 'email', 'expire')) ? 'b.'.$_GET['order_by'] : 'b.username';
 	$direction = isset($_GET['direction']) && $_GET['direction'] == 'DESC' ? 'DESC' : 'ASC';
 
 	$query_str[] = 'order_by='.$order_by;
@@ -319,7 +347,7 @@ else if (isset($_GET['find_ban']))
 		if ($expire_after === false || $expire_after == -1)
 			message($lang_admin_bans['Invalid date message']);
 
-		$conditions[] = 'expire>'.$expire_after;
+		$conditions[] = 'b.expire>'.$expire_after;
 	}
 	if ($expire_before != '')
 	{
@@ -329,7 +357,7 @@ else if (isset($_GET['find_ban']))
 		if ($expire_before === false || $expire_before == -1)
 			message($lang_admin_bans['Invalid date message']);
 
-		$conditions[] = 'expire<'.$expire_before;
+		$conditions[] = 'b.expire<'.$expire_before;
 	}
 
 	$like_command = ($db_type == 'pgsql') ? 'ILIKE' : 'LIKE';

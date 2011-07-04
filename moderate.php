@@ -1,14 +1,14 @@
 <?php
 
 /**
- * Copyright (C) 2008-2010 FluxBB
+ * Copyright (C) 2008-2011 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
-
+require PUN_ROOT.'include/attach/attach_incl.php'; //Attachment Mod row, loads variables, functions and lang file
 
 // This particular function doesn't require forum-based moderator access. It can be used
 // by all moderators and admins
@@ -69,7 +69,7 @@ if (isset($_GET['tid']))
 		message($lang_common['Bad request']);
 
 	// Fetch some info about the topic
-	$result = $db->query('SELECT t.subject, t.num_replies, t.first_post_id, f.id AS forum_id, forum_name FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forums AS f ON f.id=t.forum_id LEFT JOIN '.$db->prefix.'subscriptions AS s ON (t.id=s.topic_id AND s.user_id='.$pun_user['id'].') LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND f.id='.$fid.' AND t.id='.$tid.' AND t.moved_to IS NULL') or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT t.subject, t.num_replies, t.first_post_id, f.id AS forum_id, forum_name FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forums AS f ON f.id=t.forum_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND f.id='.$fid.' AND t.id='.$tid.' AND t.moved_to IS NULL') or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
 	if (!$db->num_rows($result))
 		message($lang_common['Bad request']);
 
@@ -95,6 +95,11 @@ if (isset($_GET['tid']))
 			if ($db->num_rows($result) != substr_count($posts, ',') + 1)
 				message($lang_common['Bad request']);
 
+			//Attachment Mod Block Start
+			foreach(explode(',',$posts) as $value)
+				attach_delete_post($value);
+			//Attachment Mod Block End
+				
 			// Delete the posts
 			$db->query('DELETE FROM '.$db->prefix.'posts WHERE id IN('.$posts.')') or error('Unable to delete posts', __FILE__, __LINE__, $db->error());
 
@@ -156,13 +161,21 @@ if (isset($_GET['tid']))
 			if (@preg_match('/[^0-9,]/', $posts))
 				message($lang_common['Bad request']);
 
+			$move_to_forum = isset($_POST['move_to_forum']) ? intval($_POST['move_to_forum']) : 0;
+			if ($move_to_forum < 1)
+				message($lang_common['Bad request']);
+
 			// How many posts did we just split off?
 			$num_posts_splitted = substr_count($posts, ',') + 1;
 
 			// Verify that the post IDs are valid
 			$result = $db->query('SELECT 1 FROM '.$db->prefix.'posts WHERE id IN('.$posts.') AND topic_id='.$tid) or error('Unable to check posts', __FILE__, __LINE__, $db->error());
-
 			if ($db->num_rows($result) != $num_posts_splitted)
+				message($lang_common['Bad request']);
+
+			// Verify that the move to forum ID is valid
+			$result = $db->query('SELECT 1 FROM '.$db->prefix.'forums AS f LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.group_id='.$pun_user['g_id'].' AND fp.forum_id='.$move_to_forum.') WHERE f.redirect_url IS NULL AND (fp.post_topics IS NULL OR fp.post_topics=1)') or error('Unable to fetch forum permissions', __FILE__, __LINE__, $db->error());
+			if (!$db->num_rows($result))
 				message($lang_common['Bad request']);
 
 			// Load the post.php language file
@@ -181,7 +194,7 @@ if (isset($_GET['tid']))
 			$first_post_data = $db->fetch_assoc($result);
 
 			// Create the new topic
-			$db->query('INSERT INTO '.$db->prefix.'topics (poster, subject, posted, first_post_id, forum_id) VALUES (\''.$db->escape($first_post_data['poster']).'\', \''.$db->escape($new_subject).'\', '.$first_post_data['posted'].', '.$first_post_data['id'].', '.$fid.')') or error('Unable to create new topic', __FILE__, __LINE__, $db->error());
+			$db->query('INSERT INTO '.$db->prefix.'topics (poster, subject, posted, first_post_id, forum_id) VALUES (\''.$db->escape($first_post_data['poster']).'\', \''.$db->escape($new_subject).'\', '.$first_post_data['posted'].', '.$first_post_data['id'].', '.$move_to_forum.')') or error('Unable to create new topic', __FILE__, __LINE__, $db->error());
 			$new_tid = $db->insert_id();
 
 			// Move the posts to the new topic
@@ -198,9 +211,12 @@ if (isset($_GET['tid']))
 			$db->query('UPDATE '.$db->prefix.'topics SET last_post='.$last_post_data['posted'].', last_post_id='.$last_post_data['id'].', last_poster=\''.$db->escape($last_post_data['poster']).'\', num_replies='.($num_posts_splitted-1).' WHERE id='.$new_tid) or error('Unable to update topic', __FILE__, __LINE__, $db->error());
 
 			update_forum($fid);
+			update_forum($move_to_forum);
 
 			redirect('viewtopic.php?id='.$new_tid, $lang_misc['Split posts redirect']);
 		}
+
+		$result = $db->query('SELECT c.id AS cid, c.cat_name, f.id AS fid, f.forum_name FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.post_topics IS NULL OR fp.post_topics=1) AND f.redirect_url IS NULL ORDER BY c.disp_position, c.id, f.disp_position') or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
 
 		$page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_misc['Moderate']);
 		$focus_element = array('subject','new_subject');
@@ -218,6 +234,29 @@ if (isset($_GET['tid']))
 					<div class="infldset">
 						<input type="hidden" name="posts" value="<?php echo implode(',', array_map('intval', array_keys($posts))) ?>" />
 						<label class="required"><strong><?php echo $lang_misc['New subject'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br /><input type="text" name="new_subject" size="80" maxlength="70" /><br /></label>
+						<label><?php echo $lang_misc['Move to'] ?>
+						<br /><select name="move_to_forum">
+<?php
+
+	$cur_category = 0;
+	while ($cur_forum = $db->fetch_assoc($result))
+	{
+		if ($cur_forum['cid'] != $cur_category) // A new category since last iteration?
+		{
+			if ($cur_category)
+				echo "\t\t\t\t\t\t\t".'</optgroup>'."\n";
+
+			echo "\t\t\t\t\t\t\t".'<optgroup label="'.pun_htmlspecialchars($cur_forum['cat_name']).'">'."\n";
+			$cur_category = $cur_forum['cid'];
+		}
+
+		echo "\t\t\t\t\t\t\t\t".'<option value="'.$cur_forum['fid'].'"'.($fid == $cur_forum['fid'] ? ' selected="selected"' : '').'>'.pun_htmlspecialchars($cur_forum['forum_name']).'</option>'."\n";
+	}
+
+?>
+							</optgroup>
+						</select>
+						<br /></label>
 						<p><?php echo $lang_misc['Split posts comply'] ?></p>
 					</div>
 				</fieldset>
@@ -357,11 +396,19 @@ if (isset($_GET['tid']))
 
 ?>
 <div class="postlinksb">
-	<div class="inbox">
+	<div class="inbox crumbsplus">
 		<div class="pagepost">
 			<p class="pagelink conl"><?php echo $paging_links ?></p>
 			<p class="conr modbuttons"><input type="submit" name="split_posts" value="<?php echo $lang_misc['Split'] ?>"<?php echo $button_status ?> /> <input type="submit" name="delete_posts" value="<?php echo $lang_misc['Delete'] ?>"<?php echo $button_status ?> /></p>
+			<div class="clearer"></div>
 		</div>
+		<ul class="crumbs">
+			<li><a href="index.php"><?php echo $lang_common['Index'] ?></a></li>
+			<li><span>»&#160;</span><a href="viewforum.php?id=<?php echo $fid ?>"><?php echo pun_htmlspecialchars($cur_topic['forum_name']) ?></a></li>
+			<li><span>»&#160;</span><a href="viewtopic.php?id=<?php echo $tid ?>"><?php echo pun_htmlspecialchars($cur_topic['subject']) ?></a></li>
+			<li><span>»&#160;</span><strong><?php echo $lang_misc['Moderate'] ?></strong></li>
+		</ul>
+		<div class="clearer"></div>
 	</div>
 </div>
 </form>
@@ -392,6 +439,13 @@ if (isset($_REQUEST['move_topics']) || isset($_POST['move_topics_to']))
 		if ($db->num_rows($result) != count($topics))
 			message($lang_common['Bad request']);
 
+		// Verify that the move to forum ID is valid
+		$result = $db->query('SELECT 1 FROM '.$db->prefix.'forums AS f LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.group_id='.$pun_user['g_id'].' AND fp.forum_id='.$move_to_forum.') WHERE f.redirect_url IS NULL AND (fp.post_topics IS NULL OR fp.post_topics=1)') or error('Unable to fetch forum permissions', __FILE__, __LINE__, $db->error());
+		if (!$db->num_rows($result))
+			message($lang_common['Bad request']);
+
+
+			
 		// Delete any redirect topics if there are any (only if we moved/copied the topic back to where it was once moved from)
 		$db->query('DELETE FROM '.$db->prefix.'topics WHERE forum_id='.$move_to_forum.' AND moved_to IN('.implode(',',$topics).')') or error('Unable to delete redirect topics', __FILE__, __LINE__, $db->error());
 
@@ -437,7 +491,7 @@ if (isset($_REQUEST['move_topics']) || isset($_POST['move_topics_to']))
 		$action = 'single';
 	}
 
-	$result = $db->query('SELECT c.id AS cid, c.cat_name, f.id AS fid, f.forum_name FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND f.redirect_url IS NULL ORDER BY c.disp_position, c.id, f.disp_position') or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT c.id AS cid, c.cat_name, f.id AS fid, f.forum_name FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.post_topics IS NULL OR fp.post_topics=1) AND f.redirect_url IS NULL ORDER BY c.disp_position, c.id, f.disp_position') or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
 	if ($db->num_rows($result) < 2)
 		message($lang_misc['Nowhere to move']);
 
@@ -531,7 +585,7 @@ else if (isset($_POST['merge_topics']) || isset($_POST['merge_topics_comply']))
 		$db->query('UPDATE '.$db->prefix.'posts SET topic_id='.$merge_to_tid.' WHERE topic_id IN('.implode(',', $topics).')') or error('Unable to merge the posts into the topic', __FILE__, __LINE__, $db->error());
 
 		// Delete any subscriptions
-		$db->query('DELETE FROM '.$db->prefix.'subscriptions WHERE topic_id IN('.implode(',', $topics).') AND topic_id != '.$merge_to_tid) or error('Unable to delete subscriptions', __FILE__, __LINE__, $db->error());
+		$db->query('DELETE FROM '.$db->prefix.'topic_subscriptions WHERE topic_id IN('.implode(',', $topics).') AND topic_id != '.$merge_to_tid) or error('Unable to delete subscriptions', __FILE__, __LINE__, $db->error());
 
 		// Without redirection the old topics are removed
 		if (!isset($_POST['with_redirect']))
@@ -608,11 +662,16 @@ else if (isset($_POST['delete_topics']) || isset($_POST['delete_topics_comply'])
 		if ($db->num_rows($result) != substr_count($topics, ',') + 1)
 			message($lang_common['Bad request']);
 
+		//Attachment Mod Block Start
+		foreach(explode(',',$topics) as $value)
+			attach_delete_thread($value);
+		//Attachment Mod Block End
+			
 		// Delete the topics and any redirect topics
 		$db->query('DELETE FROM '.$db->prefix.'topics WHERE id IN('.$topics.') OR moved_to IN('.$topics.')') or error('Unable to delete topic', __FILE__, __LINE__, $db->error());
 
 		// Delete any subscriptions
-		$db->query('DELETE FROM '.$db->prefix.'subscriptions WHERE topic_id IN('.$topics.')') or error('Unable to delete subscriptions', __FILE__, __LINE__, $db->error());
+		$db->query('DELETE FROM '.$db->prefix.'topic_subscriptions WHERE topic_id IN('.$topics.')') or error('Unable to delete subscriptions', __FILE__, __LINE__, $db->error());
 
 		// Create a list of the post IDs in this topic and then strip the search index
 		$result = $db->query('SELECT id FROM '.$db->prefix.'posts WHERE topic_id IN('.$topics.')') or error('Unable to fetch posts', __FILE__, __LINE__, $db->error());
@@ -744,6 +803,22 @@ $cur_forum = $db->fetch_assoc($result);
 if ($cur_forum['redirect_url'] != '')
 	message($lang_common['Bad request']);
 
+switch ($cur_forum['sort_by'])
+{
+	case 0:
+		$sort_by = 'last_post DESC';
+		break;
+	case 1:
+		$sort_by = 'posted DESC';
+		break;
+	case 2:
+		$sort_by = 'subject ASC';
+		break;
+	default:
+		$sort_by = 'last_post DESC';
+		break;
+}
+
 // Determine the topic offset (based on $_GET['p'])
 $num_pages = ceil($cur_forum['num_topics'] / $pun_user['disp_topics']);
 
@@ -792,7 +867,7 @@ require PUN_ROOT.'header.php';
 
 
 // Retrieve a list of topic IDs, LIMIT is (really) expensive so we only fetch the IDs here then later fetch the remaining data
-$result = $db->query('SELECT id FROM '.$db->prefix.'topics WHERE forum_id='.$fid.' ORDER BY sticky DESC, '.(($cur_forum['sort_by'] == '1') ? 'posted' : 'last_post').' DESC, id DESC LIMIT '.$start_from.', '.$pun_user['disp_topics']) or error('Unable to fetch topic IDs', __FILE__, __LINE__, $db->error());
+$result = $db->query('SELECT id FROM '.$db->prefix.'topics WHERE forum_id='.$fid.' ORDER BY sticky DESC, '.$sort_by.', id DESC LIMIT '.$start_from.', '.$pun_user['disp_topics']) or error('Unable to fetch topic IDs', __FILE__, __LINE__, $db->error());
 
 // If there are topics in this forum
 if ($db->num_rows($result))
@@ -802,7 +877,7 @@ if ($db->num_rows($result))
 		$topic_ids[] = $cur_topic_id;
 
 	// Select topics
-	$result = $db->query('SELECT id, poster, subject, posted, last_post, last_post_id, last_poster, num_views, num_replies, closed, sticky, moved_to FROM '.$db->prefix.'topics WHERE id IN('.implode(',', $topic_ids).') ORDER BY sticky DESC, '.(($cur_forum['sort_by'] == '1') ? 'posted' : 'last_post').' DESC, id DESC') or error('Unable to fetch topic list for forum', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT id, poster, subject, posted, last_post, last_post_id, last_poster, num_views, num_replies, closed, sticky, moved_to FROM '.$db->prefix.'topics WHERE id IN('.implode(',', $topic_ids).') ORDER BY sticky DESC, '.$sort_by.', id DESC') or error('Unable to fetch topic list for forum', __FILE__, __LINE__, $db->error());
 
 	$button_status = '';
 	$topic_count = 0;
@@ -910,11 +985,18 @@ else
 </div>
 
 <div class="linksb">
-	<div class="inbox">
+	<div class="inbox crumbsplus">
 		<div class="pagepost">
 			<p class="pagelink conl"><?php echo $paging_links ?></p>
 			<p class="conr modbuttons"><input type="submit" name="move_topics" value="<?php echo $lang_misc['Move'] ?>"<?php echo $button_status ?> /> <input type="submit" name="delete_topics" value="<?php echo $lang_misc['Delete'] ?>"<?php echo $button_status ?> /> <input type="submit" name="merge_topics" value="<?php echo $lang_misc['Merge'] ?>"<?php echo $button_status ?> /> <input type="submit" name="open" value="<?php echo $lang_misc['Open'] ?>"<?php echo $button_status ?> /> <input type="submit" name="close" value="<?php echo $lang_misc['Close'] ?>"<?php echo $button_status ?> /></p>
+			<div class="clearer"></div>
 		</div>
+		<ul class="crumbs">
+			<li><a href="index.php"><?php echo $lang_common['Index'] ?></a></li>
+			<li><span>»&#160;</span><a href="viewforum.php?id=<?php echo $fid ?>"><?php echo pun_htmlspecialchars($cur_forum['forum_name']) ?></a></li>
+			<li><span>»&#160;</span><strong><?php echo $lang_misc['Moderate'] ?></strong></li>
+		</ul>
+		<div class="clearer"></div>
 	</div>
 </div>
 </form>

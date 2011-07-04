@@ -47,16 +47,6 @@ $lang_common = array(
 'Username'							=>	'Username',
 'Password'							=>	'Password',
 'Email'								=>	'Email',
-//Eve-BB stuff.
-'api_user_id'						=> 'User ID',
-'api_key'								=> 'API Key',
-'api_character_id'					=> 'Character ID',
-
-//Errors
-'api_no_allowed_corp_err' 		=> 'No allowed corporations have been set! Please check your configuration!',
-'api_no_users_err' 				=> 'You don\'t appear to have any users... How did you do this?',
-'eve_purge_user_failed'			=> '[%s]: Failed to purge user.',
-'eve_purge_user_done'			=> '[%s]: Purge Successful.',
 
 //Eve-BB stuff.
 'Send email'						=>	'Send email',
@@ -81,6 +71,7 @@ $lang_common = array(
 'Write message legend'				=>	'Write your message and submit',
 'Previous'							=>	'Previous',
 'Next'								=>	'Next',
+'Forum index'                        =>    'Forum index',
 'Spacer'							=>	'…', // Ellipsis for paginate
 
 // Title
@@ -113,18 +104,21 @@ $lang_common = array(
 'Logged in as'						=>	'Logged in as',
 'Admin'								=>	'Administration',
 'Last visit'						=>	'Last visit: %s',
-'Show new posts'					=>	'Show new posts since last visit',
+ 'Topic searches'                    =>    'Topics:',
+'New posts header'                    =>    'New',
+'Active topics'                        =>    'Active',
+'Unanswered topics'                    =>    'Unanswered',
+'Posted topics'                        =>    'Posted',
+'Show new posts'                    =>    'Find topics with new posts since your last visit.',
+'Show active topics'                =>    'Find topics with recent posts.',
+'Show unanswered topics'            =>    'Find topics with no replies.',
+'Show posted topics'                =>    'Find topics you have posted to.',
 'Mark all as read'					=>	'Mark all topics as read',
 'Mark forum read'					=>	'Mark this forum as read',
 'Title separator'					=>	' / ',
 
 // Stuff for the page footer
 'Board footer'						=>	'Board footer',
-'Search links'						=>	'Search links',
-'Show recent posts'					=>	'Show recent posts',
-'Show unanswered posts'				=>	'Show unanswered posts',
-'Show your posts'					=>	'Show your posts',
-'Show subscriptions'				=>	'Show your subscribed topics',
 'Jump to'							=>	'Jump to',
 'Go'								=>	' Go ', // Submit button in forum jump
 'Moderate topic'					=>	'Moderate topic',
@@ -177,5 +171,23 @@ $lang_common = array(
 // Admin related stuff in the header
 'New reports'						=>	'There are new reports',
 'Maintenance mode enabled'			=>	'Maintenance mode is enabled!',
+
+//Eve-BB stuff.
+'api_user_id'						=> 'User ID',
+'api_key'								=> 'API Key',
+'api_character_id'					=> 'Character ID',
+
+//Errors
+'api_no_allowed_corp_err' 		=> 'No allowed corporations have been set! Please check your configuration!',
+'api_no_users_err' 				=> 'You don\'t appear to have any users... How did you do this?',
+'eve_purge_user_failed'			=> '[%s]: Failed to purge user.',
+'eve_purge_user_done'			=> '[%s]: Purge Successful.',
+
+//New Private Messaging System
+'PM' => 'PM',
+'PMsend' => 'Send private message',
+'PMnew' => 'New private message',
+'PMmess' => 'You have new private messages (%s msgs.).',
+'Show' => 'Show',
 
 );

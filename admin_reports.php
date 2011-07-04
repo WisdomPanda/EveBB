@@ -9,7 +9,7 @@
 // Tell header.php to use the admin template
 define('PUN_ADMIN_CONSOLE', 1);
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 require PUN_ROOT.'include/common_admin.php';
 
@@ -32,6 +32,14 @@ if (isset($_POST['zap_id']))
 
 	if ($zapped == '')
 		$db->query('UPDATE '.$db->prefix.'reports SET zapped='.time().', zapped_by='.$pun_user['id'].' WHERE id='.$zap_id) or error('Unable to zap report', __FILE__, __LINE__, $db->error());
+		
+    // Delete old reports (which cannot be viewed anyway)
+    $result = $db->query('SELECT zapped FROM '.$db->prefix.'reports WHERE zapped IS NOT NULL ORDER BY zapped DESC LIMIT 10,1') or error('Unable to fetch read reports to delete', __FILE__, __LINE__, $db->error());
+    if ($db->num_rows($result) > 0)
+    {
+        $zapped_threshold = $db->result($result);
+        $db->query('DELETE FROM '.$db->prefix.'reports WHERE zapped <= '.$zapped_threshold) or error('Unable to delete old read reports', __FILE__, __LINE__, $db->error());
+    }
 
 	redirect('admin_reports.php', $lang_admin_reports['Report zapped redirect']);
 }
@@ -60,7 +68,7 @@ if ($db->num_rows($result))
 		$forum = ($cur_report['forum_name'] != '') ? '<span><a href="viewforum.php?id='.$cur_report['forum_id'].'">'.pun_htmlspecialchars($cur_report['forum_name']).'</a></span>' : '<span>'.$lang_admin_reports['Deleted'].'</span>';
 		$topic = ($cur_report['subject'] != '') ? '<span>»&#160;<a href="viewtopic.php?id='.$cur_report['topic_id'].'">'.pun_htmlspecialchars($cur_report['subject']).'</a></span>' : '<span>»&#160;'.$lang_admin_reports['Deleted'].'</span>';
 		$post = str_replace("\n", '<br />', pun_htmlspecialchars($cur_report['message']));
-		$post_id = ($cur_report['pid'] != '') ? '<span>»&#160;<a href="viewtopic.php?pid='.$cur_report['pid'].'#p'.$cur_report['pid'].'">Post #'.$cur_report['pid'].'</a></span>' : '<span>»&#160;'.$lang_admin_reports['Deleted'].'</span>';
+		$post_id = ($cur_report['pid'] != '') ? '<span>»&#160;<a href="viewtopic.php?pid='.$cur_report['pid'].'#p'.$cur_report['pid'].'">'.sprintf($lang_admin_reports['Post ID'], $cur_report['pid']).'</a></span>' : '<span>»&#160;'.$lang_admin_reports['Deleted'].'</span>';
 		$report_location = array($forum, $topic, $post_id);
 
 ?>
@@ -122,7 +130,7 @@ if ($db->num_rows($result))
 		$forum = ($cur_report['forum_name'] != '') ? '<span><a href="viewforum.php?id='.$cur_report['forum_id'].'">'.pun_htmlspecialchars($cur_report['forum_name']).'</a></span>' : '<span>'.$lang_admin_reports['Deleted'].'</span>';
 		$topic = ($cur_report['subject'] != '') ? '<span>»&#160;<a href="viewtopic.php?id='.$cur_report['topic_id'].'">'.pun_htmlspecialchars($cur_report['subject']).'</a></span>' : '<span>»&#160;'.$lang_admin_reports['Deleted'].'</span>';
 		$post = str_replace("\n", '<br />', pun_htmlspecialchars($cur_report['message']));
-		$post_id = ($cur_report['pid'] != '') ? '<span>»&#160;<a href="viewtopic.php?pid='.$cur_report['pid'].'#p'.$cur_report['pid'].'">Post #'.$cur_report['pid'].'</a></span>' : '<span>»&#160;'.$lang_admin_reports['Deleted'].'</span>';
+		$post_id = ($cur_report['pid'] != '') ? '<span>»&#160;<a href="viewtopic.php?pid='.$cur_report['pid'].'#p'.$cur_report['pid'].'">'.sprintf($lang_admin_reports['Post ID'], $cur_report['pid']).'</a></span>' : '<span>»&#160;'.$lang_admin_reports['Deleted'].'</span>';
 		$zapped_by = ($cur_report['zapped_by'] != '') ? '<a href="profile.php?id='.$cur_report['zapped_by_id'].'">'.pun_htmlspecialchars($cur_report['zapped_by']).'</a>' : $lang_admin_reports['NA'];
 		$zapped_by = ($cur_report['zapped_by'] != '') ? '<strong>'.pun_htmlspecialchars($cur_report['zapped_by']).'</strong>' : $lang_admin_reports['NA'];
 		$report_location = array($forum, $topic, $post_id);

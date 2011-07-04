@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2010 FluxBB
+ * Copyright (C) 2008-2011 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -9,7 +9,7 @@
 if (isset($_GET['action']))
 	define('PUN_QUIET_VISIT', 1);
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 
 
@@ -138,7 +138,24 @@ else if (isset($_GET['email']))
 
 
 	// Try to determine if the data in HTTP_REFERER is valid (if not, we redirect to the users profile after the email is sent)
-	$redirect_url = (isset($_SERVER['HTTP_REFERER']) && preg_match('#^'.preg_quote($pun_config['o_base_url']).'/(.*?)\.php#i', $_SERVER['HTTP_REFERER'])) ? htmlspecialchars($_SERVER['HTTP_REFERER']) : 'index.php';
+	if (!empty($_SERVER['HTTP_REFERER']))
+	{
+		$referrer = parse_url($_SERVER['HTTP_REFERER']);
+		// Remove www subdomain if it exists
+		if (strpos($referrer['host'], 'www.') === 0)
+			$referrer['host'] = substr($referrer['host'], 4);
+
+		$valid = parse_url(get_base_url());
+		// Remove www subdomain if it exists
+		if (strpos($valid['host'], 'www.') === 0)
+			$valid['host'] = substr($valid['host'], 4);
+
+		if ($referrer['host'] == $valid['host'] && preg_match('#^'.preg_quote($valid['path']).'/(.*?)\.php#i', $referrer['path']))
+			$redirect_url = $_SERVER['HTTP_REFERER'];
+	}
+
+	if (!isset($redirect_url))
+		$redirect_url = 'profile.php?id='.$recipient_id;
 
 	$page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_misc['Send email to'].' '.pun_htmlspecialchars($recipient));
 	$required_fields = array('req_subject' => $lang_misc['Email subject'], 'req_message' => $lang_misc['Email message']);
@@ -156,7 +173,7 @@ else if (isset($_GET['email']))
 					<legend><?php echo $lang_misc['Write email'] ?></legend>
 					<div class="infldset txtarea">
 						<input type="hidden" name="form_sent" value="1" />
-						<input type="hidden" name="redirect_url" value="<?php echo $redirect_url ?>" />
+						<input type="hidden" name="redirect_url" value="<?php echo pun_htmlspecialchars($redirect_url) ?>" />
 						<label class="required"><strong><?php echo $lang_misc['Email subject'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br />
 						<input class="longinput" type="text" name="req_subject" size="75" maxlength="70" tabindex="1" /><br /></label>
 						<label class="required"><strong><?php echo $lang_misc['Email message'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br />
@@ -221,7 +238,7 @@ else if (isset($_GET['report']))
 			if ($pun_config['o_mailing_list'] != '')
 			{
 				$mail_subject = sprintf($lang_common['Report notification'], $forum_id, $subject);
-				$mail_message = sprintf($lang_common['Report message 1'], $pun_user['username'], $pun_config['o_base_url'].'/viewtopic.php?pid='.$post_id.'#p'.$post_id)."\n";
+				$mail_message = sprintf($lang_common['Report message 1'], $pun_user['username'], get_base_url().'/viewtopic.php?pid='.$post_id.'#p'.$post_id)."\n";
 				$mail_message .= sprintf($lang_common['Report message 2'], $reason)."\n";
 				$mail_message .= "\n".'--'."\n".$lang_common['Email signature'];
 
@@ -287,46 +304,93 @@ else if (isset($_GET['report']))
 }
 
 
-else if (isset($_GET['subscribe']))
+else if ($action == 'subscribe')
 {
-	if ($pun_user['is_guest'] || $pun_config['o_subscriptions'] != '1')
+	if ($pun_user['is_guest'])
 		message($lang_common['No permission']);
 
-	$topic_id = intval($_GET['subscribe']);
-	if ($topic_id < 1)
+	$topic_id = isset($_GET['tid']) ? intval($_GET['tid']) : 0;
+	$forum_id = isset($_GET['fid']) ? intval($_GET['fid']) : 0;
+	if ($topic_id < 1 && $forum_id < 1)
 		message($lang_common['Bad request']);
 
-	// Make sure the user can view the topic
-	$result = $db->query('SELECT 1 FROM '.$db->prefix.'topics AS t LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=t.forum_id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND t.id='.$topic_id.' AND t.moved_to IS NULL') or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
-	if (!$db->num_rows($result))
-		message($lang_common['Bad request']);
+	if ($topic_id)
+	{
+		if ($pun_config['o_topic_subscriptions'] != '1')
+			message($lang_common['No permission']);
 
-	$result = $db->query('SELECT 1 FROM '.$db->prefix.'subscriptions WHERE user_id='.$pun_user['id'].' AND topic_id='.$topic_id) or error('Unable to fetch subscription info', __FILE__, __LINE__, $db->error());
-	if ($db->num_rows($result))
-		message($lang_misc['Already subscribed']);
+		// Make sure the user can view the topic
+		$result = $db->query('SELECT 1 FROM '.$db->prefix.'topics AS t LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=t.forum_id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND t.id='.$topic_id.' AND t.moved_to IS NULL') or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
+		if (!$db->num_rows($result))
+			message($lang_common['Bad request']);
 
-	$db->query('INSERT INTO '.$db->prefix.'subscriptions (user_id, topic_id) VALUES('.$pun_user['id'].' ,'.$topic_id.')') or error('Unable to add subscription', __FILE__, __LINE__, $db->error());
+		$result = $db->query('SELECT 1 FROM '.$db->prefix.'topic_subscriptions WHERE user_id='.$pun_user['id'].' AND topic_id='.$topic_id) or error('Unable to fetch subscription info', __FILE__, __LINE__, $db->error());
+		if ($db->num_rows($result))
+			message($lang_misc['Already subscribed topic']);
 
-	redirect('viewtopic.php?id='.$topic_id, $lang_misc['Subscribe redirect']);
+		$db->query('INSERT INTO '.$db->prefix.'topic_subscriptions (user_id, topic_id) VALUES('.$pun_user['id'].' ,'.$topic_id.')') or error('Unable to add subscription', __FILE__, __LINE__, $db->error());
+
+		redirect('viewtopic.php?id='.$topic_id, $lang_misc['Subscribe redirect']);
+	}
+
+	if ($forum_id)
+	{
+		if ($pun_config['o_forum_subscriptions'] != '1')
+			message($lang_common['No permission']);
+
+		// Make sure the user can view the forum
+		$result = $db->query('SELECT 1 FROM '.$db->prefix.'forums AS f LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND f.id='.$forum_id) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
+		if (!$db->num_rows($result))
+			message($lang_common['Bad request']);
+
+		$result = $db->query('SELECT 1 FROM '.$db->prefix.'forum_subscriptions WHERE user_id='.$pun_user['id'].' AND forum_id='.$forum_id) or error('Unable to fetch subscription info', __FILE__, __LINE__, $db->error());
+		if ($db->num_rows($result))
+			message($lang_misc['Already subscribed forum']);
+
+		$db->query('INSERT INTO '.$db->prefix.'forum_subscriptions (user_id, forum_id) VALUES('.$pun_user['id'].' ,'.$forum_id.')') or error('Unable to add subscription', __FILE__, __LINE__, $db->error());
+
+		redirect('viewforum.php?id='.$forum_id, $lang_misc['Subscribe redirect']);
+	}
 }
 
 
-else if (isset($_GET['unsubscribe']))
+else if ($action == 'unsubscribe')
 {
-	if ($pun_user['is_guest'] || $pun_config['o_subscriptions'] != '1')
+	if ($pun_user['is_guest'])
 		message($lang_common['No permission']);
 
-	$topic_id = intval($_GET['unsubscribe']);
-	if ($topic_id < 1)
+	$topic_id = isset($_GET['tid']) ? intval($_GET['tid']) : 0;
+	$forum_id = isset($_GET['fid']) ? intval($_GET['fid']) : 0;
+	if ($topic_id < 1 && $forum_id < 1)
 		message($lang_common['Bad request']);
 
-	$result = $db->query('SELECT 1 FROM '.$db->prefix.'subscriptions WHERE user_id='.$pun_user['id'].' AND topic_id='.$topic_id) or error('Unable to fetch subscription info', __FILE__, __LINE__, $db->error());
-	if (!$db->num_rows($result))
-		message($lang_misc['Not subscribed']);
+	if ($topic_id)
+	{
+		if ($pun_config['o_topic_subscriptions'] != '1')
+			message($lang_common['No permission']);
 
-	$db->query('DELETE FROM '.$db->prefix.'subscriptions WHERE user_id='.$pun_user['id'].' AND topic_id='.$topic_id) or error('Unable to remove subscription', __FILE__, __LINE__, $db->error());
+		$result = $db->query('SELECT 1 FROM '.$db->prefix.'topic_subscriptions WHERE user_id='.$pun_user['id'].' AND topic_id='.$topic_id) or error('Unable to fetch subscription info', __FILE__, __LINE__, $db->error());
+		if (!$db->num_rows($result))
+			message($lang_misc['Not subscribed topic']);
 
-	redirect('viewtopic.php?id='.$topic_id, $lang_misc['Unsubscribe redirect']);
+		$db->query('DELETE FROM '.$db->prefix.'topic_subscriptions WHERE user_id='.$pun_user['id'].' AND topic_id='.$topic_id) or error('Unable to remove subscription', __FILE__, __LINE__, $db->error());
+
+		redirect('viewtopic.php?id='.$topic_id, $lang_misc['Unsubscribe redirect']);
+	}
+
+	if ($forum_id)
+	{
+		if ($pun_config['o_forum_subscriptions'] != '1')
+			message($lang_common['No permission']);
+
+		$result = $db->query('SELECT 1 FROM '.$db->prefix.'forum_subscriptions WHERE user_id='.$pun_user['id'].' AND forum_id='.$forum_id) or error('Unable to fetch subscription info', __FILE__, __LINE__, $db->error());
+		if (!$db->num_rows($result))
+			message($lang_misc['Not subscribed forum']);
+
+		$db->query('DELETE FROM '.$db->prefix.'forum_subscriptions WHERE user_id='.$pun_user['id'].' AND forum_id='.$forum_id) or error('Unable to remove subscription', __FILE__, __LINE__, $db->error());
+
+		redirect('viewforum.php?id='.$forum_id, $lang_misc['Unsubscribe redirect']);
+	}
 }
 
 

@@ -6,7 +6,7 @@
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 
 
@@ -33,11 +33,36 @@ if ($pun_config['o_feed_type'] == '1')
 	$page_head = array('feed' => '<link rel="alternate" type="application/rss+xml" href="extern.php?action=feed&amp;type=rss" title="'.$lang_common['RSS active topics feed'].'" />');
 else if ($pun_config['o_feed_type'] == '2')
 	$page_head = array('feed' => '<link rel="alternate" type="application/atom+xml" href="extern.php?action=feed&amp;type=atom" title="'.$lang_common['Atom active topics feed'].'" />');
+	
+$forum_actions = array();
+
+// Display a "mark all as read" link
+if (!$pun_user['is_guest'])
+    $forum_actions[] = '<a href="misc.php?action=markread">'.$lang_common['Mark all as read'].'</a>';
 
 $page_title = array(pun_htmlspecialchars($pun_config['o_board_title']));
 define('PUN_ALLOW_INDEX', 1);
 define('PUN_ACTIVE_PAGE', 'index');
 require PUN_ROOT.'header.php';
+
+# Sub Forum MOD (start) #
+if (file_exists(PUN_ROOT.'lang/'.$pun_user['language'].'/sub_forum.php'))
+	require PUN_ROOT.'lang/'.$pun_user['language'].'/sub_forum.php';
+else
+	require PUN_ROOT.'lang/English/sub_forum.php';
+
+$sfdb = array();
+
+$forums_info = $db->query('SELECT f.num_topics, f.num_posts, f.parent_forum_id, f.last_post_id, f.last_poster, f.last_post, f.id, f.forum_name FROM '.$db->prefix.'forums AS f LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND f.parent_forum_id <> 0 ORDER BY disp_position') or error(implode($db->error(),''),__FILE__,__LINE__,$db->error());
+
+while ($current = $db->fetch_assoc($forums_info))
+{
+	if (!isset($sfdb[$current['parent_forum_id']]))
+		$sfdb[$current['parent_forum_id']] = array();
+		
+	$sfdb[$current['parent_forum_id']][] = $current;
+}
+# Sub Forum MOD ( end ) #
 
 //Let's quickly build their group list for the SQL.
 $group_list = '';
@@ -48,8 +73,7 @@ if (!empty($pun_user['group_ids'])) {
 } //End if.
 
 // Print the categories and forums
-/*Eve-BB note: Big ass SQL, made it a little bit more readable - sidescroll is yucky. :(*/
-$sql = '
+$result = $db->query('
 	SELECT
 		c.id AS cid,
 		c.cat_name,
@@ -62,7 +86,8 @@ $sql = '
 		f.num_posts,
 		f.last_post,
 		f.last_post_id,
-		f.last_poster
+		f.last_poster,
+		f.parent_forum_id
 	FROM
 		'.$db->prefix.'categories AS c
 	INNER JOIN
@@ -74,14 +99,14 @@ $sql = '
 	ON
 		(fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
 	WHERE
-		fp.read_forum IS NULL
-	OR
-		fp.read_forum=1
+		(fp.read_forum IS NULL OR fp.read_forum=1)
+	AND
+		(f.parent_forum_id IS NULL OR f.parent_forum_id=0)
 	ORDER BY
 		c.disp_position,
 		c.id,
-		f.disp_position';
-$result = $db->query($sql, true) or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
+		f.disp_position
+	', true) or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
 
 $cur_category = 0;
 $cat_count = 0;
@@ -155,6 +180,22 @@ while ($cur_forum = $db->fetch_assoc($result))
 		$forum_field = '<h3><a href="viewforum.php?id='.$cur_forum['fid'].'">'.pun_htmlspecialchars($cur_forum['forum_name']).'</a>'.(!empty($forum_field_new) ? ' '.$forum_field_new : '').'</h3>';
 		$num_topics = $cur_forum['num_topics'];
 		$num_posts = $cur_forum['num_posts'];
+# Sub Forum MOD (start) #
+		if (isset($sfdb[$cur_forum['fid']]))
+		{
+			foreach ($sfdb[$cur_forum['fid']] as $cur_subforum)
+			{
+				$num_topics += $cur_subforum['num_topics'];
+				$num_posts += $cur_subforum['num_posts'];
+				if ($cur_forum['last_post'] < $cur_subforum['last_post'])
+				{
+					$cur_forum['last_post_id'] = $cur_subforum['last_post_id'];
+					$cur_forum['last_poster'] = $cur_subforum['last_poster'];
+					$cur_forum['last_post'] = $cur_subforum['last_post'];
+				}
+			}
+		}
+# Sub Forum MOD ( end ) #
 	}
 
 	if ($cur_forum['forum_desc'] != '')
@@ -175,6 +216,30 @@ while ($cur_forum = $db->fetch_assoc($result))
 		$last_post = '- - -';
 	}else {
 		$last_post = $lang_common['Never'];
+	# Sub forums #
+		// Are there new posts since our last visit?
+		if (!empty($sfdb) && isset($sfdb[$cur_forum['fid']]))
+		{
+			foreach ($sfdb[$cur_forum['fid']] as $cur_subforum)
+			{
+				if (!$pun_user['is_guest'] && $cur_subforum['last_post'] > $pun_user['last_visit'] && (empty($tracked_topics['forums'][$cur_subforum['id']]) || $cur_forum['last_post'] > $tracked_topics['forums'][$cur_subforum['id']]))
+				{
+					// There are new posts in this forum, but have we read all of them already?
+					foreach ($new_topics[$cur_subforum['id']] as $check_topic_id => $check_last_post)
+					{
+						if ((empty($tracked_topics['topics'][$check_topic_id]) || $tracked_topics['topics'][$check_topic_id] < $check_last_post) && (empty($tracked_topics['forums'][$cur_subforum['id']]) || $tracked_topics['forums'][$cur_subforum['id']] < $check_last_post))
+						{
+							$item_status .= ' inew';
+							$forum_field_new = '<span class="newtext">[ <a href="search.php?action=show_new&amp;fid='.$cur_forum['fid'].'">'.$lang_common['New posts'].'</a> ]</span>';
+							$icon_type = 'icon icon-new';
+	
+							break;
+						}
+					}
+				}
+			}
+		}
+	# Sub forums #
 	} //End if - else block.
 
 	if ($cur_forum['moderators'] != '')
@@ -204,6 +269,33 @@ while ($cur_forum = $db->fetch_assoc($result))
 						<div class="tclcon">
 							<div>
 								<?php echo $forum_field."\n".$moderators ?>
+
+<?php
+				$sub_forums_list = array();
+				if (!empty($sfdb) && isset($sfdb[$cur_forum['fid']]))
+				{
+					foreach ($sfdb[$cur_forum['fid']] as $cur_subforum)
+						$sub_forums_list[] = '<a class="subforum_name" href="viewforum.php?id='.$cur_subforum['id'].'">'.pun_htmlspecialchars($cur_subforum['forum_name']).'</a>';
+
+					// EDIT THIS FOR THE DISPLAY STYLE OF THE SUBFORUMS ON MAIN PAGE
+					if(!empty($sub_forums_list))
+					{
+						// Leave one $sub_forums_list commented out to use the other (between the ###..)
+						################################
+						// This is Single Line Wrap Style
+						$sub_forums_list = "\t\t\t\t\t\t\t\t".'<span class="subforum">'.$lang_sub_forum['Sub forums'].':</span> '.implode(', ', $sub_forums_list)."\n";
+						// This is List Style
+						//$sub_forums_list = "\n".'<b><em>'.$lang_sub_forum['Sub forums'].':</em></b><br />&nbsp; -- &nbsp;'.implode('<br />&nbsp; -- &nbsp;', $sub_forums_list)."\n";
+						################################
+						/* if ($cur_forum['forum_desc'] != NULL)
+						echo "<br />";
+						*/
+						// TO TURN OFF DISPLAY OF SUBFORUMS ON INDEX PAGE, COMMENT OUT THE FOLLOWING LINE
+						echo $sub_forums_list;
+					}
+				}
+?>
+
 							</div>
 						</div>
 					</td>
@@ -223,11 +315,17 @@ else
 
 
 // Collect some statistics from the database
-$result = $db->query('SELECT COUNT(id)-1 FROM '.$db->prefix.'users WHERE group_id!='.PUN_UNVERIFIED) or error('Unable to fetch total user count', __FILE__, __LINE__, $db->error());
-$stats['total_users'] = $db->result($result);
+if (file_exists(FORUM_CACHE_DIR.'cache_users_info.php'))
+	include FORUM_CACHE_DIR.'cache_users_info.php';
 
-$result = $db->query('SELECT id, username FROM '.$db->prefix.'users WHERE group_id!='.PUN_UNVERIFIED.' ORDER BY registered DESC LIMIT 1') or error('Unable to fetch newest registered user', __FILE__, __LINE__, $db->error());
-$stats['last_user'] = $db->fetch_assoc($result);
+if (!defined('PUN_USERS_INFO_LOADED'))
+{
+	if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
+        require PUN_ROOT.'include/cache.php';
+        
+    generate_users_info_cache();
+    require FORUM_CACHE_DIR.'cache_users_info.php';
+} //End if.
 
 $result = $db->query('SELECT SUM(num_topics), SUM(num_posts) FROM '.$db->prefix.'forums') or error('Unable to fetch topic/post count', __FILE__, __LINE__, $db->error());
 list($stats['total_topics'], $stats['total_posts']) = $db->fetch_row($result);
@@ -236,12 +334,36 @@ if ($pun_user['g_view_users'] == '1')
 	$stats['newest_user'] = '<a href="profile.php?id='.$stats['last_user']['id'].'">'.pun_htmlspecialchars($stats['last_user']['username']).'</a>';
 else
 	$stats['newest_user'] = pun_htmlspecialchars($stats['last_user']['username']);
+	
+if (!empty($forum_actions))
+{
+
+?>
+<div class="linksb">
+    <div class="inbox crumbsplus">
+        <p class="subscribelink clearb"><?php echo implode(' - ', $forum_actions); ?></p>
+    </div>
+</div>
+<?php
+}
 
 ?>
 <div id="brdstats" class="block">
 	<h2><span><?php echo $lang_index['Board info'] ?></span></h2>
 	<div class="box">
 		<div class="inbox">
+		<?php
+
+if ($pun_config['o_hide_stats'] && $pun_user['is_guest']) {
+?>
+			<dl class="conl">
+				<dd><span><?php echo sprintf($lang_index['Guests online'], '<strong>'.forum_number_format(1).'</strong>'); ?></span></dd>
+				<dd><span><em><?php echo $lang_index['stats_disabled']; ?></em></span></dd>
+			</dl>
+			<div class="clearer"></div>
+<?php
+} else {
+?>
 			<dl class="conr">
 				<dt><strong><?php echo $lang_index['Board stats'] ?></strong></dt>
 				<dd><span><?php printf($lang_index['No of users'], '<strong>'.forum_number_format($stats['total_users']).'</strong>') ?></span></dd>
@@ -287,7 +409,7 @@ else
 	echo "\t\t\t".'</dl>'."\n\t\t\t".'<div class="clearer"></div>'."\n";
 
 
-?>
+} //End if.?>
 		</div>
 	</div>
 </div>

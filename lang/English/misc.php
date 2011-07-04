@@ -29,9 +29,11 @@ $lang_misc = array(
 'Reason desc'					=>	'Please enter a short reason why you are reporting this post',
 
 // Subscriptions
-'Already subscribed'			=>	'You are already subscribed to this topic.',
+'Already subscribed topic'        =>    'You are already subscribed to this topic.',
+'Already subscribed forum'        =>    'You are already subscribed to this forum.',
 'Subscribe redirect'			=>	'Your subscription has been added. Redirecting …',
-'Not subscribed'				=>	'You are not subscribed to this topic.',
+'Not subscribed topic'            =>    'You are not subscribed to this topic.',
+'Not subscribed forum'            =>    'You are not subscribed to this forum.',
 'Unsubscribe redirect'			=>	'Your subscription has been removed. Redirecting …',
 
 // General forum and topic moderation
@@ -71,7 +73,7 @@ $lang_misc = array(
 'New subject'					=>	'New subject',
 
 // Split multiple posts in topic
-'Confirm split legend'			=>	'Please confirm split of selected posts.',
+'Confirm split legend'            =>    'Please confirm split of selected posts and select destination of move.',
 'Split posts'					=>	'Split posts',
 'Split posts comply'			=>	'Are you sure you want to split the selected posts?',
 'Split posts redirect'			=>	'Posts have been split. Redirecting …',

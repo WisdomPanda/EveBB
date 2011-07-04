@@ -33,35 +33,45 @@ function generate_admin_menu($page = '')
 ?>
 <div id="adminconsole" class="block2col">
 	<div id="adminmenu" class="blockmenu">
-		<h2><span><?php echo ($is_admin) ? $lang_admin_common['Admin menu'] : $lang_admin_common['Moderator menu'] ?></span></h2>
+		<h2><span><?php echo $lang_admin_common['Moderator menu'] ?></span></h2>
 		<div class="box">
 			<div class="inbox">
 				<ul>
 					<li<?php if ($page == 'index') echo ' class="isactive"'; ?>><a href="admin_index.php"><?php echo $lang_admin_common['Index'] ?></a></li>
-<?php if ($is_admin): ?>					<li<?php if ($page == 'eve_online') echo ' class="isactive"'; ?>><a href="admin_eve_online.php"><?php echo $lang_admin_common['Eve Online'] ?></a></li>
-<?php endif; ?>
-<?php if ($is_admin && defined('EVE_ALLIANCE_ENABLED')): ?>					<li<?php if ($page == 'eve_ally') echo ' class="isactive"'; ?>><a href="admin_eve_alliance.php"><?php echo $lang_admin_common['Eve Alliance'] ?></a></li>
-<?php endif; ?>
-<?php if ($is_admin): ?>					<li<?php if ($page == 'eve_corp') echo ' class="isactive"'; ?>><a href="admin_eve_corps.php"><?php echo $lang_admin_common['Eve Corporation'] ?></a></li>
-<?php endif; ?>
-<?php if ($is_admin): ?>					<li<?php if ($page == 'eve_groups') echo ' class="isactive"'; ?>><a href="admin_eve_groups.php"><?php echo $lang_admin_common['Eve Groups'] ?></a></li>
-<?php endif; ?>
-<?php if ($is_admin): ?>					<li<?php if ($page == 'categories') echo ' class="isactive"'; ?>><a href="admin_categories.php"><?php echo $lang_admin_common['Categories'] ?></a></li>
-<?php endif; ?><?php if ($is_admin): ?>					<li<?php if ($page == 'forums') echo ' class="isactive"'; ?>><a href="admin_forums.php"><?php echo $lang_admin_common['Forums'] ?></a></li>
-<?php endif; ?>					<li<?php if ($page == 'users') echo ' class="isactive"'; ?>><a href="admin_users.php"><?php echo $lang_admin_common['Users'] ?></a></li>
-<?php if ($is_admin): ?>					<li<?php if ($page == 'groups') echo ' class="isactive"'; ?>><a href="admin_groups.php"><?php echo $lang_admin_common['User groups'] ?></a></li>
-<?php endif; ?><?php if ($is_admin): ?>					<li<?php if ($page == 'options') echo ' class="isactive"'; ?>><a href="admin_options.php"><?php echo $lang_admin_common['Options'] ?></a></li>
-<?php endif; ?><?php if ($is_admin): ?>					<li<?php if ($page == 'permissions') echo ' class="isactive"'; ?>><a href="admin_permissions.php"><?php echo $lang_admin_common['Permissions'] ?></a></li>
-<?php endif; ?><?php if ($is_admin || $pun_config['o_censoring'] == '1'): ?>					<li<?php if ($page == 'censoring') echo ' class="isactive"'; ?>><a href="admin_censoring.php"><?php echo $lang_admin_common['Censoring'] ?></a></li>
-<?php endif; ?><?php if ($is_admin): ?>					<li<?php if ($page == 'ranks') echo ' class="isactive"'; ?>><a href="admin_ranks.php"><?php echo $lang_admin_common['Ranks'] ?></a></li>
-<?php endif; ?><?php if ($is_admin || $pun_user['g_mod_ban_users'] == '1'): ?>					<li<?php if ($page == 'bans') echo ' class="isactive"'; ?>><a href="admin_bans.php"><?php echo $lang_admin_common['Bans'] ?></a></li>
-<?php endif; ?><?php if ($is_admin): ?>					<li<?php if ($page == 'prune') echo ' class="isactive"'; ?>><a href="admin_prune.php"><?php echo $lang_admin_common['Prune'] ?></a></li>
-<?php endif; ?><?php if ($is_admin): ?>					<li<?php if ($page == 'maintenance') echo ' class="isactive"'; ?>><a href="admin_maintenance.php"><?php echo $lang_admin_common['Maintenance'] ?></a></li>
-<?php endif; ?>					<li<?php if ($page == 'reports') echo ' class="isactive"'; ?>><a href="admin_reports.php"><?php echo $lang_admin_common['Reports'] ?></a></li>
+					<li<?php if ($page == 'users') echo ' class="isactive"'; ?>><a href="admin_users.php"><?php echo $lang_admin_common['Users'] ?></a></li>
+<?php if ($is_admin || $pun_user['g_mod_ban_users'] == '1'): ?>					<li<?php if ($page == 'bans') echo ' class="isactive"'; ?>><a href="admin_bans.php"><?php echo $lang_admin_common['Bans'] ?></a></li>
+<?php endif; if ($is_admin || $pun_config['o_report_method'] == '0' || $pun_config['o_report_method'] == '2'): ?>					<li<?php if ($page == 'reports') echo ' class="isactive"'; ?>><a href="admin_reports.php"><?php echo $lang_admin_common['Reports'] ?></a></li>
+<?php endif; ?>				</ul>
+			</div>
+		</div>
+<?php
+
+	if ($is_admin)
+	{
+
+?>
+		<h2 class="block2"><span><?php echo $lang_admin_common['Admin menu'] ?></span></h2>
+		<div class="box">
+			<div class="inbox">
+				<ul>
+					<li<?php if ($page == 'options') echo ' class="isactive"'; ?>><a href="admin_options.php"><?php echo $lang_admin_common['Options'] ?></a></li>
+					<li<?php if ($page == 'eve_online') echo ' class="isactive"'; ?>><a href="admin_eve_online.php"><?php echo $lang_admin_common['Eve Online'] ?></a></li>
+					<li<?php if ($page == 'eve_ally') echo ' class="isactive"'; ?>><a href="admin_eve_alliance.php"><?php echo $lang_admin_common['Eve Alliance'] ?></a></li>
+					<li<?php if ($page == 'eve_corp') echo ' class="isactive"'; ?>><a href="admin_eve_corps.php"><?php echo $lang_admin_common['Eve Corporation'] ?></a></li>
+					<li<?php if ($page == 'eve_groups') echo ' class="isactive"'; ?>><a href="admin_eve_groups.php"><?php echo $lang_admin_common['Eve Groups'] ?></a></li>
+					<li<?php if ($page == 'permissions') echo ' class="isactive"'; ?>><a href="admin_permissions.php"><?php echo $lang_admin_common['Permissions'] ?></a></li>
+					<li<?php if ($page == 'categories') echo ' class="isactive"'; ?>><a href="admin_categories.php"><?php echo $lang_admin_common['Categories'] ?></a></li>
+					<li<?php if ($page == 'forums') echo ' class="isactive"'; ?>><a href="admin_forums.php"><?php echo $lang_admin_common['Forums'] ?></a></li>
+					<li<?php if ($page == 'groups') echo ' class="isactive"'; ?>><a href="admin_groups.php"><?php echo $lang_admin_common['User groups'] ?></a></li>
+					<li<?php if ($page == 'censoring') echo ' class="isactive"'; ?>><a href="admin_censoring.php"><?php echo $lang_admin_common['Censoring'] ?></a></li>
+					<li<?php if ($page == 'ranks') echo ' class="isactive"'; ?>><a href="admin_ranks.php"><?php echo $lang_admin_common['Ranks'] ?></a></li>
+					<li<?php if ($page == 'maintenance') echo ' class="isactive"'; ?>><a href="admin_maintenance.php"><?php echo $lang_admin_common['Maintenance'] ?></a></li>
 				</ul>
 			</div>
 		</div>
 <?php
+
+	}
 
 	// See if there are any plugins
 	$plugins = forum_list_plugins($is_admin);
@@ -129,7 +139,7 @@ function prune($forum_id, $prune_sticky, $prune_date)
 			// Delete topics
 			$db->query('DELETE FROM '.$db->prefix.'topics WHERE id IN('.$topic_ids.')') or error('Unable to prune topics', __FILE__, __LINE__, $db->error());
 			// Delete subscriptions
-			$db->query('DELETE FROM '.$db->prefix.'subscriptions WHERE topic_id IN('.$topic_ids.')') or error('Unable to prune subscriptions', __FILE__, __LINE__, $db->error());
+			$db->query('DELETE FROM '.$db->prefix.'topic_subscriptions WHERE topic_id IN('.$topic_ids.')') or error('Unable to prune subscriptions', __FILE__, __LINE__, $db->error());
 			// Delete posts
 			$db->query('DELETE FROM '.$db->prefix.'posts WHERE id IN('.$post_ids.')') or error('Unable to prune posts', __FILE__, __LINE__, $db->error());
 

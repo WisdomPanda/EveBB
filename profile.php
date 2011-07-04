@@ -6,7 +6,7 @@
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 
 // Include UTF-8 function
@@ -260,7 +260,7 @@ else if ($action == 'change_email')
 			{
 				$mail_subject = $lang_common['Banned email notification'];
 				$mail_message = sprintf($lang_common['Banned email change message'], $pun_user['username'], $new_email)."\n";
-				$mail_message .= sprintf($lang_common['User profile'], $pun_config['o_base_url'].'/profile.php?id='.$id)."\n";
+				$mail_message .= sprintf($lang_common['User profile'], get_base_url().'/profile.php?id='.$id)."\n";
 				$mail_message .= "\n".'--'."\n".$lang_common['Email signature'];
 
 				pun_mail($pun_config['o_mailing_list'], $mail_subject, $mail_message);
@@ -280,7 +280,7 @@ else if ($action == 'change_email')
 
 				$mail_subject = $lang_common['Duplicate email notification'];
 				$mail_message = sprintf($lang_common['Duplicate email change message'], $pun_user['username'], implode(', ', $dupe_list))."\n";
-				$mail_message .= sprintf($lang_common['User profile'], $pun_config['o_base_url'].'/profile.php?id='.$id)."\n";
+				$mail_message .= sprintf($lang_common['User profile'], get_base_url().'/profile.php?id='.$id)."\n";
 				$mail_message .= "\n".'--'."\n".$lang_common['Email signature'];
 
 				pun_mail($pun_config['o_mailing_list'], $mail_subject, $mail_message);
@@ -301,8 +301,8 @@ else if ($action == 'change_email')
 		$mail_message = trim(substr($mail_tpl, $first_crlf));
 
 		$mail_message = str_replace('<username>', $pun_user['username'], $mail_message);
-		$mail_message = str_replace('<base_url>', $pun_config['o_base_url'], $mail_message);
-		$mail_message = str_replace('<activation_url>', $pun_config['o_base_url'].'/profile.php?action=change_email&id='.$id.'&key='.$new_email_key, $mail_message);
+		$mail_message = str_replace('<base_url>', get_base_url(), $mail_message);
+		$mail_message = str_replace('<activation_url>', get_base_url().'/profile.php?action=change_email&id='.$id.'&key='.$new_email_key, $mail_message);
 		$mail_message = str_replace('<board_mailer>', $pun_config['o_board_title'].' '.$lang_common['Mailer'], $mail_message);
 
 		pun_mail($new_email, $mail_subject, $mail_message);
@@ -399,13 +399,12 @@ else if ($action == 'upload_avatar' || $action == 'upload_avatar2')
 				message($lang_profile['Too large'].' '.forum_number_format($pun_config['o_avatars_size']).' '.$lang_profile['bytes'].'.');
 
 			// Move the file to the avatar directory. We do this before checking the width/height to circumvent open_basedir restrictions
-			if (!@move_uploaded_file($uploaded_file['tmp_name'], $pun_config['o_avatars_dir'].'/'.$id.'.tmp'))
+			if (!@move_uploaded_file($uploaded_file['tmp_name'], PUN_ROOT.$pun_config['o_avatars_dir'].'/'.$id.'.tmp'))
 				message($lang_profile['Move failed'].' <a href="mailto:'.$pun_config['o_admin_email'].'">'.$pun_config['o_admin_email'].'</a>.');
 
-			list($width, $height, $type,) = @getimagesize($pun_config['o_avatars_dir'].'/'.$id.'.tmp');
+			list($width, $height, $type,) = @getimagesize(PUN_ROOT.$pun_config['o_avatars_dir'].'/'.$id.'.tmp');
 
 			// Determine type
-			$extension = null;
 			if ($type == IMAGETYPE_GIF)
 				$extension = '.gif';
 			else if ($type == IMAGETYPE_JPEG)
@@ -415,21 +414,21 @@ else if ($action == 'upload_avatar' || $action == 'upload_avatar2')
 			else
 			{
 				// Invalid type
-				@unlink($pun_config['o_avatars_dir'].'/'.$id.'.tmp');
+				@unlink(PUN_ROOT.$pun_config['o_avatars_dir'].'/'.$id.'.tmp');
 				message($lang_profile['Bad type']);
 			}
 
 			// Now check the width/height
 			if (empty($width) || empty($height) || $width > $pun_config['o_avatars_width'] || $height > $pun_config['o_avatars_height'])
 			{
-				@unlink($pun_config['o_avatars_dir'].'/'.$id.'.tmp');
+				@unlink(PUN_ROOT.$pun_config['o_avatars_dir'].'/'.$id.'.tmp');
 				message($lang_profile['Too wide or high'].' '.$pun_config['o_avatars_width'].'x'.$pun_config['o_avatars_height'].' '.$lang_profile['pixels'].'.');
 			}
 
 			// Delete any old avatars and put the new one in place
 			delete_avatar($id);
-			@rename($pun_config['o_avatars_dir'].'/'.$id.'.tmp', $pun_config['o_avatars_dir'].'/'.$id.$extension);
-			@chmod($pun_config['o_avatars_dir'].'/'.$id.$extension, 0644);
+			@rename(PUN_ROOT.$pun_config['o_avatars_dir'].'/'.$id.'.tmp', PUN_ROOT.$pun_config['o_avatars_dir'].'/'.$id.$extension);
+			@chmod(PUN_ROOT.$pun_config['o_avatars_dir'].'/'.$id.$extension, 0644);
 		}
 		else
 			message($lang_profile['Unknown failure']);
@@ -455,7 +454,7 @@ else if ($action == 'upload_avatar' || $action == 'upload_avatar2')
 						<input type="hidden" name="form_sent" value="1" />
 						<input type="hidden" name="MAX_FILE_SIZE" value="<?php echo $pun_config['o_avatars_size'] ?>" />
 						<label class="required"><strong><?php echo $lang_profile['File'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br /><input name="req_file" type="file" size="40" /><br /></label>
-						<p><?php echo $lang_profile['Avatar desc'].' '.$pun_config['o_avatars_width'].' x '.$pun_config['o_avatars_height'].' '.$lang_profile['pixels'].' '.$lang_common['and'].' '.forum_number_format($pun_config['o_avatars_size']).' '.$lang_profile['bytes'].' ('.forum_number_format(ceil($pun_config['o_avatars_size'] / 1024)) ?> KB).</p>
+						<p><?php echo $lang_profile['Avatar desc'].' '.$pun_config['o_avatars_width'].' x '.$pun_config['o_avatars_height'].' '.$lang_profile['pixels'].' '.$lang_common['and'].' '.forum_number_format($pun_config['o_avatars_size']).' '.$lang_profile['bytes'].' ('.file_size($pun_config['o_avatars_size']).').' ?></p>
 					</div>
 				</fieldset>
 			</div>
@@ -492,6 +491,12 @@ else if (isset($_POST['update_group_membership']))
 	$new_group_id = intval($_POST['group_id']);
 
 	$db->query('UPDATE '.$db->prefix.'users SET group_id='.$new_group_id.' WHERE id='.$id) or error('Unable to change user group', __FILE__, __LINE__, $db->error());
+	
+	// Regenerate the users info cache
+	if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
+ 		require PUN_ROOT.'include/cache.php';
+
+ 	generate_users_info_cache();
 
 	$result = $db->query('SELECT g_moderator FROM '.$db->prefix.'groups WHERE g_id='.$new_group_id) or error('Unable to fetch group', __FILE__, __LINE__, $db->error());
 	$new_group_mod = $db->result($result);
@@ -614,7 +619,8 @@ else if (isset($_POST['delete_user']) || isset($_POST['delete_user_comply']))
 		}
 
 		// Delete any subscriptions
-		$db->query('DELETE FROM '.$db->prefix.'subscriptions WHERE user_id='.$id) or error('Unable to delete subscriptions', __FILE__, __LINE__, $db->error());
+		$db->query('DELETE FROM '.$db->prefix.'topic_subscriptions WHERE user_id='.$id) or error('Unable to delete topic subscriptions', __FILE__, __LINE__, $db->error());
+		$db->query('DELETE FROM '.$db->prefix.'forum_subscriptions WHERE user_id='.$id) or error('Unable to delete forum subscriptions', __FILE__, __LINE__, $db->error());
 
 		// Remove him/her from the online list (if they happen to be logged in)
 		$db->query('DELETE FROM '.$db->prefix.'online WHERE user_id='.$id) or error('Unable to remove user from online list', __FILE__, __LINE__, $db->error());
@@ -645,16 +651,35 @@ else if (isset($_POST['delete_user']) || isset($_POST['delete_user_comply']))
 					update_forum($cur_post['forum_id']);
 				}
 			}
-		}
-		else
+		} else {
 			// Set all his/her posts to guest
 			$db->query('UPDATE '.$db->prefix.'posts SET poster_id=1 WHERE poster_id='.$id) or error('Unable to update posts', __FILE__, __LINE__, $db->error());
+		} //End if - else.
+		
+		//Let plugins do their own thing.
+		foreach ($_HOOKS['users'] as $hook) {
+			$hook->user_deleted($id);
+		} //End foreach().
 
 		// Delete the user
 		$db->query('DELETE FROM '.$db->prefix.'users WHERE id='.$id) or error('Unable to delete user', __FILE__, __LINE__, $db->error());
+		
+// New PMS
+		require PUN_ROOT.'include/pms_new/common_pmsn.php';
+
+		pmsn_user_delete($id, 2);
+
+		$db->query('DELETE FROM '.$db->prefix.'pms_new_block WHERE bl_id='.$id.' OR bl_user_id='.$id) or error('Unable to delete user in pms_new_block', __FILE__, __LINE__, $db->error());
+// New PMS
 
 		// Delete user avatar
 		delete_avatar($id);
+		
+		// Regenerate the users info cache
+		if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
+			require PUN_ROOT.'include/cache.php';
+
+		generate_users_info_cache();
 
 		redirect('index.php', $lang_profile['User delete redirect']);
 	}
@@ -693,16 +718,18 @@ else if (isset($_POST['delete_user']) || isset($_POST['delete_user_comply']))
 else if (isset($_POST['form_sent']))
 {
 	// Fetch the user group of the user we are editing
-	$result = $db->query('SELECT u.group_id, g.g_moderator FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'groups AS g ON (g.g_id=u.group_id) WHERE u.id='.$id) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT u.username, u.group_id, g.g_moderator FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'groups AS g ON (g.g_id=u.group_id) WHERE u.id='.$id) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 	if (!$db->num_rows($result))
 		message($lang_common['Bad request']);
 
-	list($group_id, $is_moderator) = $db->fetch_row($result);
+	list($old_username, $group_id, $is_moderator) = $db->fetch_row($result);
 
-	if ($pun_user['id'] != $id &&
-		(!$pun_user['is_admmod'] ||
-		($pun_user['g_moderator'] == '1' && $pun_user['g_mod_edit_users'] == '0') ||
-		($pun_user['g_moderator'] == '1' && $is_moderator)))
+	if ($pun_user['id'] != $id &&                                                                    // If we arent the user (i.e. editing your own profile)
+        (!$pun_user['is_admmod'] ||                                                                    // and we are not an admin or mod
+        ($pun_user['g_id'] != PUN_ADMIN &&                                                            // or we aren't an admin and ...
+        ($pun_user['g_mod_edit_users'] == '0' ||                                                    // mods aren't allowed to edit users
+        $group_id == PUN_ADMIN ||                                                                    // or the user is an admin
+        $is_moderator))))                                                                            // or the user is another mod
 		message($lang_common['No permission']);
 
 	if ($pun_user['is_admmod'])
@@ -725,9 +752,10 @@ else if (isset($_POST['form_sent']))
 			// Make sure we got a valid language string
 			if (isset($_POST['form']['language']))
 			{
-				$form['language'] = preg_replace('#[\.\\\/]#', '', pun_trim($_POST['form']['language']));
-				if (!file_exists(PUN_ROOT.'lang/'.$form['language'].'/common.php'))
-						message($lang_common['Bad request']);
+				$languages = forum_list_langs();
+				$form['language'] = pun_trim($_POST['form']['language']);
+				if (!in_array($form['language'], $languages))
+					message($lang_common['Bad request']);
 			}
 
 			if ($pun_user['is_admmod'])
@@ -738,18 +766,19 @@ else if (isset($_POST['form_sent']))
 				if ($pun_user['g_id'] == PUN_ADMIN || ($pun_user['g_moderator'] == '1' && $pun_user['g_mod_rename_users'] == '1'))
 				{
 					$form['username'] = pun_trim($_POST['req_username']);
-					$old_username = pun_trim($_POST['old_username']);
-
-					// Check username
-					require PUN_ROOT.'lang/'.$pun_user['language'].'/register.php';
-
-					$errors = array();
-					check_username($form['username'], $id);
-					if (!empty($errors))
-						message($errors[0]);
 
 					if ($form['username'] != $old_username)
+					{
+						// Check username
+						require PUN_ROOT.'lang/'.$pun_user['language'].'/register.php';
+
+						$errors = array();
+						check_username($form['username'], $id);
+						if (!empty($errors))
+							message($errors[0]);
+	
 						$username_updated = true;
+					} //End if.
 				}
 
 				// We only allow administrators to update the post count
@@ -886,8 +915,9 @@ else if (isset($_POST['form_sent']))
 			// Make sure we got a valid style string
 			if (isset($_POST['form']['style']))
 			{
-				$form['style'] = preg_replace('#[\.\\\/]#', '', pun_trim($_POST['form']['style']));
-				if (!file_exists(PUN_ROOT.'style/'.$form['style'].'.css'))
+				$styles = forum_list_styles();
+				$form['style'] = pun_trim($_POST['form']['style']);
+				if (!in_array($form['style'], $styles))
 						message($lang_common['Bad request']);
 			}
 
@@ -931,6 +961,12 @@ else if (isset($_POST['form_sent']))
 	// If we changed the username we have to update some stuff
 	if ($username_updated)
 	{
+// New PMS
+		$db->query('UPDATE '.$db->prefix.'pms_new_topics SET starter=\''.$db->escape($form['username']).'\' WHERE starter_id='.$id) or error('Unable to update pms_new_topics', __FILE__, __LINE__, $db->error());
+		$db->query('UPDATE '.$db->prefix.'pms_new_topics SET to_user=\''.$db->escape($form['username']).'\' WHERE to_id='.$id) or error('Unable to update pms_new_topics', __FILE__, __LINE__, $db->error());
+		$db->query('UPDATE '.$db->prefix.'pms_new_posts SET poster=\''.$db->escape($form['username']).'\' WHERE poster_id='.$id) or error('Unable to update pms_new_posts', __FILE__, __LINE__, $db->error());
+		$db->query('UPDATE '.$db->prefix.'pms_new_block SET bl_user=\''.$db->escape($form['username']).'\' WHERE bl_user_id='.$id) or error('Unable to update ms_new_block', __FILE__, __LINE__, $db->error());
+// New PMS
 		$db->query('UPDATE '.$db->prefix.'posts SET poster=\''.$db->escape($form['username']).'\' WHERE poster_id='.$id) or error('Unable to update posts', __FILE__, __LINE__, $db->error());
 		$db->query('UPDATE '.$db->prefix.'posts SET edited_by=\''.$db->escape($form['username']).'\' WHERE edited_by=\''.$db->escape($old_username).'\'') or error('Unable to update posts', __FILE__, __LINE__, $db->error());
 		$db->query('UPDATE '.$db->prefix.'topics SET poster=\''.$db->escape($form['username']).'\' WHERE poster=\''.$db->escape($old_username).'\'') or error('Unable to update topics', __FILE__, __LINE__, $db->error());
@@ -969,7 +1005,10 @@ else if (isset($_POST['form_sent']))
 }
 
 
-$result = $db->query('SELECT u.username, u.email, u.title, u.realname, u.url, u.jabber, u.icq, u.msn, u.aim, u.yahoo, u.location, u.signature, u.disp_topics, u.disp_posts, u.email_setting, u.notify_with_post, u.auto_notify, u.show_smilies, u.show_img, u.show_img_sig, u.show_avatars, u.show_sig, u.timezone, u.dst, u.language, u.style, u.num_posts, u.last_post, u.registered, u.registration_ip, u.admin_note, u.date_format, u.time_format, g.g_id, g.g_user_title, g.g_moderator FROM '.$db->prefix.'users AS u LEFT JOIN '.$db->prefix.'groups AS g ON g.g_id=u.group_id WHERE u.id='.$id) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+//$result = $db->query('SELECT u.username, u.email, u.title, u.realname, u.url, u.jabber, u.icq, u.msn, u.aim, u.yahoo, u.location, u.signature, u.disp_topics, u.disp_posts, u.email_setting, u.notify_with_post, u.auto_notify, u.show_smilies, u.show_img, u.show_img_sig, u.show_avatars, u.show_sig, u.timezone, u.dst, u.language, u.style, u.num_posts, u.last_post, u.registered, u.registration_ip, u.admin_note, u.date_format, u.time_format, g.g_id, g.g_user_title, g.g_moderator FROM '.$db->prefix.'users AS u LEFT JOIN '.$db->prefix.'groups AS g ON g.g_id=u.group_id WHERE u.id='.$id) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+
+// add "g.g_pm, u.messages_enable," - New PMS
+$result = $db->query('SELECT u.username, u.email, u.title, u.realname, u.url, u.jabber, u.icq, u.msn, u.aim, u.yahoo, u.location, u.signature, u.disp_topics, u.disp_posts, u.email_setting, u.notify_with_post, u.auto_notify, u.show_smilies, u.show_img, u.show_img_sig, u.show_avatars, u.show_sig, u.timezone, u.dst, u.language, u.style, u.num_posts, u.last_post, u.registered, u.registration_ip, u.admin_note, u.date_format, u.time_format, u.last_visit, u.messages_enable, g.g_id, g.g_user_title, g.g_moderator, g.g_pm FROM '.$db->prefix.'users AS u LEFT JOIN '.$db->prefix.'groups AS g ON g.g_id=u.group_id WHERE u.id='.$id) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 if (!$db->num_rows($result))
 	message($lang_common['Bad request']);
 
@@ -996,10 +1035,12 @@ if ($user['signature'] != '')
 
 
 // View or edit?
-if ($pun_user['id'] != $id &&
-	(!$pun_user['is_admmod'] ||
-	($pun_user['g_moderator'] == '1' && $pun_user['g_mod_edit_users'] == '0') ||
-	($pun_user['g_moderator'] == '1' && $user['g_moderator'] == '1')))
+if ($pun_user['id'] != $id &&                                                                    // If we arent the user (i.e. editing your own profile)
+    (!$pun_user['is_admmod'] ||                                                                    // and we are not an admin or mod
+    ($pun_user['g_id'] != PUN_ADMIN &&                                                            // or we aren't an admin and ...
+    ($pun_user['g_mod_edit_users'] == '0' ||                                                    // mods aren't allowed to edit users
+    $user['g_id'] == PUN_ADMIN ||                                                                // or the user is an admin
+    $user['g_moderator'] == '1'))))
 {
 	$user_personal = array();
 	
@@ -1044,6 +1085,15 @@ if ($pun_user['id'] != $id &&
 		$user_personal[] = '<dt>'.$lang_common['Email'].'</dt>';
 		$user_personal[] = '<dd><span class="email">'.$email_field.'</span></dd>';
 	}
+	
+// New PMS
+	if (!$pun_user['is_guest'] && $pun_config['o_pms_enabled'] == '1' && $pun_user['g_pm'] == 1 && $pun_user['messages_enable'] == 1)
+		if ($user['g_pm'] == 1 && $user['messages_enable'] == 1)
+		{
+			$user_personal[] = '<dt>'.$lang_common['PM'].'</dt>';
+			$user_personal[] = '<dd><span class="pmsnew"><a href="pmsnew.php?mdl=post&amp;uid='.$id.'">'.$lang_common['PMsend'].'</a></span></dd>';
+		}
+// New PMS
 
 	$user_messaging = array();
 
@@ -1107,8 +1157,19 @@ if ($pun_user['id'] != $id &&
 	$posts_field = '';
 	if ($pun_config['o_show_post_count'] == '1' || $pun_user['is_admmod'])
 		$posts_field = forum_number_format($user['num_posts']);
-	if ($pun_user['g_search'] == '1' && $user['num_posts'] > 0)
-		$posts_field .= (($posts_field != '') ? ' - ' : '').'<a href="search.php?action=show_user&amp;user_id='.$id.'">'.$lang_profile['Show posts'].'</a>';
+    if ($pun_user['g_search'] == '1')
+    {
+        $quick_searches = array();
+        if ($user['num_posts'] > 0)
+        {
+            $quick_searches[] = '<a href="search.php?action=show_user_topics&amp;user_id='.$id.'">'.$lang_profile['Show topics'].'</a>';
+            $quick_searches[] = '<a href="search.php?action=show_user_posts&amp;user_id='.$id.'">'.$lang_profile['Show posts'].'</a>';
+        }
+        if ($pun_user['is_admmod'] && $pun_config['o_topic_subscriptions'] == '1')
+            $quick_searches[] = '<a href="search.php?action=show_subscriptions&amp;user_id='.$id.'">'.$lang_profile['Show subscriptions'].'</a>';
+        if (!empty($quick_searches))
+            $posts_field .= (($posts_field != '') ? ' - ' : '').implode(' - ', $quick_searches);
+    }
 	if ($posts_field != '')
 	{
 		$user_activity[] = '<dt>'.$lang_common['Posts'].'</dt>';
@@ -1193,7 +1254,7 @@ else
 		if ($pun_user['is_admmod'])
 		{
 			if ($pun_user['g_id'] == PUN_ADMIN || $pun_user['g_mod_rename_users'] == '1')
-				$username_field = '<input type="hidden" name="old_username" value="'.pun_htmlspecialchars($user['username']).'" /><label class="required"><strong>'.$lang_common['Username'].' <span>'.$lang_common['Required'].'</span></strong><br /><input type="text" name="req_username" value="'.pun_htmlspecialchars($user['username']).'" size="25" maxlength="25" /><br /></label>'."\n";
+				$username_field = '<label class="required"><strong>'.$lang_common['Username'].' <span>'.$lang_common['Required'].'</span></strong><br /><input type="text" name="req_username" value="'.pun_htmlspecialchars($user['username']).'" size="25" maxlength="25" /><br /></label>'."\n";
 			else
 				$username_field = '<p>'.sprintf($lang_profile['Username info'], pun_htmlspecialchars($user['username'])).'</p>'."\n";
 
@@ -1208,14 +1269,28 @@ else
 			else
 				$email_field = '<label class="required"><strong>'.$lang_common['Email'].' <span>'.$lang_common['Required'].'</span></strong><br /><input type="text" name="req_email" value="'.$user['email'].'" size="40" maxlength="80" /><br /></label>'."\n";
 		}
+		
+// New PMS
+		if ($pun_config['o_pms_enabled'] == '1' && $pun_user['g_pm'] == 1 && $pun_user['messages_enable'] == 1 && $pun_user['id'] != $id)
+			if ($pun_user['g_id'] == PUN_ADMIN || ($user['g_pm'] == 1 && $user['messages_enable'] == 1))
+				$email_field .= "\t\t\t\t\t\t\t".'<p><span class="pmsnew"><a href="pmsnew.php?mdl=post&amp;uid='.$id.'">'.$lang_common['PMsend'].'</a></span></p>'."\n";
+// New PMS
 
 		$posts_field = '';
+		$posts_actions = array();
 		if ($pun_user['g_id'] == PUN_ADMIN)
-			$posts_field = '<label>'.$lang_common['Posts'].'<br /><input type="text" name="num_posts" value="'.$user['num_posts'].'" size="8" maxlength="8" /><br /></label><p class="actions"><span><a href="search.php?action=show_user&amp;user_id='.$id.'">'.$lang_profile['Show posts'].'</a></span></p>'."\n";
+			$posts_field .= '<label>'.$lang_common['Posts'].'<br /><input type="text" name="num_posts" value="'.$user['num_posts'].'" size="8" maxlength="8" /><br /></label>';
 		else if ($pun_config['o_show_post_count'] == '1' || $pun_user['is_admmod'])
-			$posts_field = '<p>'.sprintf($lang_profile['Posts info'], forum_number_format($user['num_posts']).($pun_user['g_search'] == '1' ? ' - <a href="search.php?action=show_user&amp;user_id='.$id.'">'.$lang_profile['Show posts'].'</a>' : '')).'</p>'."\n";
-		else if ($pun_user['g_search'] == '1')
-			$posts_field = '<p class="actions"><span><a href="search.php?action=show_user&amp;user_id='.$id.'">'.$lang_profile['Show posts'].'</a></span></p>'."\n";
+			$posts_actions[] = sprintf($lang_profile['Posts info'], forum_number_format($user['num_posts']));
+
+		if ($pun_user['g_search'] == '1' || $pun_user['g_id'] == PUN_ADMIN)
+	        {
+	            $posts_actions[] = '<a href="search.php?action=show_user_topics&amp;user_id='.$id.'">'.$lang_profile['Show topics'].'</a>';
+	            $posts_actions[] = '<a href="search.php?action=show_user_posts&amp;user_id='.$id.'">'.$lang_profile['Show posts'].'</a>';
+	            if ($pun_config['o_topic_subscriptions'] == '1')
+	                $posts_actions[] = '<a href="search.php?action=show_subscriptions&amp;user_id='.$id.'">'.$lang_profile['Show subscriptions'].'</a>';
+	        }
+        $posts_field .= (!empty($posts_actions) ? '<p class="actions">'.implode(' - ', $posts_actions).'</p>' : '')."\n";
 
 
 		$page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_common['Profile'], $lang_profile['Section essentials']);
@@ -1373,6 +1448,7 @@ else
 						<div class="infldset">
 							<p><?php printf($lang_profile['Registered info'], format_time($user['registered'], true).(($pun_user['is_admmod']) ? ' (<a href="moderate.php?get_host='.pun_htmlspecialchars($user['registration_ip']).'">'.pun_htmlspecialchars($user['registration_ip']).'</a>)' : '')) ?></p>
 							<p><?php printf($lang_profile['Last post info'], $last_post) ?></p>
+							<p><?php printf($lang_profile['Last visit info'], format_time($user['last_visit'])) ?></p>
 							<?php echo $posts_field ?>
 <?php if ($pun_user['is_admmod']): ?>							<label><?php echo $lang_profile['Admin note'] ?><br />
 							<input id="admin_note" type="text" name="admin_note" value="<?php echo pun_htmlspecialchars($user['admin_note']) ?>" size="30" maxlength="30" /><br /></label>
@@ -1514,7 +1590,7 @@ else
 							</div>
 							<ul class="bblinks">
 								<li><span><a href="help.php#bbcode" onclick="window.open(this.href); return false;"><?php echo $lang_common['BBCode'] ?></a> <?php echo ($pun_config['p_sig_bbcode'] == '1') ? $lang_common['on'] : $lang_common['off']; ?></span></li>
-								<li><span><a href="help.php#img" onclick="window.open(this.href); return false;"><?php echo $lang_common['img tag'] ?></a> <?php echo ($pun_config['p_sig_img_tag'] == '1') ? $lang_common['on'] : $lang_common['off']; ?></span></li>
+								<li><span><a href="help.php#img" onclick="window.open(this.href); return false;"><?php echo $lang_common['img tag'] ?></a> <?php echo ($pun_config['p_sig_bbcode'] == '1' && $pun_config['p_sig_img_tag'] == '1') ? $lang_common['on'] : $lang_common['off']; ?></span></li>
 								<li><span><a href="help.php#smilies" onclick="window.open(this.href); return false;"><?php echo $lang_common['Smilies'] ?></a> <?php echo ($pun_config['o_smilies_sig'] == '1') ? $lang_common['on'] : $lang_common['off']; ?></span></li>
 							</ul>
 							<?php echo $signature_preview ?>
@@ -1580,7 +1656,7 @@ else
 		}
 
 ?>
-<?php if ($pun_config['o_smilies'] == '1' || $pun_config['o_smilies_sig'] == '1' || $pun_config['o_signatures'] == '1' || $pun_config['o_avatars'] == '1' || $pun_config['p_message_img_tag'] == '1' || $pun_config['p_sig_img_tag'] == '1'): ?>
+<?php if ($pun_config['o_smilies'] == '1' || $pun_config['o_smilies_sig'] == '1' || $pun_config['o_signatures'] == '1' || $pun_config['o_avatars'] == '1' || ($pun_config['p_message_bbcode'] == '1' && $pun_config['p_message_img_tag'] == '1')): ?>
 				<div class="inform">
 					<fieldset>
 						<legend><?php echo $lang_profile['Post display legend'] ?></legend>
@@ -1590,8 +1666,8 @@ else
 <?php if ($pun_config['o_smilies'] == '1' || $pun_config['o_smilies_sig'] == '1'): ?>								<label><input type="checkbox" name="form[show_smilies]" value="1"<?php if ($user['show_smilies'] == '1') echo ' checked="checked"' ?> /><?php echo $lang_profile['Show smilies'] ?><br /></label>
 <?php endif; if ($pun_config['o_signatures'] == '1'): ?>								<label><input type="checkbox" name="form[show_sig]" value="1"<?php if ($user['show_sig'] == '1') echo ' checked="checked"' ?> /><?php echo $lang_profile['Show sigs'] ?><br /></label>
 <?php endif; if ($pun_config['o_avatars'] == '1'): ?>								<label><input type="checkbox" name="form[show_avatars]" value="1"<?php if ($user['show_avatars'] == '1') echo ' checked="checked"' ?> /><?php echo $lang_profile['Show avatars'] ?><br /></label>
-<?php endif; if ($pun_config['p_message_img_tag'] == '1'): ?>								<label><input type="checkbox" name="form[show_img]" value="1"<?php if ($user['show_img'] == '1') echo ' checked="checked"' ?> /><?php echo $lang_profile['Show images'] ?><br /></label>
-<?php endif; if ($pun_config['p_sig_img_tag'] == '1'): ?>								<label><input type="checkbox" name="form[show_img_sig]" value="1"<?php if ($user['show_img_sig'] == '1') echo ' checked="checked"' ?> /><?php echo $lang_profile['Show images sigs'] ?><br /></label>
+<?php endif; if ($pun_config['p_message_bbcode'] == '1' && $pun_config['p_message_img_tag'] == '1'): ?>                                <label><input type="checkbox" name="form[show_img]" value="1"<?php if ($user['show_img'] == '1') echo ' checked="checked"' ?> /><?php echo $lang_profile['Show images'] ?><br /></label>
+<?php endif; if ($pun_config['o_signatures'] == '1' && $pun_config['p_sig_bbcode'] == '1' && $pun_config['p_sig_img_tag'] == '1'): ?>                                <label><input type="checkbox" name="form[show_img_sig]" value="1"<?php if ($user['show_img_sig'] == '1') echo ' checked="checked"' ?> /><?php echo $lang_profile['Show images sigs'] ?><br /></label>
 <?php endif; ?>
 							</div>
 						</div>
@@ -1642,13 +1718,14 @@ else
 						</div>
 					</fieldset>
 				</div>
-<?php if ($pun_config['o_subscriptions'] == '1'): ?>				<div class="inform">
+<?php if ($pun_config['o_forum_subscriptions'] == '1' || $pun_config['o_topic_subscriptions'] == '1'): ?>                <div class="inform">
 					<fieldset>
 						<legend><?php echo $lang_profile['Subscription legend'] ?></legend>
 						<div class="infldset">
 							<div class="rbox">
 								<label><input type="checkbox" name="form[notify_with_post]" value="1"<?php if ($user['notify_with_post'] == '1') echo ' checked="checked"' ?> /><?php echo $lang_profile['Notify full'] ?><br /></label>
-								<label><input type="checkbox" name="form[auto_notify]" value="1"<?php if ($user['auto_notify'] == '1') echo ' checked="checked"' ?> /><?php echo $lang_profile['Auto notify full'] ?><br /></label>
+								<?php if ($pun_config['o_topic_subscriptions'] == '1'): ?>                                <label><input type="checkbox" name="form[auto_notify]" value="1"<?php if ($user['auto_notify'] == '1') echo ' checked="checked"' ?> /><?php echo $lang_profile['Auto notify full'] ?><br /></label>
+								<?php endif; ?>
 							</div>
 						</div>
 					</fieldset>
@@ -1675,7 +1752,7 @@ else
 	<div class="blockform">
 		<h2><span><?php echo pun_htmlspecialchars($user['username']).' - '.$lang_profile['Section admin'] ?></span></h2>
 		<div class="box">
-			<form id="profile7" method="post" action="profile.php?section=admin&amp;id=<?php echo $id ?>&amp;action=foo" style="padding-bottom: 0;">
+			<form id="profile7" method="post" action="profile.php?section=admin&amp;id=<?php echo $id ?>">
 				<div class="inform">
 				<input type="hidden" name="form_sent" value="1" />
 					<fieldset>
@@ -1696,11 +1773,9 @@ else
 		}
 		else
 		{
-			if ($pun_user['id'] != $id)
-			{
 
 ?>
-						<legend><?php echo $lang_profile['Group membership legend'] ?></legend>
+					<legend><?php echo $lang_profile['Group membership legend'] ?></legend>
 						<div class="infldset">
 							<select id="group_id" name="group_id">
 <?php
@@ -1783,11 +1858,6 @@ if ($db->num_rows($result) > 0) {
 			<form id="profile_delete_ban_user" method="POST" action="profile.php?section=admin&amp;id=<?php echo $id ?>" style="padding-top:0;">
 				<div class="inform">
 					<fieldset>
-<?php
-
-			}
-
-?>
 						<legend><?php echo $lang_profile['Delete ban legend'] ?></legend>
 						<div class="infldset">
 							<input type="submit" name="delete_user" value="<?php echo $lang_profile['Delete user'] ?>" /> <input type="submit" name="ban" value="<?php echo $lang_profile['Ban user'] ?>" />

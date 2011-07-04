@@ -9,7 +9,7 @@
 // Tell header.php to use the admin template
 define('PUN_ADMIN_CONSOLE', 1);
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 require PUN_ROOT.'include/common_admin.php';
 
@@ -72,6 +72,9 @@ else if (isset($_GET['del_forum']))
 		$db->query('DELETE FROM '.$db->prefix.'forums WHERE id='.$forum_id) or error('Unable to delete forum', __FILE__, __LINE__, $db->error());
 		$db->query('DELETE FROM '.$db->prefix.'forum_perms WHERE forum_id='.$forum_id) or error('Unable to delete group forum permissions', __FILE__, __LINE__, $db->error());
 
+		// Delete any subscriptions for this forum
+		$db->query('DELETE FROM '.$db->prefix.'forum_subscriptions WHERE forum_id='.$forum_id) or error('Unable to delete subscriptions', __FILE__, __LINE__, $db->error());
+		
 		// Regenerate the quick jump cache
 		if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
 			require PUN_ROOT.'include/cache.php';
@@ -166,8 +169,9 @@ else if (isset($_GET['edit_forum']))
 
 		$forum_desc = ($forum_desc != '') ? '\''.$db->escape($forum_desc).'\'' : 'NULL';
 		$redirect_url = ($redirect_url != '') ? '\''.$db->escape($redirect_url).'\'' : 'NULL';
-
-		$db->query('UPDATE '.$db->prefix.'forums SET forum_name=\''.$db->escape($forum_name).'\', forum_desc='.$forum_desc.', redirect_url='.$redirect_url.', sort_by='.$sort_by.', cat_id='.$cat_id.' WHERE id='.$forum_id) or error('Unable to update forum', __FILE__, __LINE__, $db->error());
+		$parent_forum_id = intval($_POST['parent_forum']);
+		
+		$db->query('UPDATE '.$db->prefix.'forums SET forum_name=\''.$db->escape($forum_name).'\', forum_desc='.$forum_desc.', redirect_url='.$redirect_url.', sort_by='.$sort_by.', cat_id='.$cat_id.', parent_forum_id='.$parent_forum_id.' WHERE id='.$forum_id) or error('Unable to update forum', __FILE__, __LINE__, $db->error());
 
 		// Now let's deal with the permissions
 		if (isset($_POST['read_forum_old']))
@@ -220,11 +224,21 @@ else if (isset($_GET['edit_forum']))
 	}
 
 	// Fetch forum info
-	$result = $db->query('SELECT id, forum_name, forum_desc, redirect_url, num_topics, sort_by, cat_id FROM '.$db->prefix.'forums WHERE id='.$forum_id) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT id, forum_name, forum_desc, redirect_url, num_topics, sort_by, cat_id, parent_forum_id FROM '.$db->prefix.'forums WHERE id='.$forum_id) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
 	if (!$db->num_rows($result))
 		message($lang_common['Bad request']);
 
 	$cur_forum = $db->fetch_assoc($result);
+	
+	if (file_exists(PUN_ROOT.'lang/'.$pun_user['language'].'/sub_forum.php'))
+		require PUN_ROOT.'lang/'.$pun_user['language'].'/sub_forum.php';
+	else
+		require PUN_ROOT.'lang/English/sub_forum.php';
+
+	$parent_forums = Array();
+	$result = $db->query('SELECT DISTINCT parent_forum_id FROM '.$db->prefix.'forums WHERE parent_forum_id != 0');
+	while ($r = $db->fetch_row($result))
+		$parent_forums[] = $r[0];
 
 	$page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_admin_common['Admin'], $lang_admin_common['Forums']);
 	define('PUN_ACTIVE_PAGE', 'admin');
@@ -274,6 +288,7 @@ else if (isset($_GET['edit_forum']))
 										<select name="sort_by" tabindex="4">
 											<option value="0"<?php if ($cur_forum['sort_by'] == '0') echo ' selected="selected"' ?>><?php echo $lang_admin_forums['Last post'] ?></option>
 											<option value="1"<?php if ($cur_forum['sort_by'] == '1') echo ' selected="selected"' ?>><?php echo $lang_admin_forums['Topic start'] ?></option>
+											<option value="2"<?php if ($cur_forum['sort_by'] == '2') echo ' selected="selected"' ?>><?php echo $lang_admin_forums['Subject'] ?></option>
 										</select>
 									</td>
 								</tr>
@@ -281,6 +296,41 @@ else if (isset($_GET['edit_forum']))
 									<th scope="row"><?php echo $lang_admin_forums['Redirect label'] ?></th>
 									<td><?php echo ($cur_forum['num_topics']) ? $lang_admin_forums['Redirect help'] : '<input type="text" name="redirect_url" size="45" maxlength="100" value="'.pun_htmlspecialchars($cur_forum['redirect_url']).'" tabindex="5" />'; ?></td>
 								</tr>
+                                <tr>
+                                    <th scope="row"><?php echo $lang_sub_forum['Parent forum'] ?></th>
+                                    <td>
+                                        <select name="parent_forum">
+                                            <option value="0"><?php echo $lang_sub_forum['No parent forum'] ?></option>
+<?php
+
+    if (!in_array($cur_forum['id'],$parent_forums))
+    {
+		$result = $db->query('SELECT c.id AS cid, c.cat_name, f.id, f.forum_name, f.redirect_url, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id ORDER BY c.disp_position, c.id, f.disp_position', true) or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
+
+		$cur_category = 0;
+		while ($forum_list = $db->fetch_assoc($result))
+		{
+			if ($forum_list['cid'] != $cur_category) // A new category since last iteration?
+			{
+				if ($cur_category)
+					echo "\t\t\t\t\t\t".'</optgroup>'."\n";
+
+				echo "\t\t\t\t\t\t".'<optgroup label="'.pun_htmlspecialchars($forum_list['cat_name']).'">'."\n";
+				$cur_category = $forum_list['cid'];
+			}
+			
+			$selected = ($forum_list['id'] == $cur_forum['parent_forum_id']) ? ' selected="selected"' : '';
+
+            if(!$forum_list['parent_forum_id'] && $forum_list['id'] != $cur_forum['id'])
+				echo "\t\t\t\t\t\t\t".'<option value="'.$forum_list['id'].'"'.$selected.'>'.pun_htmlspecialchars($forum_list['forum_name']).'</option>'."\n";
+		}
+    }
+
+?>
+											</optgroup>
+                                        </select>
+                                    </td>
+                                </tr>
 							</table>
 						</div>
 					</fieldset>
@@ -399,7 +449,7 @@ generate_admin_menu('forums');
 <?php
 
 // Display all the categories and forums
-$result = $db->query('SELECT c.id AS cid, c.cat_name, f.id AS fid, f.forum_name, f.disp_position FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id ORDER BY c.disp_position, c.id, f.disp_position') or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
+$result = $db->query('SELECT c.id AS cid, c.cat_name, f.id AS fid, f.forum_name, f.disp_position, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id ORDER BY c.disp_position, c.id, f.disp_position') or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
 
 if ($db->num_rows($result) > 0)
 {
@@ -444,7 +494,7 @@ while ($cur_forum = $db->fetch_assoc($result))
 								<tr>
 									<td class="tcl"><a href="admin_forums.php?edit_forum=<?php echo $cur_forum['fid'] ?>"><?php echo $lang_admin_forums['Edit link'] ?></a> | <a href="admin_forums.php?del_forum=<?php echo $cur_forum['fid'] ?>"><?php echo $lang_admin_forums['Delete link'] ?></a></td>
 									<td class="tc2"><input type="text" name="position[<?php echo $cur_forum['fid'] ?>]" size="3" maxlength="3" value="<?php echo $cur_forum['disp_position'] ?>" tabindex="<?php echo $tabindex_count ?>" /></td>
-									<td class="tcr"><strong><?php echo pun_htmlspecialchars($cur_forum['forum_name']) ?></strong></td>
+									<td class="tcr"><strong><?php echo ($cur_forum['parent_forum_id'] == 0 ? '' : '&nbsp;&nbsp;&nbsp;').pun_htmlspecialchars($cur_forum['forum_name']) ?></strong></td>
 								</tr>
 <?php
 

@@ -5,7 +5,7 @@
  * WisdomPanda
  */
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 
 $base_url = 'http://www.eve-bb.com/updates/'.EVE_BB_VERSION.'/';

@@ -9,21 +9,29 @@ ini_set("display_errors", "on");
  */
 
 // The FluxBB version this script installs
-define('FORUM_VERSION', '1.4.2');
+define('FORUM_VERSION', '1.4.5');
 
-define('FORUM_DB_REVISION', 8);
-define('FORUM_SI_REVISION', 1);
-define('FORUM_PARSER_REVISION', 1);
+define('FORUM_DB_REVISION', 11);
+define('FORUM_SI_REVISION', 2);
+define('FORUM_PARSER_REVISION', 2);
 
-define('MIN_PHP_VERSION', '4.3.0');
+define('MIN_PHP_VERSION', '4.4.0');
 define('MIN_MYSQL_VERSION', '4.1.2');
 define('MIN_PGSQL_VERSION', '7.0.0');
 define('PUN_SEARCH_MIN_WORD', 3);
 define('PUN_SEARCH_MAX_WORD', 20);
-define('EVE_ENABLED', true);
 
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
+
+// If we've been passed a default language, use it
+$install_lang = isset($_REQUEST['install_lang']) ? trim($_REQUEST['install_lang']) : 'English';
+
+// If such a language pack doesn't exist, or isn't up-to-date enough to translate this page, default to English
+if (!file_exists(PUN_ROOT.'lang/'.$install_lang.'/install.php'))
+    $install_lang = 'English';
+    
+require PUN_ROOT.'lang/'.$install_lang.'/install.php';
 
 if (file_exists(PUN_ROOT.'config.php'))
 {
@@ -36,15 +44,19 @@ if (file_exists(PUN_ROOT.'config.php'))
 
 	// If PUN is defined, config.php is probably valid and thus the software is installed
 	if (defined('PUN'))
-		exit('It seems like EveBB is already installed. You should go <a href="index.php">here</a> instead.');
+		exit($lang_install['Already installed']);
 }
 
 // Define PUN because email.php requires it
 define('PUN', 1);
 
+// If the cache directory is not specified, we use the default setting
+if (!defined('FORUM_CACHE_DIR'))
+	define('FORUM_CACHE_DIR', PUN_ROOT.'cache/');
+
 // Make sure we are running at least MIN_PHP_VERSION
 if (!function_exists('version_compare') || version_compare(PHP_VERSION, MIN_PHP_VERSION, '<'))
-	exit('You are running PHP version '.PHP_VERSION.'. EveBB '.EVE_BB_VERSION.' requires at least PHP '.MIN_PHP_VERSION.' to run properly. You must upgrade your PHP installation before you can continue.');
+	exit(sprintf($lang_install['You are running error'], 'PHP', PHP_VERSION, FORUM_VERSION, MIN_PHP_VERSION));
 
 // Load the functions script
 require PUN_ROOT.'include/functions.php';
@@ -96,9 +108,9 @@ $char_sheet;
 //
 function generate_config_file()
 {
-	global $db_type, $db_host, $db_name, $db_username, $db_password1, $db_prefix, $cookie_name, $cookie_seed;
-
-	return '<?php'."\n\n".'$db_type = \''.$db_type."';\n".'$db_host = \''.$db_host."';\n".'$db_name = \''.addslashes($db_name)."';\n".'$db_username = \''.addslashes($db_username)."';\n".'$db_password = \''.addslashes($db_password1)."';\n".'$db_prefix = \''.addslashes($db_prefix)."';\n".'$p_connect = false;'."\n\n".'$cookie_name = '."'".$cookie_name."';\n".'$cookie_domain = '."'';\n".'$cookie_path = '."'/';\n".'$cookie_secure = 0;'."\n".'$cookie_seed = \''.random_key(16, false, true)."';\n\ndefine('PUN', 1);\n";
+	global $db_type, $db_host, $db_name, $db_username, $db_password, $db_prefix, $cookie_name, $cookie_seed;
+	
+	return '<?php'."\n\n".'$db_type = \''.$db_type."';\n".'$db_host = \''.$db_host."';\n".'$db_name = \''.addslashes($db_name)."';\n".'$db_username = \''.addslashes($db_username)."';\n".'$db_password = \''.addslashes($db_password)."';\n".'$db_prefix = \''.addslashes($db_prefix)."';\n".'$p_connect = false;'."\n\n".'$cookie_name = '."'".$cookie_name."';\n".'$cookie_domain = '."'';\n".'$cookie_path = '."'/';\n".'$cookie_secure = 0;'."\n".'$cookie_seed = \''.random_key(16, false, true)."';\n\ndefine('PUN', 1);\n";
 }
 
 
@@ -111,7 +123,7 @@ if (isset($_POST['generate_config']))
 	$db_host = $_POST['db_host'];
 	$db_name = $_POST['db_name'];
 	$db_username = $_POST['db_username'];
-	$db_password1 = $_POST['db_password1'];
+	$db_password = $_POST['db_password'];
 	$db_prefix = $_POST['db_prefix'];
 	$cookie_name = $_POST['cookie_name'];
 	$cookie_seed = $_POST['cookie_seed'];
@@ -135,9 +147,9 @@ if (!isset($_POST['form_sent']))
 	$db_prefix = 'evebb_';
 	$api_user_id = $api_character_id = $api_key = '';
 	$db_host = 'localhost';
-	$title = 'My EveBB forum';
-	$description = '<p><span>EveBB - for all your pod pilot needs. Now with 100% more biomass!</span></p>';
-	$default_lang = 'English';
+	$title = $lang_install['My FluxBB Forum'];
+	$description = '<p><span>'.$lang_install['Description'].'</span></p>';
+	$default_lang = $install_lang;
 	$default_style = 'evebb';
 }
 else
@@ -146,8 +158,7 @@ else
 	$db_host = pun_trim($_POST['req_db_host']);
 	$db_name = pun_trim($_POST['req_db_name']);
 	$db_username = pun_trim($_POST['db_username']);
-	$db_password1 = pun_trim($_POST['db_password1']);
-	$db_password2 = pun_trim($_POST['db_password2']);
+	$db_password = pun_trim($_POST['db_password']);
 	$db_prefix = pun_trim($_POST['db_prefix']);
 	//$username = pun_trim($_POST['req_username']);
 	$email = strtolower(pun_trim($_POST['req_email']));
@@ -167,9 +178,6 @@ else
 	if (substr($base_url, -1) == '/')
 		$base_url = substr($base_url, 0, -1);
 
-	// Validate database password
-	if ($db_password1 != $db_password2)
-		$alerts[] = 'Database passwords do not match.';
 		
 	/*---------- EVE-BB DATA CHECKS ---------*/
 	//return;
@@ -187,26 +195,34 @@ else
 	/*---------- EVE-BB DATA CHECKS ---------*/
 
 	if (pun_strlen($password1) < 4)
-		$alerts[] = 'Passwords must be at least 4 characters long.';
+		$alerts[] = $lang_install['Short password'];
 	else if ($password1 != $password2)
-		$alerts[] = 'Passwords do not match.';
+		$alerts[] = $lang_install['Passwords not match'];
 
 	// Validate email
 	require PUN_ROOT.'include/email.php';
 
 	if (!is_valid_email($email))
-		$alerts[] = 'The administrator email address you entered is invalid.';
+		$alerts[] = $lang_install['Wrong email'];
 
 	if ($title == '')
-		$alerts[] = 'You must enter a board title.';
+		$alerts[] = $lang_install['No board title'];
 
-	$default_lang = preg_replace('#[\.\\\/]#', '', $default_lang);
-	if (!file_exists(PUN_ROOT.'lang/'.$default_lang.'/common.php'))
-		$alerts[] = 'The default language chosen doesn\'t seem to exist.';
+	$languages = forum_list_langs();
+	if (!in_array($default_lang, $languages))
+		$alerts[] = $lang_install['Error default language'];
 
-	$default_style = preg_replace('#[\.\\\/]#', '', $default_style);
-	if (!file_exists(PUN_ROOT.'style/'.$default_style.'.css'))
-		$alerts[] = 'The default style chosen doesn\'t seem to exist.';
+	$styles = forum_list_styles();
+	if (!in_array($default_style, $styles))
+		$alerts[] = $lang_install['Error default style'];
+		
+	// Check if the cache directory is writable
+	if (!@is_writable(FORUM_CACHE_DIR))
+	    $alerts[] = sprintf($lang_install['Alert cache'], FORUM_CACHE_DIR);
+	    
+	// Check if default avatar directory is writable
+	if (!@is_writable(PUN_ROOT.'img/avatars/'))
+	    $alerts[] = sprintf($lang_install['Alert avatar'], PUN_ROOT.'img/avatars/');
 	
 	
 	/*---------- EVE-BB DATA CHECKS ---------*/
@@ -214,37 +230,38 @@ else
 	if (empty($alerts)) {
 		//We need the escape feature of the DB, so it's been promoted!
 		// Load the appropriate DB layer class
+		// Validate prefix
+		if (strlen($db_prefix) > 0 && (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $db_prefix) || strlen($db_prefix) > 40))
+			error(sprintf($lang_install['Table prefix error'], $db->prefix));
+	
+		// Do some DB type specific checks
 		switch ($db_type)
 		{
 			case 'mysql':
-				require PUN_ROOT.'include/dblayer/mysql.php';
-				break;
-	
-			case 'mysql_innodb':
-				require PUN_ROOT.'include/dblayer/mysql_innodb.php';
-				break;
-	
 			case 'mysqli':
-				require PUN_ROOT.'include/dblayer/mysqli.php';
-				break;
-	
+			case 'mysql_innodb':
 			case 'mysqli_innodb':
-				require PUN_ROOT.'include/dblayer/mysqli_innodb.php';
+				$mysql_info = $db->get_version();
+				if (version_compare($mysql_info['version'], MIN_MYSQL_VERSION, '<'))
+					error(sprintf($lang_install['You are running error'], 'MySQL', $mysql_info['version'], FORUM_VERSION, MIN_MYSQL_VERSION));
 				break;
 	
 			case 'pgsql':
-				require PUN_ROOT.'include/dblayer/pgsql.php';
+				$pgsql_info = $db->get_version();
+				if (version_compare($pgsql_info['version'], MIN_PGSQL_VERSION, '<'))
+					error(sprintf($lang_install['You are running error'], 'PostgreSQL', $pgsql_info['version'], FORUM_VERSION, MIN_PGSQL_VERSION));
 				break;
 	
 			case 'sqlite':
-				require PUN_ROOT.'include/dblayer/sqlite.php';
+				if (strtolower($db_prefix) == 'sqlite_')
+					error($lang_install['Prefix reserved']);
 				break;
-	
+				
 			default:
-				error('\''.pun_htmlspecialchars($db_type).'\' is not a valid database type');
+				error(sprintf($lang_install['DB type not valid'], pun_htmlspecialchars($db_type)));
 		}
 		// Create the database object (and connect/select db)
-		$db = new DBLayer($db_host, $db_username, $db_password1, $db_name, $db_prefix, false);
+		$db = new DBLayer($db_host, $db_username, $db_password, $db_name, $db_prefix, false);
 		if (!$char_sheet = fetch_character_api(array('userID' => $api_user_id,'characterID' => $api_character_id,'apiKey' => $api_key))) {
 			$alerts[] = "Unable to fetch character API information. Please insure that the API server is functioning.";
 		} else {
@@ -254,17 +271,17 @@ else
 	/*---------- EVE-BB DATA CHECKS ---------*/
 	// Validate username and passwords
 	if (pun_strlen($username) < 2)
-		$alerts[] = 'Usernames must be at least 2 characters long.';
+		$alerts[] = $lang_install['Username 1'];
 	else if (pun_strlen($username) > 25) // This usually doesn't happen since the form element only accepts 25 characters
-		$alerts[] = 'Usernames must not be more than 25 characters long.';
+		$alerts[] = $lang_install['Username 2'];
 	else if (!strcasecmp($username, 'Guest'))
-		$alerts[] = 'The username guest is reserved.';
+		$alerts[] = $lang_install['Username 3'];
 	else if (preg_match('/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/', $username) || preg_match('/((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(([0-9A-Fa-f]{1,4}:){0,5}:((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(::([0-9A-Fa-f]{1,4}:){0,5}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))/', $username))
-		$alerts[] = 'Usernames may not be in the form of an IP address.';
+		$alerts[] = $lang_install['Username 4'];
 	else if ((strpos($username, '[') !== false || strpos($username, ']') !== false) && strpos($username, '\'') !== false && strpos($username, '"') !== false)
-		$alerts[] = 'Usernames may not contain all the characters \', " and [ or ] at once.';
+		$alerts[] = $lang_install['Username 5'];
 	else if (preg_match('/(?:\[\/?(?:b|u|i|h|colou?r|quote|code|img|url|email|list)\]|\[(?:code|quote|list)=)/i', $username))
-		$alerts[] = 'Usernames may not contain any of the text formatting tags (BBCode) that the forum uses.';
+		$alerts[] = $lang_install['Username 6'];
 }
 
 if (!isset($_POST['form_sent']) || !empty($alerts))
@@ -294,53 +311,55 @@ if (!isset($_POST['form_sent']) || !empty($alerts))
 		$db_extensions[] = array('pgsql', 'PostgreSQL');
 
 	if (empty($db_extensions))
-		exit('This PHP environment does not have support for any of the databases that FluxBB supports. PHP needs to have support for either MySQL, PostgreSQL or SQLite in order for FluxBB to be installed.');
+		error($lang_install['No DB extensions']);
+		
+	// Fetch a list of installed languages
+	$languages = forum_list_langs();
 
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>EveBB Installation</title>
+<title><?php echo $lang_install['FluxBB Installation'] ?></title>
 <link rel="stylesheet" type="text/css" href="style/<?php echo $default_style ?>.css" />
 <script type="text/javascript" src="apiFetching.js"></script>
 <script type="text/javascript">
+/* <![CDATA[ */
 function process_form(the_form)
 {
-	var element_names = new Object()
-	element_names["req_db_type"] = "Database type"
-	element_names["req_db_host"] = "Database server hostname"
-	element_names["req_db_name"] = "Database name"
-	element_names["db_prefix"] = "Table prefix"
-	<?php  /*element_names["req_username"] = "Administrator username" */ ?>
-	element_names["req_password1"] = "Administrator password 1"
-	element_names["req_password2"] = "Administrator password 2"
-	element_names["req_email"] = "Administrator's email"
-	element_names["req_title"] = "Board title"
-	element_names["req_base_url"] = "Base URL"
-	element_names["api_user_id"] = "API UserID"
-	element_names["api_key"] = "API Key"
+    var element_names = {
+            "req_db_type": "<?php echo $lang_install['Database type'] ?>",
+            "req_db_host": "<?php echo $lang_install['Database server hostname'] ?>",
+            "req_db_name": "<?php echo $lang_install['Database name'] ?>",
+            "db_prefix": "<?php echo $lang_install['Table prefix'] ?>",
+            "req_password1": "<?php echo $lang_install['Administrator password 1'] ?>",
+            "req_password2": "<?php echo $lang_install['Administrator password 2'] ?>",
+            "req_email": "<?php echo $lang_install['Administrator email'] ?>",
+            "req_title": "<?php echo $lang_install['Board title'] ?>",
+            "req_base_url": "<?php echo $lang_install['Base URL'] ?>"
+        };
 
 	if (document.all || document.getElementById)
 	{
 		for (var i = 0; i < the_form.length; ++i)
 		{
-			var elem = the_form.elements[i]
-			if (elem.name && elem.name.substring(0, 4) == "req_")
-			{
-				if (elem.type && (elem.type=="text" || elem.type=="textarea" || elem.type=="password" || elem.type=="file") && elem.value=='')
-				{
-					alert("\"" + element_names[elem.name] + "\" is a required field in this form.")
-					elem.focus()
-					return false
+			var elem = the_form.elements[i];
+            if (elem.name && (/^req_/.test(elem.name)))
+            {
+                if (!elem.value && elem.type && (/^(?:text(?:area)?|password|file)$/i.test(elem.type)))
+                {
+                    alert('"' + element_names[elem.name] + '" <?php echo $lang_install['Required field'] ?>');
+                    elem.focus();
+                    return false;
 				}
 			}
 		}
 	}
 
-	return true
+	return true;
 }
+/* ]]> */
 </script>
 </head>
 <body onload="document.getElementById('install').req_db_type.focus();document.getElementById('install').start.disabled=false;">
@@ -352,23 +371,53 @@ function process_form(the_form)
 <div id="brdheader" class="block">
 	<div class="box">
 		<div id="brdtitle" class="inbox">
-			<h1><span>EveBB Installation</span></h1>
-			<div id="brddesc"><p>Welcome to EveBB installation. You are about to install EveBB.<br/>
-			In order to install EveBB, you must complete the form set out below. <br/>
-			If you encounter any difficulties with the installation, please refer to the documentation.</p></div>
+			<h1><span><?php echo $lang_install['FluxBB Installation'] ?></span></h1>
+			<div id="brddesc"><p><?php echo $lang_install['Install message'] ?></p><p><?php echo $lang_install['Welcome'] ?></p></div>
 		</div>
 	</div>
 </div>
 
 <div id="brdmain">
+<?php if (count($languages) > 1): ?><div class="blockform">
+    <h2><span><?php echo $lang_install['Choose install language'] ?></span></h2>
+    <div class="box">
+        <form id="install" method="post" action="install.php">
+            <div class="inform">
+                <fieldset>
+                    <legend><?php echo $lang_install['Install language'] ?></legend>
+                    <div class="infldset">
+                        <p><?php echo $lang_install['Choose install language info'] ?></p>
+                        <label><strong><?php echo $lang_install['Install language'] ?></strong>
+                        <br /><select name="install_lang">
+<?php
+
+        foreach ($languages as $temp)
+        {
+            if ($temp == $install_lang)
+                echo "\t\t\t\t\t".'<option value="'.$temp.'" selected="selected">'.$temp.'</option>'."\n";
+            else
+                echo "\t\t\t\t\t".'<option value="'.$temp.'">'.$temp.'</option>'."\n";
+        }
+
+?>
+                        </select>
+                        <br /></label>
+                    </div>
+                </fieldset>
+            </div>
+            <p class="buttons"><input type="submit" name="start" value="<?php echo $lang_install['Change language'] ?>" /></p>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 <div class="blockform">
-	<h2><span>Install EveBB 0.9.2</span></h2>
+	<h2><span><?php echo $lang_install['Install'] ?></span></h2>
 	<div class="box">
 		<form id="install" method="post" action="install.php" onsubmit="this.start.disabled=true;if(process_form(this)){return true;}else{this.start.disabled=false;return false;}">
-		<div><input type="hidden" name="form_sent" value="1" /></div>
+		<div><input type="hidden" name="form_sent" value="1" /><input type="hidden" name="install_lang" value="<?php echo pun_htmlspecialchars($install_lang) ?>" /></div>
 			<div class="inform">
 <?php if (!empty($alerts)): ?>				<div class="forminfo error-info">
-					<h3>The following errors need to be corrected:</h3>
+					<h3><?php echo $lang_install['Errors'] ?></h3>
 					<ul class="error-list">
 <?php
 
@@ -380,16 +429,16 @@ foreach ($alerts as $cur_alert)
 <?php endif; ?>			</div>
 			<div class="inform">
 				<div class="forminfo">
-					<h3>Database setup</h3>
-					<p>Please enter the requested information in order to setup your database for EveBB. You must know all the information asked for before proceeding with the installation.</p>
+					<h3><?php echo $lang_install['Database setup'] ?></h3>
+					<p><?php echo $lang_install['Info 1'] ?></p>
 				</div>
 				<fieldset>
-				<legend>Select your database type</legend>
+				<legend><?php echo $lang_install['Select database'] ?></legend>
 					<div class="infldset">
-						<p>EveBB currently supports MySQL, MySQLi, SQLite and PostgreSQL. If your database of choice is missing from the drop-down menu below, it means this PHP environment does not have support for that particular database. More information regarding support for particular versions of each database can be found in the FAQ.</p>
-<?php if ($dual_mysql): ?>						<p>EveBB has detected that your PHP environment supports two different ways of communicating with MySQL. The two options are called standard and improved. If you are uncertain which one to use, start by trying improved and if that fails, try standard.</p>
-<?php endif; ?><?php if ($mysql_innodb): ?>						<p>EveBB has detected that your MySQL server might support <a href="http://dev.mysql.com/doc/refman/5.0/en/innodb.html">InnoDB</a>. This would be a good choice if you are planning to run a large forum. If you are uncertain, it is recommended that you do not use InnoDB.</p>
-<?php endif; ?>						<label class="required"><strong>Database type <span>(Required)</span></strong>
+						<p><?php echo $lang_install['Info 2'] ?></p>
+<?php if ($dual_mysql): ?>						 <p><?php echo $lang_install['Dual MySQL'] ?></p>
+<?php endif; ?><?php if ($mysql_innodb): ?>						<p><?php echo $lang_install['InnoDB'] ?></p>
+<?php endif; ?>						<label class="required"><strong><?php echo $lang_install['Database type'] ?> <span><?php echo $lang_install['Required'] ?></span></strong>
 						<br /><select name="req_db_type">
 <?php
 
@@ -409,40 +458,39 @@ foreach ($alerts as $cur_alert)
 			</div>
 			<div class="inform">
 				<fieldset>
-					<legend>Enter your database server hostname</legend>
+					<legend><?php echo $lang_install['Database hostname'] ?></legend>
 					<div class="infldset">
-						<p>The address of the database server (example: localhost, db.myhost.com or 192.168.0.15). You can specify a custom port number if your database doesn't run on the default port (example: localhost:3580).</p>
-						<label class="required"><strong>Database server hostname <span>(Required)</span></strong><br /><input type="text" name="req_db_host" value="<?php echo pun_htmlspecialchars($db_host) ?>" size="50" maxlength="100" /><br /></label>
+						<p><?php echo $lang_install['Info 3'] ?></p>
+						<label class="required"><strong><?php echo $lang_install['Database server hostname'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><input type="text" name="req_db_host" value="<?php echo pun_htmlspecialchars($db_host) ?>" size="50" /><br /></label>
 					</div>
 				</fieldset>
 			</div>
 			<div class="inform">
 				<fieldset>
-					<legend>Enter the name of your database</legend>
+					<legend><?php echo $lang_install['Database enter name'] ?></legend>
 					<div class="infldset">
-						<p>The name of the database that EveBB will be installed into.</p>
-						<label class="required"><strong>Database name <span>(Required)</span></strong><br /><input id="req_db_name" type="text" name="req_db_name" value="<?php echo pun_htmlspecialchars($db_name) ?>" size="30" maxlength="50" /><br /></label>
+						<p><?php echo $lang_install['Info 4'] ?></p>
+						<label class="required"><strong><?php echo $lang_install['Database name'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><input id="req_db_name" type="text" name="req_db_name" value="<?php echo pun_htmlspecialchars($db_name) ?>" size="30" /><br /></label>
 					</div>
 				</fieldset>
 			</div>
 			<div class="inform">
 				<fieldset>
-					<legend>Enter your database username and password</legend>
+					<legend><?php echo $lang_install['Database enter informations'] ?></legend>
 					<div class="infldset">
-						<p>Enter the username and password with which you connect to the database.</p>
-						<label class="conl">Database username<br /><input type="text" name="db_username" value="<?php echo pun_htmlspecialchars($db_username) ?>" size="30" maxlength="50" /><br /></label>
-						<label class="conl">Database password<br /><input type="password" name="db_password1" size="30" maxlength="50" /><br /></label>
-						<label class="conl">Confirm database password<br /><input type="password" name="db_password2" size="30" maxlength="50" /><br /></label>
+						<p><?php echo $lang_install['Info 5'] ?></p>
+						<label class="conl"><?php echo $lang_install['Database username'] ?><br /><input type="text" name="db_username" value="<?php echo pun_htmlspecialchars($db_username) ?>" size="30" /><br /></label>
+						<label class="conl"><?php echo $lang_install['Database password'] ?><br /><input type="password" name="db_password" size="30" /><br /></label>
 						<div class="clearer"></div>
 					</div>
 				</fieldset>
 			</div>
 			<div class="inform">
 				<fieldset>
-					<legend>Enter database table prefix</legend>
+					<legend><?php echo $lang_install['Database enter prefix'] ?></legend>
 					<div class="infldset">
-						<p>If you like, you can specify a table prefix. This way you can run multiple copies of EveBB in the same database (example: foo_).</p>
-						<label>Table prefix<br /><input id="db_prefix" type="text" name="db_prefix" value="<?php echo pun_htmlspecialchars($db_prefix) ?>" size="20" maxlength="30" /><br /></label>
+						<p><?php echo $lang_install['Info 6'] ?></p>
+						<label><?php echo $lang_install['Table prefix'] ?><br /><input id="db_prefix" type="text" name="db_prefix" value="<?php echo pun_htmlspecialchars($db_prefix) ?>" size="20" maxlength="30" /><br /></label>
 					</div>
 				</fieldset>
 			</div>
@@ -450,14 +498,14 @@ foreach ($alerts as $cur_alert)
 /* We're keeping this here for record. It is being replaced by the characters name.
 			<div class="inform">
 				<div class="forminfo">
-					<h3>Administration setup</h3>
-					<p>Please enter the requested information in order to setup an administrator for your FluxBB installation.</p>
+					<h3><?php echo $lang_install['Administration setup'] ?></h3>
+					<p><?php echo $lang_install['Info 7'] ?></p>
 				</div>
 				<fieldset>
-					<legend>Enter Administrator's username</legend>
+					<legend><?php echo $lang_install['Admin enter username'] ?></legend>
 					<div class="infldset">
-						<p>The username of the forum administrator. You can later create more administrators and moderators. Usernames can be between 2 and 25 characters long.</p>
-						<label class="required"><strong>Administrator's username <span>(Required)</span></strong><br /><input type="text" name="req_username" value="<?php echo pun_htmlspecialchars($username) ?>" size="25" maxlength="25" /><br /></label>
+						<p><?php echo $lang_install['Info 8'] ?></p>
+						<label class="required"><strong><?php echo $lang_install['Administrator username'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><input type="text" name="req_username" value="<?php echo pun_htmlspecialchars($username) ?>" size="25" maxlength="25" /><br /></label>
 					</div>
 				</fieldset>
 			</div>
@@ -465,74 +513,74 @@ foreach ($alerts as $cur_alert)
 ?>
 			<div class="inform">
 				<fieldset>
-					<legend>Enter and confirm Administrator's password</legend>
+					<legend><?php echo $lang_install['Admin enter password'] ?></legend>
 					<div class="infldset">
-					<p>Passwords must be at least 4 characters long. Passwords are case sensitive.</p>
-						<label class="conl required"><strong>Password <span>(Required)</span></strong><br /><input id="req_password1" type="password" name="req_password1" size="16" /><br /></label>
-						<label class="conl required"><strong>Confirm password <span>(Required)</span></strong><br /><input type="password" name="req_password2" size="16" /><br /></label>
+						<p><?php echo $lang_install['Info 9'] ?></p>
+						<label class="conl required"><strong><?php echo $lang_install['Password'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><input id="req_password1" type="password" name="req_password1" size="16" /><br /></label>
+						<label class="conl required"><strong><?php echo $lang_install['Confirm password'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><input type="password" name="req_password2" size="16" /><br /></label>
 						<div class="clearer"></div>
 					</div>
 				</fieldset>
 			</div>
 			<div class="inform">
 				<fieldset>
-					<legend>Enter Administrator's email</legend>
+					<legend><?php echo $lang_install['Admin enter email'] ?></legend>
 					<div class="infldset">
-						<p>The email address of the forum administrator.</p>
-						<label class="required"><strong>Administrator's email <span>(Required)</span></strong><br /><input id="req_email" type="text" name="req_email" value="<?php echo pun_htmlspecialchars($email) ?>" size="50" maxlength="80" /><br /></label>
+						<p><?php echo $lang_install['Info 10'] ?></p>
+						<label class="required"><strong><?php echo $lang_install['Administrator email'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><input id="req_email" type="text" name="req_email" value="<?php echo pun_htmlspecialchars($email) ?>" size="50" maxlength="80" /><br /></label>
 					</div>
 				</fieldset>
 			</div>
 			<div class="inform">
 				<fieldset>
-					<legend>Enter Administrator's API Details</legend>
+					<legend><?php echo $lang_install['Evebb_admin_api_legend'] ?></legend>
 					<div class="infldset">
-						<p>The API details of the forum administrator.</p>
-						<label class="required"><strong>API UserID <span>(Required)</span></strong><br /><input id="api_user_id" type="text" name="api_user_id" value="<?php echo pun_htmlspecialchars($api_user_id) ?>" size="50" maxlength="80" /><br /></label>
-						<label class="required"><strong>API Key <span>(Required)</span></strong><br /><input id="api_key" type="text" name="api_key" value="<?php echo pun_htmlspecialchars($api_key) ?>" size="50" maxlength="80" /><br /></label><br/>
-						<span id="api_holder"><a class="fetch_chars" href="index.php" onclick="fetchCharacters(); return false;"><span id="char_fetch_text">Fetch Characters</span></a></span>
-						<p>You can find your EVE-Online API Key <a href="http://www.eve-online.com/api">here.</a></p>
+						<p><?php echo $lang_install['Evebb_admin_api_info1'] ?></p>
+						<label class="required"><strong><?php echo $lang_install['Evebb_admin_api_id'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><input id="api_user_id" type="text" name="api_user_id" value="<?php echo pun_htmlspecialchars($api_user_id) ?>" size="50" maxlength="80" /><br /></label>
+						<label class="required"><strong><?php echo $lang_install['Evebb_admin_api_key'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><input id="api_key" type="text" name="api_key" value="<?php echo pun_htmlspecialchars($api_key) ?>" size="50" maxlength="80" /><br /></label><br/>
+						<span id="api_holder"><a class="fetch_chars" href="index.php" onclick="fetchCharacters(); return false;"><span id="char_fetch_text"><?php echo $lang_install['Evebb_admin_api_fetch'] ?></span></a></span>
+						<p><?php echo $lang_install['Evebb_admin_api_info2'] ?></p>
 						<div class="clearer"></div>
 					</div>
 				</fieldset>
 			</div>
 			<div class="inform">
 				<div class="forminfo">
-					<h3>Board setup</h3>
-					<p>Please enter the requested information in order to setup your EveBB board.</p>
+					<h3><?php echo $lang_install['Board setup'] ?></h3>
+					<p><?php echo $lang_install['Info 11'] ?></p>
 				</div>
 				<fieldset>
-					<legend>Enter your board's title</legend>
+					<legend><?php echo $lang_install['Enter board title'] ?></legend>
 					<div class="infldset">
-						<p>The title of this bulletin board (shown at the top of every page).</p>
-						<label class="required"><strong>Board title <span>(Required)</span></strong><br /><input id="req_title" type="text" name="req_title" value="<?php echo pun_htmlspecialchars($title) ?>" size="60" maxlength="255" /><br /></label>
+						<p><?php echo $lang_install['Info 12'] ?></p>
+						<label class="required"><strong><?php echo $lang_install['Board title'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><input id="req_title" type="text" name="req_title" value="<?php echo pun_htmlspecialchars($title) ?>" size="60" maxlength="255" /><br /></label>
 					</div>
 				</fieldset>
 			</div>
 			<div class="inform">
 				<fieldset>
-					<legend>Enter your board's description</legend>
+					<legend><?php echo $lang_install['Enter board description'] ?></legend>
 					<div class="infldset">
-						<p>A short description of this bulletin board (shown at the top of every page). This field may contain HTML.</p>
-						<label><strong>Board description</strong><br /><input id="desc" type="text" name="desc" value="<?php echo pun_htmlspecialchars($description) ?>" size="60" maxlength="255" /><br /></label>
+						<p><?php echo $lang_install['Info 13'] ?></p>
+						<label><?php echo $lang_install['Board description'] ?><br /><input id="desc" type="text" name="desc" value="<?php echo pun_htmlspecialchars($description) ?>" size="60" maxlength="255" /><br /></label>
 					</div>
 				</fieldset>
 			</div>
 			<div class="inform">
 				<fieldset>
-					<legend>Enter the Base URL of your EveBB installation</legend>
+					<legend><?php echo $lang_install['Enter base URL'] ?></legend>
 					<div class="infldset">
-						<p>The URL (without trailing slash) of your EveBB forum (example: http://forum.myhost.com or http://myhost.com/~myuser). This <strong>must</strong> be correct, otherwise, administrators and moderators will not be able to submit any forms. Please note that the preset value below is just an educated guess by EveBB.</p>
-						<label class="required"><strong>Base URL <span>(Required)</span></strong><br /><input id="req_base_url" type="text" name="req_base_url" value="<?php echo pun_htmlspecialchars($base_url) ?>" size="60" maxlength="100" /><br /></label>
+						<p><?php echo $lang_install['Info 14'] ?></p>
+						<label class="required"><strong><?php echo $lang_install['Base URL'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><input id="req_base_url" type="text" name="req_base_url" value="<?php echo pun_htmlspecialchars($base_url) ?>" size="60" maxlength="100" /><br /></label>
 					</div>
 				</fieldset>
 			</div>
 			<div class="inform">
 				<fieldset>
-					<legend>Choose the default language</legend>
+					<legend><?php echo $lang_install['Choose the default language'] ?></legend>
 					<div class="infldset">
-						<p>The default language used for guests and users who haven't changed from the default in their profile.</p>
-						<label class="required"><strong>Default language <span>(Required)</span></strong><br /><select id="req_default_lang" name="req_default_lang">
+						<p><?php echo $lang_install['Info 15'] ?></p>
+						<label class="required"><strong><?php echo $lang_install['Default language'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><select id="req_default_lang" name="req_default_lang">
 <?php
 
 		$languages = forum_list_langs();
@@ -552,10 +600,10 @@ foreach ($alerts as $cur_alert)
 			</div>
 			<div class="inform">
 				<fieldset>
-					<legend>Choose the default style</legend>
+					<legend><?php echo $lang_install['Choose the default style'] ?></legend>
 					<div class="infldset">
-						<p>The default style used for guests and users who haven't changed from the default in their profile.</p>
-						<label class="required"><strong>Default style <span>(Required)</span></strong><br /><select id="req_default_style" name="req_default_style">
+						<p><?php echo $lang_install['Info 16'] ?></p>
+						<label class="required"><strong><?php echo $lang_install['Default style'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><select id="req_default_style" name="req_default_style">
 <?php
 
 		$styles = forum_list_styles();
@@ -573,7 +621,7 @@ foreach ($alerts as $cur_alert)
 					</div>
 				</fieldset>
 			</div>
-			<p class="buttons"><input type="submit" name="start" value="Start install" /></p>
+			<p class="buttons"><input type="submit" name="start" value="<?php echo $lang_install['Start install'] ?>" /></p>
 		</form>
 	</div>
 </div>
@@ -591,47 +639,21 @@ foreach ($alerts as $cur_alert)
 else
 {
 
-	// Validate prefix
-	if (strlen($db_prefix) > 0 && (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $db_prefix) || strlen($db_prefix) > 40))
-		error('The table prefix \''.$db->prefix.'\' contains illegal characters or is too long. The prefix may contain the letters a to z, any numbers and the underscore character. They must however not start with a number. The maximum length is 40 characters. Please choose a different prefix');
-
-	// Do some DB type specific checks
-	switch ($db_type)
-	{
-		case 'mysql':
-		case 'mysqli':
-		case 'mysql_innodb':
-		case 'mysqli_innodb':
-			$mysql_info = $db->get_version();
-			if (version_compare($mysql_info['version'], MIN_MYSQL_VERSION, '<'))
-				error('You are running MySQL version '.$mysql_version.'. EveBB '.FORUM_VERSION.' requires at least MySQL '.MIN_MYSQL_VERSION.' to run properly. You must upgrade your MySQL installation before you can continue');
-			break;
-
-		case 'pgsql':
-			$pgsql_info = $db->get_version();
-			if (version_compare($pgsql_info['version'], MIN_PGSQL_VERSION, '<'))
-				error('You are running PostgreSQL version '.$pgsql_info.'. EveBB '.FORUM_VERSION.' requires at least PostgreSQL '.MIN_PGSQL_VERSION.' to run properly. You must upgrade your PostgreSQL installation before you can continue');
-			break;
-
-		case 'sqlite':
-			if (strtolower($db_prefix) == 'sqlite_')
-				error('The table prefix \'sqlite_\' is reserved for use by the SQLite engine. Please choose a different prefix');
-			break;
-	}
+	//We create the DB earlier, so the checks move to there.
 
 
 	// Make sure FluxBB isn't already installed
 	$result = $db->query('SELECT 1 FROM '.$db_prefix.'users WHERE id=1');
 	if ($db->num_rows($result))
-		error('A table called "'.$db_prefix.'users" is already present in the database "'.$db_name.'". This could mean that EveBB is already installed or that another piece of software is installed and is occupying one or more of the table names EveBB requires. If you want to install multiple copies of EveBB in the same database, you must choose a different table prefix');
-
+		error(sprintf($lang_install['Existing table error'], $db_prefix, $db_name));
+	
 	// Check if InnoDB is available
 	if ($db_type == 'mysql_innodb' || $db_type == 'mysqli_innodb')
 	{
 		$result = $db->query('SHOW VARIABLES LIKE \'have_innodb\'');
 		list (, $result) = $db->fetch_row($result);
 		if ((strtoupper($result) != 'YES'))
-			error('InnoDB does not seem to be enabled. Please choose a database layer that does not have InnoDB support, or enable InnoDB on your MySQL server');
+			error($lang_install['InnoDB off']);
 	}
 
 
@@ -1262,7 +1284,26 @@ else
 		'PRIMARY KEY'	=> array('user_id', 'topic_id')
 	);
 
-	$db->create_table('subscriptions', $schema) or error('Unable to create subscriptions table', __FILE__, __LINE__, $db->error());
+    $db->create_table('topic_subscriptions', $schema) or error('Unable to create topic subscriptions table', __FILE__, __LINE__, $db->error());
+
+
+    $schema = array(
+        'FIELDS'        => array(
+            'user_id'        => array(
+                'datatype'        => 'INT(10) UNSIGNED',
+                'allow_null'    => false,
+                'default'        => '0'
+            ),
+            'forum_id'        => array(
+                'datatype'        => 'INT(10) UNSIGNED',
+                'allow_null'    => false,
+                'default'        => '0'
+            )
+        ),
+        'PRIMARY KEY'    => array('user_id', 'forum_id')
+    );
+    
+    $db->create_table('forum_subscriptions', $schema) or error('Unable to create forum subscriptions table', __FILE__, __LINE__, $db->error());
 
 
 	$schema = array(
@@ -1967,19 +2008,19 @@ else
 	$now = time();
 
 	// Insert the four preset groups
-	$db->query('INSERT INTO '.$db->prefix.'groups ('.($db_type != 'pgsql' ? 'g_id, ' : '').'g_title, g_user_title, g_moderator, g_mod_edit_users, g_mod_rename_users, g_mod_change_passwords, g_mod_ban_users, g_read_board, g_view_users, g_post_replies, g_post_topics, g_edit_posts, g_delete_posts, g_delete_topics, g_set_title, g_search, g_search_users, g_send_email, g_post_flood, g_search_flood, g_email_flood) VALUES('.($db_type != 'pgsql' ? '1, ' : '')."'Administrators', 'Administrator', 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0)") or error('Unable to add group', __FILE__, __LINE__, $db->error());
-
-	$db->query('INSERT INTO '.$db->prefix.'groups ('.($db_type != 'pgsql' ? 'g_id, ' : '').'g_title, g_user_title, g_moderator, g_mod_edit_users, g_mod_rename_users, g_mod_change_passwords, g_mod_ban_users, g_read_board, g_view_users, g_post_replies, g_post_topics, g_edit_posts, g_delete_posts, g_delete_topics, g_set_title, g_search, g_search_users, g_send_email, g_post_flood, g_search_flood, g_email_flood) VALUES('.($db_type != 'pgsql' ? '2, ' : '')."'Moderators', 'Moderator', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0)") or error('Unable to add group', __FILE__, __LINE__, $db->error());
-
-	$db->query('INSERT INTO '.$db->prefix.'groups ('.($db_type != 'pgsql' ? 'g_id, ' : '').'g_title, g_user_title, g_moderator, g_mod_edit_users, g_mod_rename_users, g_mod_change_passwords, g_mod_ban_users, g_read_board, g_view_users, g_post_replies, g_post_topics, g_edit_posts, g_delete_posts, g_delete_topics, g_set_title, g_search, g_search_users, g_send_email, g_post_flood, g_search_flood, g_email_flood) VALUES('.($db_type != 'pgsql' ? '3, ' : '')."'Guest', NULL, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 60, 30, 0)") or error('Unable to add group', __FILE__, __LINE__, $db->error());
-
-	$db->query('INSERT INTO '.$db->prefix.'groups ('.($db_type != 'pgsql' ? 'g_id, ' : '').'g_title, g_user_title, g_moderator, g_mod_edit_users, g_mod_rename_users, g_mod_change_passwords, g_mod_ban_users, g_read_board, g_view_users, g_post_replies, g_post_topics, g_edit_posts, g_delete_posts, g_delete_topics, g_set_title, g_search, g_search_users, g_send_email, g_post_flood, g_search_flood, g_email_flood) VALUES('.($db_type != 'pgsql' ? '4, ' : '')."'Members', NULL, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 60, 30, 60)") or error('Unable to add group', __FILE__, __LINE__, $db->error());
-
+	$db->query('INSERT INTO '.$db->prefix.'groups ('.($db_type != 'pgsql' ? 'g_id, ' : '').'g_title, g_user_title, g_moderator, g_mod_edit_users, g_mod_rename_users, g_mod_change_passwords, g_mod_ban_users, g_read_board, g_view_users, g_post_replies, g_post_topics, g_edit_posts, g_delete_posts, g_delete_topics, g_set_title, g_search, g_search_users, g_send_email, g_post_flood, g_search_flood, g_email_flood) VALUES('.($db_type != 'pgsql' ? '1, ' : '').'\''.$db->escape($lang_install['Administrators']).'\', \''.$db->escape($lang_install['Administrator']).'\', 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0)') or error('Unable to add group', __FILE__, __LINE__, $db->error());
+//
+    $db->query('INSERT INTO '.$db->prefix.'groups ('.($db_type != 'pgsql' ? 'g_id, ' : '').'g_title, g_user_title, g_moderator, g_mod_edit_users, g_mod_rename_users, g_mod_change_passwords, g_mod_ban_users, g_read_board, g_view_users, g_post_replies, g_post_topics, g_edit_posts, g_delete_posts, g_delete_topics, g_set_title, g_search, g_search_users, g_send_email, g_post_flood, g_search_flood, g_email_flood) VALUES('.($db_type != 'pgsql' ? '2, ' : '').'\''.$db->escape($lang_install['Moderators']).'\', \''.$db->escape($lang_install['Moderator']).'\', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0)') or error('Unable to add group', __FILE__, __LINE__, $db->error());
+//
+    $db->query('INSERT INTO '.$db->prefix.'groups ('.($db_type != 'pgsql' ? 'g_id, ' : '').'g_title, g_user_title, g_moderator, g_mod_edit_users, g_mod_rename_users, g_mod_change_passwords, g_mod_ban_users, g_read_board, g_view_users, g_post_replies, g_post_topics, g_edit_posts, g_delete_posts, g_delete_topics, g_set_title, g_search, g_search_users, g_send_email, g_post_flood, g_search_flood, g_email_flood) VALUES('.($db_type != 'pgsql' ? '3, ' : '').'\''.$db->escape($lang_install['Guests']).'\', NULL, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 60, 30, 0)') or error('Unable to add group', __FILE__, __LINE__, $db->error());
+//
+    $db->query('INSERT INTO '.$db->prefix.'groups ('.($db_type != 'pgsql' ? 'g_id, ' : '').'g_title, g_user_title, g_moderator, g_mod_edit_users, g_mod_rename_users, g_mod_change_passwords, g_mod_ban_users, g_read_board, g_view_users, g_post_replies, g_post_topics, g_edit_posts, g_delete_posts, g_delete_topics, g_set_title, g_search, g_search_users, g_send_email, g_post_flood, g_search_flood, g_email_flood) VALUES('.($db_type != 'pgsql' ? '4, ' : '').'\''.$db->escape($lang_install['Members']).'\', NULL, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 60, 30, 60)') or error('Unable to add group', __FILE__, __LINE__, $db->error());
+    
 	// Insert guest and first admin user
-	$db->query('INSERT INTO '.$db_prefix."users (group_id, username, password, email) VALUES(3, 'Guest', 'Guest', 'Guest')")
+	$db->query('INSERT INTO '.$db_prefix.'users (group_id, username, password, email) VALUES(3, \''.$db->escape($lang_install['Guest']).'\', \''.$db->escape($lang_install['Guest']).'\', \''.$db->escape($lang_install['Guest']).'\')')
 		or error('Unable to add guest user. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 
-	$db->query('INSERT INTO '.$db_prefix."users (group_id, username, password, email, num_posts, last_post, registered, registration_ip, last_visit) VALUES(1, '".$db->escape($username)."', '".pun_hash($password1)."', '$email', 1, ".$now.", ".$now.", '127.0.0.1', ".$now.')')
+	$db->query('INSERT INTO '.$db_prefix.'users (group_id, username, password, email, language, style, num_posts, last_post, registered, registration_ip, last_visit) VALUES(1, \''.$db->escape($username).'\', \''.pun_hash($password1).'\', \''.$email.'\', \''.$db->escape($default_lang).'\', \''.$db->escape($default_style).'\', 1, '.$now.', '.$now.', \''.get_remote_address().'\', '.$now.')')
 		or error('Unable to add administrator user. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 		
 	/*---------- EvE-BB INSTALL TABLE DATA ---------*/
@@ -2066,7 +2107,8 @@ else
 		'o_base_url'				=> "'".$db->escape($base_url)."'",
 		'o_admin_email'				=> "'".$email."'",
 		'o_webmaster_email'			=> "'".$email."'",
-		'o_subscriptions'			=> "'1'",
+		'o_forum_subscriptions'        => "'1'",
+		'o_topic_subscriptions'			=> "'1'",
 		'o_smtp_host'				=> "NULL",
 		'o_smtp_user'				=> "NULL",
 		'o_smtp_pass'				=> "NULL",
@@ -2074,13 +2116,14 @@ else
 		'o_regs_allow'				=> "'1'",
 		'o_regs_verify'				=> "'0'",
 		'o_announcement'			=> "'0'",
-		'o_announcement_message'	=> "'Enter your announcement here.'",
+		'o_announcement_message'    => "'".$db->escape($lang_install['Announcement'])."'",
 		'o_rules'					=> "'0'",
-		'o_rules_message'			=> "'Enter your rules here.'",
+		'o_rules_message'            => "'".$db->escape($lang_install['Rules'])."'",
 		'o_maintenance'				=> "'0'",
-		'o_maintenance_message'		=> "'The forums are temporarily down for maintenance. Please try again in a few minutes.<br />\\n<br />\\n/Administrator'",
+		'o_maintenance_message'        => "'".$db->escape($lang_install['Maintenance message'])."'",
 		'o_default_dst'				=> "'0'",
 		'o_feed_type'				=> "'2'",
+		'o_feed_ttl'                => "'0'",
 		'p_message_bbcode'			=> "'1'",
 		'p_message_img_tag'			=> "'1'",
 		'p_message_all_caps'		=> "'1'",
@@ -2115,7 +2158,8 @@ else
 		'o_eve_banner_width'	=> "'1000'",
 		'o_eve_banner_height'	=> "'150'",
 		'o_eve_banner_text_enable' => "'1'",
-		'o_eve_max_groups' => "'100'"
+		'o_eve_max_groups' => "'100'",
+		'o_hide_stats' => false
 		/*---------- EvE-BB INSTALL Options ---------*/
 	);
 
@@ -2127,25 +2171,25 @@ else
 	}
 
 	// Insert some other default data
-	$subject = 'Test post';
-	$message = 'If you are looking at this (which I guess you are), the install of EveBB appears to have worked! Now log in and head over to the administration control panel to configure your forum.';
+	$subject = $lang_install['Test post'];
+	$message = $lang_install['Message'];
 
-	$db->query('INSERT INTO '.$db_prefix."ranks (rank, min_posts) VALUES('New member', 0)")
+	$db->query('INSERT INTO '.$db_prefix.'ranks (rank, min_posts) VALUES(\''.$db->escape($lang_install['New member']).'\', 0)')
 		or error('Unable to insert into table '.$db_prefix.'ranks. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 
-	$db->query('INSERT INTO '.$db_prefix."ranks (rank, min_posts) VALUES('Member', 10)")
+	$db->query('INSERT INTO '.$db_prefix.'ranks (rank, min_posts) VALUES(\''.$db->escape($lang_install['Member']).'\', 10)')
 		or error('Unable to insert into table '.$db_prefix.'ranks. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 
-	$db->query('INSERT INTO '.$db_prefix."categories (cat_name, disp_position) VALUES('Test category', 1)")
+	$db->query('INSERT INTO '.$db_prefix.'categories (cat_name, disp_position) VALUES(\''.$db->escape($lang_install['Test category']).'\', 1)')
 		or error('Unable to insert into table '.$db_prefix.'categories. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 
-	$db->query('INSERT INTO '.$db_prefix."forums (forum_name, forum_desc, num_topics, num_posts, last_post, last_post_id, last_poster, disp_position, cat_id) VALUES('Test forum', 'This is just a test forum', 1, 1, ".$now.", 1, '".$db->escape($username)."', 1, 1)")
+	$db->query('INSERT INTO '.$db_prefix.'forums (forum_name, forum_desc, num_topics, num_posts, last_post, last_post_id, last_poster, disp_position, cat_id) VALUES(\''.$db->escape($lang_install['Test forum']).'\', \''.$db->escape($lang_install['This is just a test forum']).'\', 1, 1, '.$now.', 1, \''.$db->escape($username).'\', 1, 1)')
 		or error('Unable to insert into table '.$db_prefix.'forums. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 
-	$db->query('INSERT INTO '.$db_prefix."topics (poster, subject, posted, first_post_id, last_post, last_post_id, last_poster, forum_id) VALUES('".$db->escape($username)."', '".$db->escape($subject)."', ".$now.", 1, ".$now.", 1, '".$db->escape($username)."', 1)")
+	$db->query('INSERT INTO '.$db_prefix.'topics (poster, subject, posted, first_post_id, last_post, last_post_id, last_poster, forum_id) VALUES(\''.$db->escape($username).'\', \''.$db->escape($subject).'\', '.$now.', 1, '.$now.', 1, \''.$db->escape($username).'\', 1)')
 		or error('Unable to insert into table '.$db_prefix.'topics. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 
-	$db->query('INSERT INTO '.$db_prefix."posts (poster, poster_id, poster_ip, message, posted, topic_id) VALUES('".$db->escape($username)."', 2, '127.0.0.1', '".$db->escape($message)."', ".$now.', 1)')
+	$db->query('INSERT INTO '.$db_prefix.'posts (poster, poster_id, poster_ip, message, posted, topic_id) VALUES(\''.$db->escape($username).'\', 2, \''.get_remote_address().'\', \''.$db->escape($message).'\', '.$now.', 1)')
 		or error('Unable to insert into table '.$db_prefix.'posts. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 		
 	/*---------- EvE-BB INSTALL TABLE INPUT ---------*/
@@ -2158,22 +2202,22 @@ else
 	require PUN_ROOT.'include/search_idx.php';
 	$pun_config['o_default_lang'] = $default_lang;
 	update_search_index('post', 1, $message, $subject);
+	
+	//Install our now-included mods - Private Messagin, Sub Forums, Attachments, RSS Feed and Poll Support.
+	install_npms();
+	install_subforum();
+	install_attach(rtrim(dirname(__FILE__), '/\\') . DIRECTORY_SEPARATOR.'attachments/');
+	install_feed();
+	install_poll();
 
 	$db->end_transaction();
 
 
 	$alerts = array();
-	// Check if the cache directory is writable
-	if (!@is_writable('./cache/'))
-		$alerts[] = '<strong>The cache directory is currently not writable!</strong> In order for EveBB to function properly, the directory named <em>cache</em> must be writable by PHP. Use chmod to set the appropriate directory permissions. If in doubt, chmod to 0777.';
-
-	// Check if default avatar directory is writable
-	if (!@is_writable('./img/avatars/'))
-		$alerts[] = '<strong>The avatar directory is currently not writable!</strong> If you want users to be able to upload their own avatar images you must see to it that the directory named <em>img/avatars</em> is writable by PHP. You can later choose to save avatar images in a different directory (see Admin/Options). Use chmod to set the appropriate directory permissions. If in doubt, chmod to 0777.';
 
 	// Check if we disabled uploading avatars because file_uploads was disabled
 	if ($avatars == '0')
-		$alerts[] = '<strong>File uploads appear to be disallowed on this server!</strong> If you want users to be able to upload their own avatar images you must enable the file_uploads configuration setting in PHP. Once file uploads have been enabled, avatar uploads can be enabled in Administration/Options/Features.';
+		$alerts[] = $lang_install['Alert upload'];
 
 	// Add some random bytes at the end of the cookie name to prevent collisions
 	$cookie_name = 'pun_cookie_'.random_key(6, false, true);
@@ -2222,7 +2266,7 @@ We hope you enjoy your new EveBB install!");
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>EveBB Installation</title>
+<title><?php echo $lang_install['FluxBB Installation'] ?></title>
 <link rel="stylesheet" type="text/css" href="style/<?php echo $default_style ?>.css" />
 </head>
 <body>
@@ -2234,8 +2278,8 @@ We hope you enjoy your new EveBB install!");
 <div id="brdheader" class="block">
 	<div class="box">
 		<div id="brdtitle" class="inbox">
-			<h1><span>EveBB Installation</span></h1>
-			<div id="brddesc"><p>EveBB has been installed. To finalize the installation please follow the instructions below.</p></div>
+			<h1><span><?php echo $lang_install['FluxBB Installation'] ?></span></h1>
+			<div id="brddesc"><p><?php echo $lang_install['FluxBB has been installed'] ?></p></div>
 		</div>
 	</div>
 </div>
@@ -2243,7 +2287,7 @@ We hope you enjoy your new EveBB install!");
 <div id="brdmain">
 
 <div class="blockform">
-	<h2><span>Final instructions</span></h2>
+	<h2><span><?php echo $lang_install['Final instructions'] ?></span></h2>
 	<div class="box">
 <?php
 
@@ -2254,12 +2298,13 @@ if (!$written)
 		<form method="post" action="install.php">
 			<div class="inform">
 				<div class="forminfo">
-					<p>To finalize the installation, you need to click on the button below to download a file called config.php. You then need to upload this file to the root directory of your EveBB installation.</p>
-					<p>Once you have uploaded config.php, EveBB will be fully installed! At that point, you may <a href="index.php">go to the forum index</a>.</p>
-					<p>Your Details<br/>
+					<p><?php echo $lang_install['Info 17'] ?></p>
+					<p><?php echo $lang_install['Info 18'] ?></p>
+					<p><?php echo $lang_install['Evebb_details'] ?></p>
 					<br/>
-					Username: <?php echo $username; ?><br/>
-					Password: <?php echo $password1; ?>
+					<p>
+					<?php echo $lang_install['Evebb_username'] ?> <?php echo $username; ?><br/>
+					<?php echo $lang_install['Evebb_password'] ?> <?php echo $password1; ?>
 					</p>
 				</div>
 				<input type="hidden" name="generate_config" value="1" />
@@ -2267,7 +2312,7 @@ if (!$written)
 				<input type="hidden" name="db_host" value="<?php echo $db_host; ?>" />
 				<input type="hidden" name="db_name" value="<?php echo pun_htmlspecialchars($db_name); ?>" />
 				<input type="hidden" name="db_username" value="<?php echo pun_htmlspecialchars($db_username); ?>" />
-				<input type="hidden" name="db_password1" value="<?php echo pun_htmlspecialchars($db_password1); ?>" />
+				<input type="hidden" name="db_password1" value="<?php echo pun_htmlspecialchars($db_password); ?>" />
 				<input type="hidden" name="db_prefix" value="<?php echo pun_htmlspecialchars($db_prefix); ?>" />
 				<input type="hidden" name="cookie_name" value="<?php echo pun_htmlspecialchars($cookie_name); ?>" />
 				<input type="hidden" name="cookie_seed" value="<?php echo pun_htmlspecialchars($cookie_seed); ?>" />
@@ -2282,7 +2327,7 @@ foreach ($alerts as $cur_alert)
 					</ul>
 				</div>
 <?php endif; ?>			</div>
-			<p class="buttons"><input type="submit" value="Download config.php file" /></p>
+			<p class="buttons"><input type="submit" value="<?php echo $lang_install['Download config.php file'] ?>" /></p>
 		</form>
 
 <?php
@@ -2295,11 +2340,12 @@ else
 		<div class="fakeform">
 			<div class="inform">
 				<div class="forminfo">
-					<p>EveBB has been fully installed! You may now <a href="index.php">go to the forum index</a>.</p>
-					<p>Your Details<br/>
+					<p><?php echo $lang_install['FluxBB fully installed'] ?></p>
+					<p><?php echo $lang_install['Evebb_details'] ?></p>
 					<br/>
-					Username: <?php echo $username; ?>
-					Password: <?php echo $password1; ?>
+					<p>
+					<?php echo $lang_install['Evebb_username'] ?> <?php echo $username; ?>
+					<?php echo $lang_install['Evebb_password'] ?> <?php echo $password1; ?>
 					</p>
 				</div>
 			</div>
@@ -2322,4 +2368,483 @@ else
 </html>
 <?php
 
+}
+
+/**
+ * This massively long function makes the DB ready for sub forums.
+ */
+function install_subforum() {
+	global $db;
+
+	$db->add_field('forums', 'parent_forum_id', 'INT', true, 0);
+} //End install_subform().
+
+/**
+ * Installs the tables for the Private Messaging System.
+ */
+function install_npms() {
+	global $db, $db_type, $pun_config;
+
+	
+	$schema = array(
+		'FIELDS'		=> array(
+			'bl_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'bl_user_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'bl_user'		=> array(
+				'datatype'		=> 'VARCHAR(200)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+		),
+		'INDEXES'		=> array(
+			'bl_id_idx'	=> array('bl_id'),
+			'bl_user_id_idx'	=> array('bl_user_id')
+		)
+	);
+
+	$db->create_table('pms_new_block', $schema) or error('Unable to create pms_new_block table', __FILE__, __LINE__, $db->error());
+
+	$schema = array(
+		'FIELDS'		=> array(
+			'id'			=> array(
+				'datatype'		=> 'SERIAL',
+				'allow_null'	=> false
+			),
+			'poster'		=> array(
+				'datatype'		=> 'VARCHAR(200)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+			'poster_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '1'
+			),
+			'poster_ip'		=> array(
+				'datatype'		=> 'VARCHAR(39)',
+				'allow_null'	=> true
+			),
+			'message'		=> array(
+				'datatype'		=> 'TEXT',
+				'allow_null'	=> true
+			),
+			'hide_smilies'	=> array(
+				'datatype'		=> 'TINYINT(1)',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'posted'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'edited'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> true
+			),
+			'edited_by'		=> array(
+				'datatype'		=> 'VARCHAR(200)',
+				'allow_null'	=> true
+			),
+			'post_seen'		=> array(
+				'datatype'		=> 'TINYINT(1)',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'post_new'		=> array(
+				'datatype'		=> 'TINYINT(1)',
+				'allow_null'	=> false,
+				'default'		=> '1'
+			),
+			'topic_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			)
+		),
+		'PRIMARY KEY'	=> array('id'),
+		'INDEXES'		=> array(
+			'topic_id_idx'	=> array('topic_id'),
+			'multi_idx'		=> array('poster_id', 'topic_id')
+		)
+	);
+
+	$db->create_table('pms_new_posts', $schema) or error('Unable to create pms_new_posts table', __FILE__, __LINE__, $db->error());
+
+	$schema = array(
+		'FIELDS'		=> array(
+			'id'			=> array(
+				'datatype'		=> 'SERIAL',
+				'allow_null'	=> false
+			),
+			'topic'		=> array(
+				'datatype'		=> 'VARCHAR(255)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+			'starter'		=> array(
+				'datatype'		=> 'VARCHAR(200)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+			'starter_id'	=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'to_user'		=> array(
+				'datatype'		=> 'VARCHAR(200)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+			'to_id'	=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'replies'	=> array(
+				'datatype'		=> 'MEDIUMINT(8) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'last_posted'	=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'last_poster'		=> array(
+				'datatype'		=> 'TINYINT(1)',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'see_st'	=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'see_to'	=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'topic_st'		=> array(
+				'datatype'		=> 'TINYINT(4)',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'topic_to'		=> array(
+				'datatype'		=> 'TINYINT(4)',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+		),
+		'PRIMARY KEY'	=> array('id'),
+		'INDEXES'		=> array(
+			'multi_idx_st'		=> array('starter_id', 'topic_st'),
+			'multi_idx_to'		=> array('to_id', 'topic_to')
+		)
+	);
+
+	$db->create_table('pms_new_topics', $schema) or error('Unable to create pms_new_topics table', __FILE__, __LINE__, $db->error());
+
+	$db->add_field('groups', 'g_pm', 'TINYINT(1)', false, 1) or error('Unable to add g_pm field', __FILE__, __LINE__, $db->error());
+	$db->add_field('groups', 'g_pm_limit', 'INT(10) UNSIGNED', false, 100) or error('Unable to add g_pm_limit field', __FILE__, __LINE__, $db->error());
+
+	$db->add_field('users', 'messages_enable', 'TINYINT(1)', false, 1) or error('Unable to add messages_enable field', __FILE__, __LINE__, $db->error());
+	$db->add_field('users', 'messages_email', 'TINYINT(1)', false, 0) or error('Unable to add messages_email field', __FILE__, __LINE__, $db->error());
+	$db->add_field('users', 'messages_flag', 'TINYINT(1)', false, 0) or error('Unable to add messages_flag field', __FILE__, __LINE__, $db->error());
+	$db->add_field('users', 'messages_new', 'INT(10) UNSIGNED', false, 0) or error('Unable to add messages_new field', __FILE__, __LINE__, $db->error());
+	$db->add_field('users', 'messages_all', 'INT(10) UNSIGNED', false, 0) or error('Unable to add messages_all field', __FILE__, __LINE__, $db->error());
+	$db->add_field('users', 'pmsn_last_post', 'INT(10) UNSIGNED', true) or error('Unable to add pmsn_last_post field', __FILE__, __LINE__, $db->error());
+
+	$db->query('UPDATE '.$db->prefix.'groups SET g_pm_limit=0 WHERE g_id='.PUN_ADMIN) or error('Unable to merge groups', __FILE__, __LINE__, $db->error());
+
+	// Insert config data
+	$config = array(
+		'o_pms_enabled'		=> '1',
+		'o_pms_min_kolvo'	=> '0',
+		'o_pms_flasher'		=> '0',
+	);
+	
+	while (list($conf_name, $conf_value) = @each($config))
+	{
+    if (!array_key_exists($conf_name, $pun_config))
+			$db->query('INSERT INTO '.$db->prefix."config (conf_name, conf_value) VALUES('$conf_name', $conf_value)")
+				or error('Unable to insert into table '.$db->prefix.'config. Please check your configuration and try again.');
+	}
+
+	// Delete all .php files in the cache (someone might have visited the forums while we were updating and thus, generated incorrect cache files)
+	forum_clear_cache();
+} //End install_npms().
+
+/**
+ * Installs the database for the attachements.
+ */
+function install_attach($basepath='')
+{
+	global $db, $db_type, $pun_config, $mod_version;
+	//include PUN_ROOT.'include/attach/attach_incl.php';
+
+	//first check so that the path seems reasonable
+	if(!((substr($basepath,0,1) == '/' || substr($basepath,1,1) == ':') && substr($basepath,-1) == '/'))
+		error('The pathname specified doesn\'t comply with the rules set. Go back and make sure that it\'s the complete path, and that it ends with a slash and that it either start with a slash (example: "/home/username/attachments/", on *nix servers (unix, linux, bsd, solaris etc.)) or a driveletter (example: "C:/webpages/attachments/" on windows servers)');
+
+	// create the files table
+	$schema_files = array(
+			'FIELDS'			=> array(
+					'id'				=> array(
+							'datatype'			=> 'SERIAL',
+							'allow_null'    	=> false
+					),
+					'owner'	=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					),
+					'post_id'	=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					),
+					'filename'	=> array(
+							'datatype'			=> 'VARCHAR(255)',
+							'allow_null'		=> false,
+					),
+					'extension'		=> array(
+							'datatype'			=> 'VARCHAR(64)',
+							'allow_null'		=> false,
+					),
+					'mime'	=> array(
+							'datatype'			=> 'VARCHAR(64)',
+							'allow_null'		=> false
+					),
+					'location'	=> array(
+							'datatype'			=> 'TEXT',
+							'allow_null'		=> false
+					),
+					'size'	=> array(
+							'datatype'		=> 'INT(10)',
+							'allow_null'	=> false,
+							'default'		=> '0'
+					),
+					'downloads'	=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					)
+			),
+			'PRIMARY KEY'		=> array('id'),
+	);
+	
+	$db->create_table('attach_2_files', $schema_files) or error('Unable to create table "attach_2_files"', __FILE__, __LINE__, $db->error());
+	
+	
+	// create the files table
+	$schema_rules = array(
+			'FIELDS'			=> array(
+					'id'				=> array(
+							'datatype'			=> 'SERIAL',
+							'allow_null'    	=> false
+					),
+					'forum_id'	=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					),
+					'group_id'	=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					),
+					'rules'	=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					),
+					'size'		=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					),
+					'per_post'	=> array(
+							'datatype'			=> 'TINYINT(4)',
+							'allow_null'		=> false,
+							'default'		=> '1'
+					),
+					'file_ext'	=> array(
+							'datatype'			=> 'TEXT',
+							'allow_null'		=> false
+					),
+			),
+			'PRIMARY KEY'		=> array('id'),
+	);
+	
+	$db->create_table('attach_2_rules', $schema_rules) or error('Unable to create table "attach_2_rules"', __FILE__, __LINE__, $db->error());
+	
+	//ok path could be correct, try to make a subfolder :D
+	$newname = attach_generate_pathname($basepath);
+	if(!attach_create_subfolder($newname,$basepath))
+		error('Unable to create new subfolder with name "'.$newname.'", make sure php has write access to that folder!',__FILE__,__LINE__);
+	
+		
+	// ok, add the stuff needed in the config cache
+	$attach_config = array(	'attach_always_deny'	=>	'html"htm"php"php3"php4"php5"exe"com"bat',
+							'attach_basefolder'		=>	$basepath,
+							'attach_create_orphans'	=>	'1',
+							'attach_cur_version'	=>	$mod_version,
+							'attach_icon_folder'	=>	'img/attach/',
+							'attach_icon_extension'	=>	'txt"log"doc"pdf"wav"mp3"ogg"avi"mpg"mpeg"png"jpg"jpeg"gif"zip"rar"7z"gz"tar',
+							'attach_icon_name'		=>	'text.png"text.png"doc.png"doc.png"audio.png"audio.png"audio.png"video.png"video.png"video.png"image.png"image.png"image.png"image.png"compress.png"compress.png"compress.png"compress.png"compress.png',
+							'attach_max_size'		=>	'100000',
+							'attach_subfolder'		=>	$newname,
+							'attach_use_icon'		=>	'1');
+	
+	foreach($attach_config AS $key => $value)
+		$db->query("INSERT INTO ".$db->prefix."config (conf_name, conf_value) VALUES ('$key', '".$db->escape($value)."')") or error('Unable to add column "'.$key.'" to config table', __FILE__, __LINE__, $db->error());
+
+
+	// and now, update the cache...
+	require_once PUN_ROOT.'include/cache.php';
+	generate_config_cache();
+
+} //End install_attach()
+
+function attach_create_subfolder($newfolder='',$basepath){
+		
+	// check to see if that folder is there already, then just update the config ...
+	if(!is_dir($basepath.$newfolder)){
+		// if the folder doesn't exist, try to create it
+		if(!mkdir($basepath.$newfolder,0755))
+			error('Unable to create new subfolder with name \''.$basepath.$newfolder.'\' with mode 0755',__FILE__,__LINE__);
+		// create a .htaccess and index.html file in the new subfolder
+		if(!copy($basepath.'.htaccess', $basepath.$newfolder.'/.htaccess'))
+			error('Unable to copy .htaccess file to new subfolder with name \''.$basepath.$newfolder.'\'',__FILE__,__LINE__);
+		if(!copy($basepath.'index.html', $basepath.$newfolder.'/index.html'))
+			error('Unable to copy index.html file to new subfolder with name \''.$basepath.$newfolder.'\'',__FILE__,__LINE__);
+		// if the folder was created continue
+	}
+	// return true if everything has gone as planned, return false if the new folder could not be created (rights etc?)
+	return true;
+}
+
+function attach_generate_pathname($storagepath=''){
+	if(strlen($storagepath)!=0){
+		//we have to check so that path doesn't exist already...
+		$not_unique=true;
+		while($not_unique){
+			$newdir = attach_generate_pathname();
+			if(!is_dir($storagepath.$newdir))return $newdir;
+		}
+	}else
+		return substr(md5(time().'54£7 k3yw0rd, r3pl4ce |f U w4nt t0'),0,32);
+}
+
+
+
+function attach_generate_filename($storagepath, $messagelenght=0, $filesize=0){
+	$not_unique=true;
+	while($not_unique){
+		$newfile = md5(attach_generate_pathname().$messagelenght.$filesize.'Some more salt keyworbs, change if you want to').'.attach';
+		if(!is_file($storagepath.$newfile))return $newfile;
+	}
+}
+
+/**
+ * Installs the table for RSS feed support.
+ */
+function install_feed() {
+	$db->query('CREATE TABLE '.$db->prefix.'feeds ( url varchar(255) NOT NULL default \'\', max int(11) NOT NULL default 0, closed tinyint(1) NOT NULL default 0, forum_id int(11) NOT NULL default 0, last_post INT(10) NOT NULL default 0, num_posts INT(10) NOT NULL default 0, PRIMARY KEY  (url) )' );
+} //End install_feed().
+
+/**
+ * Installs the tables for poll support.
+ */
+
+function install_poll()
+{
+	global $db, $db_type, $pun_config;
+
+	$db->add_field('topics', 'poll_type', 'TINYINT(4)', false, 0) or error('Unable to add poll_type field', __FILE__, __LINE__, $db->error());
+	$db->add_field('topics', 'poll_time', 'INT(10) UNSIGNED', false, 0) or error('Unable to add poll_time field', __FILE__, __LINE__, $db->error());
+	$db->add_field('topics', 'poll_term', 'TINYINT(4)', false, 0) or error('Unable to add poll_term field', __FILE__, __LINE__, $db->error());
+	$db->add_field('topics', 'poll_kol', 'INT(10) UNSIGNED', false, 0) or error('Unable to add poll_kol field', __FILE__, __LINE__, $db->error());
+
+	$schema = array(
+			'FIELDS'			=> array(
+					'tid'				=> array(
+							'datatype'			=> 'INT(10) UNSIGNED',
+							'allow_null'    	=> false,
+							'default'			=> '0'
+					),
+					'question'			=> array(
+							'datatype'			=> 'TINYINT(4)',
+							'allow_null'    	=> false,
+							'default'			=> '0'
+					),
+					'field'			=> array(
+							'datatype'			=> 'TINYINT(4)',
+							'allow_null'    	=> false,
+							'default'			=> '0'
+					),
+					'choice'			=> array(
+							'datatype'			=> 'VARCHAR(255)',
+							'allow_null'    	=> false,
+							'default'			=> '\'\''
+					),
+					'votes'				=> array(
+							'datatype'			=> 'INT(10) UNSIGNED',
+							'allow_null'    	=> false,
+							'default'			=> '0'
+					)
+
+			),
+			'PRIMARY KEY'		=> array('tid', 'question', 'field')
+	);
+	$db->create_table('poll', $schema) or error('Unable to create table poll', __FILE__, __LINE__, $db->error());
+
+	$schema = array(
+			'FIELDS'			=> array(
+					'tid'				=> array(
+							'datatype'			=> 'INT(10) UNSIGNED',
+							'allow_null'    	=> false
+					),
+					'uid'			=> array(
+							'datatype'			=> 'INT(10) UNSIGNED',
+							'allow_null'		=> false
+					),
+					'rez'			=> array(
+							'datatype'			=> 'TEXT',
+							'allow_null'    	=> true
+					)
+			),
+			'PRIMARY KEY'		=> array('tid', 'uid')
+	);
+	
+	$db->create_table('poll_voted', $schema) or error('Unable to create table poll_voted', __FILE__, __LINE__, $db->error());
+
+	// Insert config data
+	$config = array(
+		'o_poll_enabled'			=> "'0'",
+		'o_poll_max_ques'			=> "'3'",
+		'o_poll_max_field'		=> "'20'",
+		'o_poll_time'					=> "'60'",
+		'o_poll_term'					=> "'3'",
+		'o_poll_guest'				=> "'0'",
+	);
+
+	while (list($conf_name, $conf_value) = @each($config))
+	{
+		$db->query('INSERT INTO '.$db->prefix."config (conf_name, conf_value) VALUES('$conf_name', $conf_value)")
+			or error('Unable to insert into table '.$db->prefix.'config. Please check your configuration and try again.');
+	}
+
+	forum_clear_cache();
 }

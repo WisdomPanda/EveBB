@@ -304,7 +304,7 @@ class DBLayer
 		$result = $this->query('SHOW INDEX FROM '.($no_prefix ? '' : $this->prefix).$table_name);
 		while ($cur_index = $this->fetch_assoc($result))
 		{
-			if ($cur_index['Key_name'] == ($no_prefix ? '' : $this->prefix).$table_name.'_'.$index_name)
+			if (strtolower($cur_index['Key_name']) == strtolower(($no_prefix ? '' : $this->prefix).$table_name.'_'.$index_name))
 			{
 				$exists = true;
 				break;
@@ -314,6 +314,14 @@ class DBLayer
 		return $exists;
 	}
 
+	function rename_table($old_table, $new_table, $no_prefix = false)
+	{
+		// If there new table exists and the old one doesn't, then we're happy
+		if ($this->table_exists($new_table, $no_prefix) && !$this->table_exists($old_table, $no_prefix))
+			return true;
+	
+		return $this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$old_table.' RENAME TO '.($no_prefix ? '' : $this->prefix).$new_table) ? true : false;
+	}
 
 	function create_table($table_name, $schema, $no_prefix = false)
 	{

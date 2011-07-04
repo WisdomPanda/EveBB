@@ -39,7 +39,7 @@ if (!defined('PUN'))
 $re_list = '%\[list(?:=([1a*]))?+\]((?:[^\[]*+(?:(?!\[list(?:=[1a*])?+\]|\[/list\])\[[^\[]*+)*+|(?R))*)\[/list\]%ie';
 
 // Here you can add additional smilies if you like (please note that you must escape single quote and backslash)
-$smilies = array(
+/*$smilies = array(
 	':)' => 'smile.png',
 	'=)' => 'smile.png',
 	':|' => 'neutral.png',
@@ -57,20 +57,23 @@ $smilies = array(
 	':lol:' => 'lol.png',
 	':mad:' => 'mad.png',
 	':rolleyes:' => 'roll.png',
-	':cool:' => 'cool.png');
+	':cool:' => 'cool.png');*/
+
+//EZBBC Smilies.
+require PUN_ROOT.'plugins/ezbbc/ezbbc_smilies1.php';
 
 //
 // Make sure all BBCodes are lower case and do a little cleanup
 //
 function preparse_bbcode($text, &$errors, $is_signature = false)
 {
-	global $pun_config, $lang_common, $re_list;
+	global $pun_config, $lang_common, $lang_post, $re_list;
 
 	if ($is_signature)
 	{
 		global $lang_profile;
 
-		if (preg_match('%\[/?(?:quote|code|list|h)\b[^\]]*\]%i', $text))
+		if (preg_match('%\[/?(?:quote|code|list|h|video)\b[^\]]*\]%i', $text))
 			$errors[] = $lang_profile['Signature quote/code/list/h'];
 	}
 
@@ -100,15 +103,15 @@ function preparse_bbcode($text, &$errors, $is_signature = false)
 		$text = '';
 
 		$num_tokens = count($outside);
-
 		for ($i = 0; $i < $num_tokens; ++$i)
 		{
 			$text .= $outside[$i];
 			if (isset($inside[$i]))
 				$text .= '[code]'.$inside[$i].'[/code]';
 		}
+		
+		unset($inside);
 	}
-	unset($inside);
 
 	$temp_text = false;
 	if (empty($errors))
@@ -121,7 +124,14 @@ function preparse_bbcode($text, &$errors, $is_signature = false)
 	while (($new_text = strip_empty_bbcode($text, $errors)) !== false)
 	{
 		if ($new_text != $text)
-			$text = $new_text;
+        {
+            $text = $new_text;
+            if ($new_text == '')
+            {
+                $errors[] = $lang_post['Empty after strip'];
+                break;
+            }
+        }
 		else
 			break;
 	}
@@ -143,7 +153,7 @@ function strip_empty_bbcode($text, &$errors)
 	}
 
 	// Remove empty tags
-	while (($new_text = preg_replace('/\[(b|u|s|ins|del|em|i|h|colou?r|quote|img|url|email|list)(?:\=[^\]]*)?\]\s*\[\/\1\]/', '', $text)) !== false)
+	while (($new_text = preg_replace('/\[(b|u|s|ins|del|em|i|h|colou?r|quote|img|url|email|list|video)(?:\=[^\]]*)?\]\s*\[\/\1\]/', '', $text)) !== NULL)
 	{
 		if ($new_text != $text)
 			$text = $new_text;
@@ -167,7 +177,7 @@ function strip_empty_bbcode($text, &$errors)
 	}
 
 	// Remove empty code tags
-	while (($new_text = preg_replace('/\[(code)\]\s*\[\/\1\]/', '', $text)) !== false)
+	while (($new_text = preg_replace('/\[(code)\]\s*\[\/\1\]/', '', $text)) !== NULL)
 	{
 		if ($new_text != $text)
 			$text = $new_text;
@@ -189,21 +199,21 @@ function preparse_tags($text, &$errors, $is_signature = false)
 	// Start off by making some arrays of bbcode tags and what we need to do with each one
 
 	// List of all the tags
-	$tags = array('quote', 'code', 'b', 'i', 'u', 's', 'ins', 'del', 'em', 'color', 'colour', 'url', 'email', 'img', 'list', '*', 'h', 'size');
+	$tags = array('quote', 'code', 'b', 'i', 'u', 's', 'ins', 'del', 'em', 'color', 'colour', 'url', 'email', 'img', 'list', '*', 'h', 'size', 'video');
 	// List of tags that we need to check are open (You could not put b,i,u in here then illegal nesting like [b][i][/b][/i] would be allowed)
 	$tags_opened = $tags;
 	// and tags we need to check are closed (the same as above, added it just in case)
 	$tags_closed = $tags;
-	// Tags we can nest and the depth they can be nested to (only quotes)
+	// Tags we can nest and the depth they can be nested to
 	$tags_nested = array('quote' => $pun_config['o_quote_depth'], 'list' => 5, '*' => 5);
 	// Tags to ignore the contents of completely (just code)
 	$tags_ignore = array('code');
 	// Block tags, block tags can only go within another block tag, they cannot be in a normal tag
 	$tags_block = array('quote', 'code', 'list', 'h', '*');
 	// Inline tags, we do not allow new lines in these
-	$tags_inline = array('b', 'i', 'u', 's', 'ins', 'del', 'em', 'color', 'colour', 'h', 'size');
+	$tags_inline = array('b', 'i', 'u', 's', 'ins', 'del', 'em', 'color', 'colour', 'h', 'size', 'video');
 	// Tags we trim interior space
-	$tags_trim = array('img');
+	$tags_trim = array('img', 'video');
 	// Tags we remove quotes from the argument
 	$tags_quotes = array('url', 'email', 'img');
 	// Tags we limit bbcode in
@@ -215,7 +225,9 @@ function preparse_tags($text, &$errors, $is_signature = false)
 		'img' 	=> array(),
 		'h'		=> array('b', 'i', 'u', 's', 'ins', 'del', 'em', 'color', 'colour', 'url', 'email'),
 		'size'	=> array('b', 'i', 'u', 's', 'ins', 'del', 'em', 'color', 'colour', 'url', 'email'),
+		video => array()
 	);
+	
 	// Tags we can automatically fix bad nesting
 	$tags_fix = array('quote', 'b', 'i', 'u', 's', 'ins', 'del', 'em', 'color', 'colour', 'url', 'email', 'h', 'size');
 
@@ -610,40 +622,6 @@ function preparse_list_tag($content, $type = '*', &$errors)
 }
 
 
-//
-// Split text into chunks ($inside contains all text inside $start and $end, and $outside contains all text outside)
-//
-function split_text($text, $start, $end, &$errors, $retab = true)
-{
-	global $pun_config, $lang_common;
-
-	$tokens = explode($start, $text);
-
-	$outside[] = $tokens[0];
-
-	$num_tokens = count($tokens);
-	for ($i = 1; $i < $num_tokens; ++$i)
-	{
-		$temp = explode($end, $tokens[$i]);
-
-		if (count($temp) != 2)
-		{
-			$errors[] = $lang_common['BBCode code problem'];
-			return array(null, array($text));
-		}
-		$inside[] = $temp[0];
-		$outside[] = $temp[1];
-	}
-
-	if ($pun_config['o_indent_num_spaces'] != 8 && $retab)
-	{
-		$spaces = str_repeat(' ', $pun_config['o_indent_num_spaces']);
-		$inside = str_replace("\t", $spaces, $inside);
-	}
-
-	return array($inside, $outside);
-}
-
 
 //
 // Truncate URL if longer than 55 characters (add http:// or ftp:// if missing)
@@ -745,7 +723,7 @@ function do_bbcode($text, $is_signature = false)
 	if (strpos($text, '[quote') !== false)
 	{
 		$text = preg_replace('#\[quote\]\s*#', '</p><div class="quotebox"><blockquote><div><p>', $text);
-		$text = preg_replace('#\[quote=(&quot;|"|\'|)(.*?)\\1\]#se', '"</p><div class=\"quotebox\"><cite>".str_replace(array(\'[\', \'\\"\'), array(\'&#91;\', \'"\'), \'$2\')." ".$lang_common[\'wrote\']."</cite><blockquote><div><p>"', $text);
+		$text = preg_replace('#\[quote=(&quot;|&\#039;|"|\'|)(.*?)\\1\]#se', '"</p><div class=\"quotebox\"><cite>".str_replace(array(\'[\', \'\\"\'), array(\'&#91;\', \'"\'), \'$2\')." ".$lang_common[\'wrote\']."</cite><blockquote><div><p>"', $text);
 		$text = preg_replace('#\s*\[\/quote\]#S', '</p></div></blockquote></div><p>', $text);
 	}
 
@@ -754,6 +732,7 @@ function do_bbcode($text, $is_signature = false)
 		$pattern[] = $re_list;
 		$replace[] = 'handle_list_tag(\'$2\', \'$1\')';
 	}
+
 
 	$pattern[] = '#\[b\](.*?)\[/b\]#ms';
 	$pattern[] = '#\[i\](.*?)\[/i\]#ms';
@@ -765,6 +744,10 @@ function do_bbcode($text, $is_signature = false)
 	$pattern[] = '#\[colou?r=([a-zA-Z]{3,20}|\#[0-9a-fA-F]{6}|\#[0-9a-fA-F]{3})](.*?)\[/colou?r\]#ms';
 	$pattern[] = '#\[h\](.*?)\[/h\]#ms';
 	$pattern[] = '#\[size=([0-9]{1,2})\](.*?)\[/size\]#ms';
+	$pattern[] = '#\[video\]([^\[<]*?)/video/([^_\[<]*?)_([^\[<]*?)\[/video\]#ms';
+	$pattern[] = '#\[video=([0-9]+),([0-9]+)\]([^\[<]*?)/video/([^_\[<]*?)_([^\[<]*?)\[/video\]#ms';
+	$pattern[] = '#\[video\]([^\[<]*?)/(v/|watch\?v=)([^\[<]*?)\[/video\]#ms';
+	$pattern[] = '#\[video=([0-9]+),([0-9]+)\]([^\[<]*?)/(v/|watch\?v=)([^\[<]*?)\[/video\]#ms';
 
 	$replace[] = '<strong>$1</strong>';
 	$replace[] = '<em>$1</em>';
@@ -776,6 +759,10 @@ function do_bbcode($text, $is_signature = false)
 	$replace[] = '<span style="color: $1">$2</span>';
 	$replace[] = '</p><h5>$1</h5><p>';
 	$replace[] = '<span style="font-size: $1px;">$2</span>';
+	$replace[] = '<object type="application/x-shockwave-flash" data="http://www.dailymotion.com/swf/video/$2" width="480" height="384"><param name="movie" value="http://www.dailymotion.com/swf/video/$2" /><param name="allowFullScreen" value="true" /><param name="allowScriptAccess" value="always" /><p>Flash required</p></object>';
+	$replace[] = '<object type="application/x-shockwave-flash" data="http://www.dailymotion.com/swf/video/$4" width="$1" height="$2"><param name="movie" value="http://www.dailymotion.com/swf/video/$4" /><param name="allowFullScreen" value="true" /><param name="allowScriptAccess" value="always" /><p>Flash required</p></object>';
+	$replace[] = '<object type="application/x-shockwave-flash" data="http://www.youtube.com/v/$3" width="425" height="344"><param name="movie" value="http://www.youtube.com/v/$3" /><param name="allowFullScreen" value="true" /><param name="allowScriptAccess" value="always" /><p>Flash required</p></object>';
+	$replace[] = '<object type="application/x-shockwave-flash" data="http://www.youtube.com/v/$5" width="$1" height="$2"><param name="movie" value="http://www.youtube.com/v/$5" /><param name="allowFullScreen" value="true" /><param name="allowScriptAccess" value="always" /><p>Flash required</p></object>';
 	
 
 	if (($is_signature && $pun_config['p_sig_img_tag'] == '1') || (!$is_signature && $pun_config['p_message_img_tag'] == '1'))
@@ -784,8 +771,8 @@ function do_bbcode($text, $is_signature = false)
 		$pattern[] = '#\[img=([^\[]*?)\]((ht|f)tps?://)([^\s<"]*?)\[/img\]#e';
 		if ($is_signature)
 		{
-			$replace[] = 'handle_img_tag(\'$1$3\', true)';
-			$replace[] = 'handle_img_tag(\'$2$4\', true, \'$1\')';
+			$replace[] = 'handle_img_tag(\'$1$3\', false)';
+			$replace[] = 'handle_img_tag(\'$2$4\', false, \'$1\')';
 		}
 		else
 		{
@@ -818,8 +805,8 @@ function do_clickable($text)
 {
 	$text = ' '.$text;
 
-	$text = preg_replace('#(?<=[\s\]\)])(<)?(\[)?(\()?([\'"]?)(https?|ftp|news){1}://([\w\-]+\.([\w\-]+\.)*\w+(:[0-9]+)?(/[^\s\[]*[^\s.,?!\[;:-])?)\4(?(3)(\)))(?(2)(\]))(?(1)(>))(?![^\s]*\[/(?:url|img)\])#ie', 'stripslashes(\'$1$2$3$4\').handle_url_tag(\'$5://$6\', \'$5://$6\', true).stripslashes(\'$4$10$11$12\')', $text);
-	$text = preg_replace('#(?<=[\s\]\)])(<)?(\[)?(\()?([\'"]?)(www|ftp)\.(([\w\-]+\.)*\w+(:[0-9]+)?(/[^\s\[]*[^\s.,?!\[;:-])?)\4(?(3)(\)))(?(2)(\]))(?(1)(>))(?![^\s]*\[/(?:url|img)\])#ie', 'stripslashes(\'$1$2$3$4\').handle_url_tag(\'$5.$6\', \'$5.$6\', true).stripslashes(\'$4$10$11$12\')', $text);
+	$text = ucp_preg_replace('#(?<=[\s\]\)])(<)?(\[)?(\()?([\'"]?)(https?|ftp|news){1}://([\p{L}\p{N}\-]+\.([\p{L}\p{N}\-]+\.)*[\p{L}\p{N}]+(:[0-9]+)?(/[^\s\[]*[^\s.,?!\[;:-])?)\4(?(3)(\)))(?(2)(\]))(?(1)(>))(?![^\s]*\[/(?:url|img)\])#uie', 'stripslashes(\'$1$2$3$4\').handle_url_tag(\'$5://$6\', \'$5://$6\', true).stripslashes(\'$4$10$11$12\')', $text);
+	$text = ucp_preg_replace('#(?<=[\s\]\)])(<)?(\[)?(\()?([\'"]?)(www|ftp)\.(([\p{L}\p{N}\-]+\.)*[\p{L}\p{N}]+(:[0-9]+)?(/[^\s\[]*[^\s.,?!\[;:-])?)\4(?(3)(\)))(?(2)(\]))(?(1)(>))(?![^\s]*\[/(?:url|img)\])#uie', 'stripslashes(\'$1$2$3$4\').handle_url_tag(\'$5.$6\', \'$5.$6\', true).stripslashes(\'$4$10$11$12\')', $text);
 
 	return substr($text, 1);
 }
@@ -837,7 +824,8 @@ function do_smilies($text)
 	foreach ($smilies as $smiley_text => $smiley_img)
 	{
 		if (strpos($text, $smiley_text) !== false)
-			$text = preg_replace("#(?<=[>\s])".preg_quote($smiley_text, '#')."(?=\W)#m", '<img src="'.$pun_config['o_base_url'].'/img/smilies/'.$smiley_img.'" width="15" height="15" alt="'.substr($smiley_img, 0, strrpos($smiley_img, '.')).'" />', $text);
+			require PUN_ROOT.'plugins/ezbbc/ezbbc_smilies2.php'; //EZBBC smilies
+			//$text = ucp_preg_replace('#(?<=[>\s])'.preg_quote($smiley_text, '#').'(?=[^\p{L}\p{N}])#um', '<img src="'.pun_htmlspecialchars(get_base_url(true).'/img/smilies/'.$smiley_img).'" width="15" height="15" alt="'.substr($smiley_img, 0, strrpos($smiley_img, '.')).'" />', $text);
 	}
 
 	return substr($text, 1, -1);

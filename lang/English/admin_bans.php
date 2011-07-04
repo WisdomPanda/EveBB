@@ -5,7 +5,8 @@ $lang_admin_bans = array(
 
 'No user message'			=>	'No user by that username registered. If you want to add a ban not tied to a specific username just leave the username blank.',
 'No user ID message'		=>	'No user by that ID registered.',
-'User is admin message'		=>	'The user %s is an administrator and can\'t be banned. If you want to ban an administrator, you must first demote him/her to moderator or user.',
+'User is admin message'		=>	'The user %s is an administrator and can\'t be banned. If you want to ban an administrator, you must first demote him/her.',
+'User is mod message'		=>	'The user %s is a moderator and can\'t be banned. If you want to ban a moderator, you must first demote him/her.',
 'Must enter message'		=>	'You must enter either a username, an IP address or an email address (at least).',
 'Cannot ban guest message'	=>	'The guest user cannot be banned.',
 'Invalid IP message'		=>	'You entered an invalid IP/IP-range.',
@@ -24,7 +25,7 @@ $lang_admin_bans = array(
 
 'Ban search head'			=>	'Ban search',
 'Ban search subhead'		=>	'Enter search criteria',
-'Ban search info'			=>	'Search for bans in the database. You can enter one or more terms to search for. Wildcards in the form of asterisks (*) are accepted.',
+'Ban search info'			=>	'Search for bans in the database. You can enter one or more terms to search for. Wildcards in the form of asterisks (*) are accepted. To show all bans leave all fields empty.',
 'Date help'					=>	'(yyyy-mm-dd)',
 'Message label'				=>	'Message',
 'Expire after label'		=>	'Expire after',

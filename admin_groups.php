@@ -9,7 +9,7 @@
 // Tell header.php to use the admin template
 define('PUN_ADMIN_CONSOLE', 1);
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 require PUN_ROOT.'include/common_admin.php';
 
@@ -304,7 +304,8 @@ else if (isset($_POST['add_edit_group']))
 	if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
 		require PUN_ROOT.'include/cache.php';
 
-	generate_quickjump_cache();
+	$group_id = $_POST['mode'] == 'add' ? $new_group_id : intval($_POST['group_id']);
+	generate_quickjump_cache($group_id);
 
 	if ($_POST['mode'] == 'edit')
 		redirect('admin_groups.php', $lang_admin_groups['Group edited redirect']);
@@ -371,12 +372,6 @@ else if (isset($_GET['del_group']))
 			// Delete the group and any forum specific permissions
 			$db->query('DELETE FROM '.$db->prefix.'groups WHERE g_id='.$group_id) or error('Unable to delete group', __FILE__, __LINE__, $db->error());
 			$db->query('DELETE FROM '.$db->prefix.'forum_perms WHERE group_id='.$group_id) or error('Unable to delete group forum permissions', __FILE__, __LINE__, $db->error());
-
-			// Regenerate the quick jump cache
-			if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
-				require PUN_ROOT.'include/cache.php';
-
-			generate_quickjump_cache();
 
 			redirect('admin_groups.php', $lang_admin_groups['Group removed redirect']);
 		}
@@ -478,7 +473,7 @@ generate_admin_menu('groups');
 	<div class="blockform">
 		<h2><span><?php echo $lang_admin_groups['Add groups head'] ?></span></h2>
 		<div class="box">
-			<form id="groups" method="post" action="admin_groups.php?action=foo">
+			<form id="groups" method="post" action="admin_groups.php">
 				<div class="inform">
 					<fieldset>
 						<legend><?php echo $lang_admin_groups['Add group subhead'] ?></legend>

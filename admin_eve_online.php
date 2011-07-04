@@ -3,7 +3,7 @@
 // Tell header.php to use the admin template
 define('PUN_ADMIN_CONSOLE', 1);
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 require PUN_ROOT.'include/common_admin.php';
 
@@ -179,30 +179,29 @@ if ($action == "update_settings") {
 		'o_eve_banner_height',
 		'o_eve_banner_text_enable',
 		'o_eve_use_cron',
-		'o_eve_max_groups');
+		'o_eve_max_groups',
+		'o_hide_stats');
 		
 		$log = '';
 		
 		foreach ($settings as $key) {
 			//Lets check if it's set in both $_POST and $pun_config...
 			//I like to use ''.$key.'' to remind my self that it's a text key, does no harm.
-			if (isset($_POST[''.$key.'']) && isset($pun_config[''.$key.''])) {
+			if (isset($_POST[''.$key.''])) {
 				//It's in $_POST and in $pun_config, lets see if it's changed.
 				if ($_POST[''.$key.''] == $pun_config[''.$key.'']) {
+					$log .= 'Nothing has changed for '.$key.'<br/>';
 					continue; //Nothing has changed, don't bother.
 				} //End if.
 				
-				$sql = "UPDATE ".$db->prefix."config SET conf_value='".strip_special($_POST[''.$key.''])."' WHERE conf_name='".$key."';";
-				if (!$db->query($sql)) {
-					$log .= "Unable to update '".$key."' to '".$_POST[''.$key.'']."'.";
-				} //End if.
+				$db->insert_or_update(
+					array('conf_name' => $key, 'conf_value' => $_POST[$key]),
+					'conf_name',
+					$db->prefix.'config'
+				) or error("Unable to update '".$key."' to '".$_POST[''.$key.'']."'.", __FILE__, __LINE__, $db->error());
 				
 			} //End if.
 		} //End for each().
-		
-		if (strlen($log) > 0) {
-			message($log);
-		} //End if.
 		
 		if (!defined('FORUM_CACHE_FUNCTIONS_LOADED')) {
 			require PUN_ROOT.'include/cache.php';
@@ -243,6 +242,13 @@ generate_admin_menu('eve_online');
 						<legend><?php echo $lang_admin_eve_online['general_legend_text'] ?></legend>
 						<div class="infldset">
 							<table class="aligntop" cellspacing="0">
+								<tr>
+									<th scope="row"><?php echo $lang_admin_eve_online['o_hide_stats'] ?></th>
+									<td>
+										<input type="radio" name="o_hide_stats" value="1"<?php if ($pun_config['o_hide_stats'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="o_hide_stats" value="0"<?php if ($pun_config['o_hide_stats'] == '0') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_eve_online['o_hide_stats_info'] ?></span>
+									</td>
+								</tr>
 								<tr>
 									<th scope="row"><?php echo $lang_admin_eve_online['o_eve_use_iga'] ?></th>
 									<td>
@@ -439,11 +445,16 @@ while ($row = $db->fetch_assoc($result))
 
 $banners = scandir(PUN_ROOT.$pun_config['o_eve_banner_dir']);
 $current_banner = '';
+$files = array("png", "jpg");
 foreach ($banners as $row)
 {
 	
 	if (strlen($row) < 5) {
 		continue; //Easy blanket way to remove any non-images. (1 name character + 1 '.' character + 3 file type characters = 5)
+	} //End if.
+	
+	if (!in_array(substr($row, -3), $files)) {
+		continue; //Don't include non-images.
 	} //End if.
 	
 	if ($row == $pun_config['o_eve_banner']) {

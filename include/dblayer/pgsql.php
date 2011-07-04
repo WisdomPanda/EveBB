@@ -461,6 +461,15 @@ class DBLayer
 
 		return $result;
 	}
+	
+	function rename_table($old_table, $new_table, $no_prefix = false)
+	{
+		// If there new table exists and the old one doesn't, then we're happy
+		if ($this->table_exists($new_table, $no_prefix) && !$this->table_exists($old_table, $no_prefix))
+			return true;
+	
+		return $this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$old_table.' RENAME TO '.($no_prefix ? '' : $this->prefix).$new_table) ? true : false;
+	}
 
 
 	function alter_field($table_name, $field_name, $field_type, $allow_null, $default_value = null, $after_field = null, $no_prefix = false)

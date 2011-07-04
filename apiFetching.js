@@ -211,7 +211,9 @@ function characterCallback() {
 		document.getElementById("api_holder").innerHTML = newContent;
 		
 		var firstRadio = document.getElementById("char_radio_0");
-		firstRadio.checked = true;
+		if (firstRadio != null) {
+			firstRadio.checked = true;
+		} //End if.
 		
 	} //End if.
 

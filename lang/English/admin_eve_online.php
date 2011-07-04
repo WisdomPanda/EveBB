@@ -137,6 +137,8 @@ Low load added, may be set to happen fairly often to catch the updates done by [
 'o_eve_banner_height_info' => 'Set the maximum height for the forums banner. Forum will adjust to the height, so go nuts.',
 'o_eve_banner_dir' => 'Banner Directory',
 'o_eve_banner_dir_info' => 'Set the base directory to store/look in for banners. Omit the trailing slash.<br /> (Example: img/banners)',
+'o_hide_stats' => 'Hide Forum Statistics',
+'o_hide_stats' => 'Hide the forum statistics to guests.',
 
 
 );

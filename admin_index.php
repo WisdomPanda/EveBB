@@ -9,7 +9,7 @@
 // Tell header.php to use the admin template
 define('PUN_ADMIN_CONSOLE', 1);
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 require PUN_ROOT.'include/common_admin.php';
 
@@ -121,24 +121,23 @@ define('PUN_ACTIVE_PAGE', 'admin');
 require PUN_ROOT.'header.php';
 
 generate_admin_menu('index');
-
 ?>
 	<div class="block">
 		<h2><span><?php echo $lang_admin_index['Forum admin head'] ?></span></h2>
 		<div id="adintro" class="box">
 			<div class="inbox">
-				<p>
-					<?php echo $lang_admin_index['Welcome to admin'] ?><br /><br />
-					&#160;- <?php echo $lang_admin_index['Welcome 1'] ?><br />
-					&#160;- <?php echo $lang_admin_index['Welcome 2'] ?><br />
-					&#160;- <?php echo $lang_admin_index['Welcome 3'] ?><br />
-					&#160;- <?php echo $lang_admin_index['Welcome 4'] ?><br />
-					&#160;- <?php echo $lang_admin_index['Welcome 5'] ?><br />
-					&#160;- <?php echo $lang_admin_index['Welcome 6'] ?><br />
-					&#160;- <?php echo $lang_admin_index['Welcome 7'] ?><br />
-					&#160;- <?php echo $lang_admin_index['Welcome 8'] ?><br />
-					&#160;- <?php echo $lang_admin_index['Welcome 9'] ?>
-				</p>
+				<p><?php echo $lang_admin_index['Welcome to admin'] ?></p>
+				<ul>
+					<li><span><?php echo $lang_admin_index['Welcome 1'] ?></span></li>
+					<li><span><?php echo $lang_admin_index['Welcome 2'] ?></span></li>
+					<li><span><?php echo $lang_admin_index['Welcome 3'] ?></span></li>
+					<li><span><?php echo $lang_admin_index['Welcome 4'] ?></span></li>
+					<li><span><?php echo $lang_admin_index['Welcome 5'] ?></span></li>
+					<li><span><?php echo $lang_admin_index['Welcome 6'] ?></span></li>
+					<li><span><?php echo $lang_admin_index['Welcome 7'] ?></span></li>
+					<li><span><?php echo $lang_admin_index['Welcome 8'] ?></span></li>
+					<li><span><?php echo $lang_admin_index['Welcome 9'] ?></span></li>
+				</ul>
 			</div>
 		</div>
 
@@ -148,7 +147,7 @@ generate_admin_menu('index');
 				<dl>
 					<dt><?php echo $lang_admin_index['FluxBB version label'] ?></dt>
 					<dd>
-						<?php printf($lang_admin_index['FluxBB version data'], EVE_BB_VERSION, '<a href="admin_index.php?action=check_upgrade">'.$lang_admin_index['Check for upgrade'].'</a>') ?><br />
+						<?php printf($lang_admin_index['FluxBB version data'], $pun_config['o_cur_version'], '<a href="admin_index.php?action=check_upgrade">'.$lang_admin_index['Check for upgrade'].'</a>') ?>
 					</dd>
 					<dt><?php echo $lang_admin_index['Server load label'] ?></dt>
 					<dd>
@@ -165,7 +164,7 @@ generate_admin_menu('index');
 						<?php echo implode(' ', $db->get_version())."\n" ?>
 <?php if (isset($total_records) && isset($total_size)): ?>						<br /><?php printf($lang_admin_index['Database data rows'], forum_number_format($total_records)) ?>
 						<br /><?php printf($lang_admin_index['Database data size'], $total_size) ?>
-<?php endif; endif; ?>					</dd>
+<?php endif; ?>                    </dd><?php endif; ?>					</dd>
 				</dl>
 			</div>
 		</div>

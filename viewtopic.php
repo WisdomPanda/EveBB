@@ -6,8 +6,9 @@
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
+require PUN_ROOT.'include/attach/attach_incl.php'; //Attachment Mod row, loads variables, functions and lang file
 
 
 if ($pun_user['g_read_board'] == '0')
@@ -23,29 +24,19 @@ if ($id < 1 && $pid < 1)
 // Load the viewtopic.php language file
 require PUN_ROOT.'lang/'.$pun_user['language'].'/topic.php';
 
-
 // If a post ID is specified we determine topic ID and page number so we can redirect to the correct message
 if ($pid)
 {
-	$result = $db->query('SELECT topic_id FROM '.$db->prefix.'posts WHERE id='.$pid) or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT topic_id, posted FROM '.$db->prefix.'posts WHERE id='.$pid) or error('Unable to fetch topic ID', __FILE__, __LINE__, $db->error());
 	if (!$db->num_rows($result))
 		message($lang_common['Bad request']);
 
-	$id = $db->result($result);
+	list($id, $posted) = $db->fetch_row($result);
 
-	// Determine on what page the post is located (depending on $pun_user['disp_posts'])
-	$result = $db->query('SELECT id FROM '.$db->prefix.'posts WHERE topic_id='.$id.' ORDER BY posted') or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
-	$num_posts = $db->num_rows($result);
-
-	for ($i = 0; $i < $num_posts; ++$i)
-	{
-		$cur_id = $db->result($result, $i);
-		if ($cur_id == $pid)
-			break;
-	}
-	++$i; // we started at 0
-
-	$_GET['p'] = ceil($i / $pun_user['disp_posts']);
+	// Determine on what page the post is located (depending on $forum_user['disp_posts'])
+    $result = $db->query('SELECT COUNT(id) FROM '.$db->prefix.'posts WHERE topic_id='.$id.' AND posted<'.$posted) or error('Unable to count previous posts', __FILE__, __LINE__, $db->error());
+    $num_posts = $db->result($result) + 1;
+    $_GET['p'] = ceil($num_posts / $pun_user['disp_posts']);
 }
 
 // If action=new, we redirect to the first new post (if any)
@@ -57,7 +48,7 @@ else if ($action == 'new')
 		$tracked_topics = get_tracked_topics();
 		$last_viewed = isset($tracked_topics['topics'][$id]) ? $tracked_topics['topics'][$id] : $pun_user['last_visit'];
 
-		$result = $db->query('SELECT MIN(id) FROM '.$db->prefix.'posts WHERE topic_id='.$id.' AND posted>'.$last_viewed) or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
+		$result = $db->query('SELECT MIN(id) FROM '.$db->prefix.'posts WHERE topic_id='.$id.' AND posted>'.$last_viewed) or error('Unable to fetch first new post info', __FILE__, __LINE__, $db->error());
 		$first_new_post_id = $db->result($result);
 
 		if ($first_new_post_id)
@@ -75,7 +66,7 @@ else if ($action == 'new')
 // If action=last, we redirect to the last post
 else if ($action == 'last')
 {
-	$result = $db->query('SELECT MAX(id) FROM '.$db->prefix.'posts WHERE topic_id='.$id) or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT MAX(id) FROM '.$db->prefix.'posts WHERE topic_id='.$id) or error('Unable to fetch last post info', __FILE__, __LINE__, $db->error());
 	$last_post_id = $db->result($result);
 
 	if ($last_post_id)
@@ -83,6 +74,16 @@ else if ($action == 'last')
 		header('Location: viewtopic.php?pid='.$last_post_id.'#p'.$last_post_id);
 		exit;
 	}
+}
+
+require PUN_ROOT.'include/poll.php';
+
+if (poll_post('poll_submit') != null)
+{
+	poll_vote($id, $pun_user['id']);
+
+	header('Location: viewtopic.php?id='.$id.((isset($_GET['p']) && $_GET['p'] > 1) ? '&p='.intval($_GET['p']) : ''));
+	exit;
 }
 
 //Let's quickly build their group list for the SQL.
@@ -93,43 +94,54 @@ if (!empty($pun_user['group_ids'])) {
 	} //End foreach().
 } //End if.
 
-/*Eve-BB note: Longish SQL, made it a little bit more readable - sidescroll is yucky. :(*/
+//(fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
 // Fetch some info about the topic
 if (!$pun_user['is_guest']) {
-	$result = $db->query('
-		SELECT
-			t.subject,
-			t.closed,
-			t.num_replies,
-			t.sticky,
-			t.first_post_id,
-			f.id AS forum_id,
-			f.forum_name,
-			f.moderators,
-			fp.post_replies,
-			s.user_id AS is_subscribed
-		FROM
-			'.$db->prefix.'topics AS t
-		INNER JOIN
-			'.$db->prefix.'forums AS f
-		ON
-			f.id=t.forum_id
-		LEFT JOIN
-			'.$db->prefix.'subscriptions AS s
-		ON
-			(t.id=s.topic_id AND s.user_id='.$pun_user['id'].')
-		LEFT JOIN
-			'.$db->prefix.'forum_perms AS fp
-		ON
-			(fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
-		WHERE
-			(fp.read_forum IS NULL OR fp.read_forum=1)
-		AND
-			t.id='.$id.' AND t.moved_to IS NULL'
-	) or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
+	$sql = '
+	SELECT
+		pf.forum_name AS parent_forum,
+		f.parent_forum_id,
+		t.subject,
+		t.closed,
+		t.num_replies,
+		t.sticky,
+		t.first_post_id,
+		t.poll_type,
+		t.poll_time,
+		t.poll_term,
+		t.poll_kol,
+		f.id AS forum_id,
+		f.forum_name,
+		f.moderators,
+		fp.post_replies,
+		s.user_id AS is_subscribed
+	FROM
+		'.$db->prefix.'topics AS t
+	INNER JOIN
+		'.$db->prefix.'forums AS f
+	ON
+		f.id=t.forum_id
+	LEFT JOIN
+		'.$db->prefix.'topic_subscriptions AS s
+	ON
+		(t.id=s.topic_id AND s.user_id='.$pun_user['id'].')
+	LEFT JOIN
+		'.$db->prefix.'forum_perms AS fp
+	ON
+		(fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
+	LEFT JOIN
+		'.$db->prefix.'forums AS pf
+	ON
+		f.parent_forum_id=pf.id
+	WHERE
+		(fp.read_forum IS NULL OR fp.read_forum=1)
+	AND
+		t.id='.$id.'
+	AND
+		t.moved_to IS NULL';
+	$result = $db->query($sql) or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
 } else {
-	//We don't fetch multiple groups if they are labeled as guests, as the group_list is never built.
-	$result = $db->query('SELECT t.subject, t.closed, t.num_replies, t.sticky, t.first_post_id, f.id AS forum_id, f.forum_name, f.moderators, fp.post_replies, 0 FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forums AS f ON f.id=t.forum_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND t.id='.$id.' AND t.moved_to IS NULL') or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT t.subject, t.closed, t.num_replies, t.sticky, t.first_post_id, t.poll_type, t.poll_time, t.poll_term, t.poll_kol, f.id AS forum_id, f.forum_name, f.moderators, fp.post_replies, 0 AS is_subscribed FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forums AS f ON f.id=t.forum_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND t.id='.$id.' AND t.moved_to IS NULL') or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
 } //End if.
 
 if (!$db->num_rows($result)) {
@@ -179,6 +191,22 @@ $start_from = $pun_user['disp_posts'] * ($p - 1);
 // Generate paging links
 $paging_links = '<span class="pages-label">'.$lang_common['Pages'].' </span>'.paginate($num_pages, $p, 'viewtopic.php?id='.$id);
 
+// Add relationship meta tags
+$page_head = array();
+$page_head['up'] = '<link rel="up" href="viewforum.php?id='.$cur_topic['forum_id'].'" title="'.pun_htmlspecialchars($cur_topic['forum_name']).'" />';
+if ($num_pages > 1)
+{
+    if ($p > 1)
+    {
+        $page_head['first'] = '<link rel="first" href="viewtopic.php?id='.$id.'&amp;p=1" title="'.sprintf($lang_common['Page'], 1).'" />';
+        $page_head['prev'] = '<link rel="prev" href="viewtopic.php?id='.$id.'&amp;p='.($p-1).'" title="'.sprintf($lang_common['Page'], $p-1).'" />';
+    }
+    if ($p < $num_pages)
+    {
+        $page_head['next'] = '<link rel="next" href="viewtopic.php?id='.$id.'&amp;p='.($p+1).'" title="'.sprintf($lang_common['Page'], $p+1).'" />';
+        $page_head['last'] = '<link rel="last" href="viewtopic.php?id='.$id.'&amp;p='.$num_pages.'" title="'.sprintf($lang_common['Page'], $num_pages).'" />';
+    }
+}
 
 if ($pun_config['o_censoring'] == '1')
 	$cur_topic['subject'] = censor_words($cur_topic['subject']);
@@ -186,29 +214,31 @@ if ($pun_config['o_censoring'] == '1')
 
 $quickpost = false;
 if ($pun_config['o_quickpost'] == '1' &&
-	!$pun_user['is_guest'] &&
 	($cur_topic['post_replies'] == '1' || ($cur_topic['post_replies'] == '' && $pun_user['g_post_replies'] == '1')) &&
 	($cur_topic['closed'] == '0' || $is_admmod))
 {
-	$required_fields = array('req_message' => $lang_common['Message']);
+	// Load the post.php language file
+	require PUN_ROOT.'lang/'.$pun_user['language'].'/post.php';
+
+	$required_fields = array('req_email' => $lang_common['Email'], 'req_message' => $lang_common['Message']);
 	$quickpost = true;
 }
 
-if (!$pun_user['is_guest'] && $pun_config['o_subscriptions'] == '1')
+if (!$pun_user['is_guest'] && $pun_config['o_topic_subscriptions'] == '1')
 {
 	if ($cur_topic['is_subscribed'])
 		// I apologize for the variable naming here. It's a mix of subscription and action I guess :-)
-		$subscraction = "\t\t".'<p class="subscribelink clearb"><span>'.$lang_topic['Is subscribed'].' - </span><a href="misc.php?unsubscribe='.$id.'">'.$lang_topic['Unsubscribe'].'</a></p>'."\n";
+		$subscraction = "\t\t".'<p class="subscribelink clearb"><span>'.$lang_topic['Is subscribed'].' - </span><a href="misc.php?action=unsubscribe&amp;tid='.$id.'">'.$lang_topic['Unsubscribe'].'</a></p>'."\n";
 	else
-		$subscraction = "\t\t".'<p class="subscribelink clearb"><a href="misc.php?subscribe='.$id.'">'.$lang_topic['Subscribe'].'</a></p>'."\n";
+		$subscraction = "\t\t".'<p class="subscribelink clearb"><a href="misc.php?action=subscribe&amp;tid='.$id.'">'.$lang_topic['Subscribe'].'</a></p>'."\n";
 }
 else
 	$subscraction = '';
 
 if ($pun_config['o_feed_type'] == '1')
-	$page_head = array('feed' => '<link rel="alternate" type="application/rss+xml" href="extern.php?action=feed&amp;tid='.$id.'&amp;type=rss" title="'.$lang_common['RSS topic feed'].'" />');
+	$page_head['feed'] = '<link rel="alternate" type="application/rss+xml" href="extern.php?action=feed&amp;tid='.$id.'&amp;type=rss" title="'.$lang_common['RSS topic feed'].'" />';
 else if ($pun_config['o_feed_type'] == '2')
-	$page_head = array('feed' => '<link rel="alternate" type="application/atom+xml" href="extern.php?action=feed&amp;tid='.$id.'&amp;type=atom" title="'.$lang_common['Atom topic feed'].'" />');
+	$page_head['feed'] = '<link rel="alternate" type="application/atom+xml" href="extern.php?action=feed&amp;tid='.$id.'&amp;type=atom" title="'.$lang_common['Atom topic feed'].'" />';
 
 $page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), pun_htmlspecialchars($cur_topic['forum_name']), pun_htmlspecialchars($cur_topic['subject']));
 define('PUN_ALLOW_INDEX', 1);
@@ -220,8 +250,9 @@ require PUN_ROOT.'header.php';
 	<div class="inbox crumbsplus">
 		<ul class="crumbs">
 			<li><a href="index.php"><?php echo $lang_common['Index'] ?></a></li>
+<?php if ($cur_topic['parent_forum']) echo "\t\t".'<li><span>»&#160;</span><a href="viewforum.php?id='.$cur_topic['parent_forum_id'].'">'.pun_htmlspecialchars($cur_topic['parent_forum']).'</a></li> '; ?>
 			<li><span>»&#160;</span><a href="viewforum.php?id=<?php echo $cur_topic['forum_id'] ?>"><?php echo pun_htmlspecialchars($cur_topic['forum_name']) ?></a></li>
-			<li><span>»&#160;</span><strong><?php echo pun_htmlspecialchars($cur_topic['subject']) ?></strong></li>
+			<li><span>»&#160;</span><a href="viewtopic.php?id=<?php echo $id ?>"><strong><?php echo pun_htmlspecialchars($cur_topic['subject']) ?></strong></a></li>
 		</ul>
 		<div class="pagepost">
 			<p class="pagelink conl"><?php echo $paging_links ?></p>
@@ -244,10 +275,38 @@ $result = $db->query('SELECT id FROM '.$db->prefix.'posts WHERE topic_id='.$id.'
 $post_ids = array();
 for ($i = 0;$cur_post_id = $db->result($result, $i);$i++)
 	$post_ids[] = $cur_post_id;
+	
+if (empty($post_ids))
+	error('The post table and topic table seem to be out of sync!', __FILE__, __LINE__);
+	
+// Attachment Mod Block Start
+$attachments = array();
+$attach_allow_download = false;
+if ($pun_user['g_id'] == PUN_ADMIN)
+	$attach_allow_download = true;
+else
+{
+	$result_attach_rules = $db->query('SELECT ar.rules FROM '.$db->prefix.'attach_2_rules AS ar WHERE ar.group_id='.$pun_user['group_id'].' AND ar.forum_id='.$cur_topic['forum_id'].' LIMIT 1') or error('Unable to fetch rules for the attachments', __FILE__, __LINE__, $db->error());
+	if ($db->num_rows($result_attach_rules))
+		$attach_allow_download = attach_rules($db->result($result_attach_rules), ATTACH_DOWNLOAD);
+}
+
+if ($attach_allow_download)
+{
+	$result_attach = $db->query('SELECT af.id, af.filename, af.post_id, af.size, af.downloads FROM '.$db->prefix.'attach_2_files AS af WHERE af.post_id IN ('.implode(',', $post_ids).') ORDER BY af.post_id') or error('Unable to fetch if there were any attachments', __FILE__, __LINE__, $db->error());
+	while ($cur_attach = $db->fetch_assoc($result_attach))
+	{
+		if (!isset($attachments[$cur_attach['post_id']]))
+			$attachments[$cur_attach['post_id']] = array();
+		$attachments[$cur_attach['post_id']][$cur_attach['id']] = $cur_attach;
+	}
+}
+// Attachment Mod Block End
 
 // Retrieve the posts (and their respective poster/online status)
 $characters = array();
-$result = $db->query('SELECT u.email, u.title, u.url, u.location, u.signature, u.email_setting, u.num_posts, u.registered, u.admin_note, p.id, p.poster AS username, p.poster_id, p.poster_ip, p.poster_email, p.message, p.hide_smilies, p.posted, p.edited, p.edited_by, g.g_id, g.g_user_title, o.user_id AS is_online FROM '.$db->prefix.'posts AS p INNER JOIN '.$db->prefix.'users AS u ON u.id=p.poster_id INNER JOIN '.$db->prefix.'groups AS g ON g.g_id=u.group_id LEFT JOIN '.$db->prefix.'online AS o ON (o.user_id=u.id AND o.user_id!=1 AND o.idle=0) WHERE p.id IN ('.implode(',', $post_ids).') ORDER BY p.id', true) or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
+//$result = $db->query('SELECT u.email, u.title, u.url, u.location, u.signature, u.email_setting, u.num_posts, u.registered, u.admin_note, p.id, p.poster AS username, p.poster_id, p.poster_ip, p.poster_email, p.message, p.hide_smilies, p.posted, p.edited, p.edited_by, g.g_id, g.g_user_title, o.user_id AS is_online FROM '.$db->prefix.'posts AS p INNER JOIN '.$db->prefix.'users AS u ON u.id=p.poster_id INNER JOIN '.$db->prefix.'groups AS g ON g.g_id=u.group_id LEFT JOIN '.$db->prefix.'online AS o ON (o.user_id=u.id AND o.user_id!=1 AND o.idle=0) WHERE p.id IN ('.implode(',', $post_ids).') ORDER BY p.id', true) or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
+$result = $db->query('SELECT u.email, u.title, u.url, u.location, u.signature, u.email_setting, u.num_posts, u.registered, u.admin_note, u.messages_enable, p.id, p.poster AS username, p.poster_id, p.poster_ip, p.poster_email, p.message, p.hide_smilies, p.posted, p.edited, p.edited_by, g.g_id, g.g_user_title, g.g_pm, o.user_id AS is_online FROM '.$db->prefix.'posts AS p INNER JOIN '.$db->prefix.'users AS u ON u.id=p.poster_id INNER JOIN '.$db->prefix.'groups AS g ON g.g_id=u.group_id LEFT JOIN '.$db->prefix.'online AS o ON (o.user_id=u.id AND o.user_id!=1 AND o.idle=0) WHERE p.id IN ('.implode(',', $post_ids).') ORDER BY p.id', true) or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
 while ($cur_post = $db->fetch_assoc($result))
 {
 	$post_count++;
@@ -363,6 +422,14 @@ while ($cur_post = $db->fetch_assoc($result))
 				$user_contacts[] = '<span class="website"><a href="'.pun_htmlspecialchars($cur_post['url']).'">'.$lang_topic['Website'].'</a></span>';
 			}
 		}
+	
+// New PMS
+		if (!$pun_user['is_guest'] && $pun_config['o_pms_enabled'] == '1' && $pun_user['g_pm'] == 1 && $pun_user['messages_enable'] == 1 && $cur_post['poster_id'] != $pun_user['id'])
+			if ($pun_user['g_id'] == PUN_ADMIN || ($cur_post['g_pm'] == 1 && $cur_post['messages_enable'] == 1))
+			{
+				$user_contacts[] = '<span class="pmsnew"><a href="pmsnew.php?mdl=post&amp;uid='.$cur_post['poster_id'].'">'.$lang_common['PM'].'</a></span>';
+			}
+// New PMS
 
 		if ($pun_user['is_admmod'])
 		{
@@ -412,7 +479,7 @@ while ($cur_post = $db->fetch_assoc($result))
 		$post_actions[] = '<li class="postedit"><span><a href="edit.php?id='.$cur_post['id'].'">'.$lang_topic['Edit'].'</a></span></li>';
 		$post_actions[] = '<li class="postquote"><span><a href="post.php?tid='.$id.'&amp;qid='.$cur_post['id'].'">'.$lang_topic['Quote'].'</a></span></li>';
 	}
-
+	
 	// Perform the main parsing of the message (BBCode, smilies, censor words etc)
 	$cur_post['message'] = parse_message($cur_post['message'], $cur_post['hide_smilies']);
 
@@ -427,6 +494,19 @@ while ($cur_post = $db->fetch_assoc($result))
 			$signature_cache[$cur_post['poster_id']] = $signature;
 		}
 	}
+	
+	// Attachment Mod Block Start
+	$attach_output = '';
+	if ($attach_allow_download && isset($attachments[$cur_post['id']]) && count($attachments[$cur_post['id']]) > 0)
+	{
+		$attach_output .= $lang_attach['Attachments:'].' ';
+		foreach ($attachments[$cur_post['id']] as $cur_attach)
+		{
+			$attachment_extension = attach_get_extension($cur_attach['filename']);
+			$attach_output .= '<br />'."\n\t\t\t\t\t\t".attach_icon($attachment_extension).' <a href="attachment.php?item='.$cur_attach['id'].'">'.pun_htmlspecialchars($cur_attach['filename']).'</a>, '.$lang_attach['Size:'].' '.format_bytes($cur_attach['size']).', '.$lang_attach['Downloads:'].' '.number_format($cur_attach['downloads']);
+		}
+	}
+	// Attachment Mod Block End
 
 ?>
 <div id="p<?php echo $cur_post['id'] ?>" class="blockpost<?php echo ($post_count % 2 == 0) ? ' roweven' : ' rowodd' ?><?php if ($cur_post['id'] == $cur_topic['first_post_id']) echo ' firstpost'; ?><?php if ($post_count == 1) echo ' blockpost1'; ?>">
@@ -447,7 +527,9 @@ while ($cur_post = $db->fetch_assoc($result))
 					<h3><?php if ($cur_post['id'] != $cur_topic['first_post_id']) echo $lang_topic['Re'].' '; ?><?php echo pun_htmlspecialchars($cur_topic['subject']) ?></h3>
 					<div class="postmsg">
 						<?php echo $cur_post['message']."\n" ?>
+						<?php if ($cur_post['id'] == $cur_topic['first_post_id']) poll_display_topic($id, $pun_user['id'], $p); ?>
 <?php if ($cur_post['edited'] != '') echo "\t\t\t\t\t\t".'<p class="postedit"><em>'.$lang_topic['Last edit'].' '.pun_htmlspecialchars($cur_post['edited_by']).' ('.format_time($cur_post['edited']).')</em></p>'."\n"; ?>
+<?php if ($attach_output != '') echo "\t\t\t\t\t".'<div class="postsignature"><hr />'.$attach_output.'</div>'."\n"; ## Attachment Mod row ?>
 					</div>
 <?php if ($signature != '') echo "\t\t\t\t\t".'<div class="postsignature postmsg"><hr />'.$signature.'</div>'."\n"; ?>
 				</div>
@@ -475,8 +557,9 @@ while ($cur_post = $db->fetch_assoc($result))
 		</div>
 		<ul class="crumbs">
 			<li><a href="index.php"><?php echo $lang_common['Index'] ?></a></li>
+<?php if ($cur_topic['parent_forum']) echo "\t\t".'<li><span>»&#160;</span><a href="viewforum.php?id='.$cur_topic['parent_forum_id'].'">'.pun_htmlspecialchars($cur_topic['parent_forum']).'</a></li> '; ?>
 			<li><span>»&#160;</span><a href="viewforum.php?id=<?php echo $cur_topic['forum_id'] ?>"><?php echo pun_htmlspecialchars($cur_topic['forum_name']) ?></a></li>
-			<li><span>»&#160;</span><strong><?php echo pun_htmlspecialchars($cur_topic['subject']) ?></strong></li>
+			<li><span>»&#160;</span><a href="viewtopic.php?id=<?php echo $id ?>"><strong><?php echo pun_htmlspecialchars($cur_topic['subject']) ?></strong></a></li>
 		</ul>
 <?php echo $subscraction ?>
 		<div class="clearer"></div>
@@ -500,17 +583,34 @@ if ($quickpost)
 					<div class="infldset txtarea">
 						<input type="hidden" name="form_sent" value="1" />
 						<input type="hidden" name="form_user" value="<?php echo pun_htmlspecialchars($pun_user['username']) ?>" />
-<?php if ($pun_config['o_subscriptions'] == '1' && ($pun_user['auto_notify'] == '1' || $cur_topic['is_subscribed'])): ?>						<input type="hidden" name="subscribe" value="1" />
-<?php endif; ?>						<label><textarea name="req_message" rows="7" cols="75" tabindex="1"></textarea></label>
+<?php if ($pun_config['o_topic_subscriptions'] == '1' && ($pun_user['auto_notify'] == '1' || $cur_topic['is_subscribed'])): ?>                        <input type="hidden" name="subscribe" value="1" />
+<?php endif; ?>
+<?php
+if ($pun_user['is_guest'])
+{
+    $email_label = ($pun_config['p_force_guest_email'] == '1') ? '<strong>'.$lang_common['Email'].' <span>'.$lang_common['Required'].'</span></strong>' : $lang_common['Email'];
+    $email_form_name = ($pun_config['p_force_guest_email'] == '1') ? 'req_email' : 'email';
+?>
+                        <label class="conl required"><strong><?php echo $lang_post['Guest name'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br /><input type="text" name="req_username" value="<?php if (isset($_POST['req_username'])) echo pun_htmlspecialchars($username); ?>" size="25" maxlength="25" tabindex="<?php echo $cur_index++ ?>" /><br /></label>
+                        <label class="conl<?php echo ($pun_config['p_force_guest_email'] == '1') ? ' required' : '' ?>"><?php echo $email_label ?><br /><input type="text" name="<?php echo $email_form_name ?>" value="<?php if (isset($_POST[$email_form_name])) echo pun_htmlspecialchars($email); ?>" size="50" maxlength="80" tabindex="<?php echo $cur_index++ ?>" /><br /></label>
+                        <div class="clearer"></div>
+<?php
+	echo "\t\t\t\t\t\t".'<label class="required"><strong>'.$lang_common['Message'].' <span>'.$lang_common['Required'].'</span></strong><br />';
+}
+else
+	echo "\t\t\t\t\t\t".'<label>';
+	
+?>
+						<textarea name="req_message" id="req_message" rows="7" cols="75" tabindex="1"></textarea></label>
 						<ul class="bblinks">
 							<li><span><a href="help.php#bbcode" ><?php echo $lang_common['BBCode'] ?></a> <?php echo ($pun_config['p_message_bbcode'] == '1') ? $lang_common['on'] : $lang_common['off']; ?></span></li>
-							<li><span><a href="help.php#img" ><?php echo $lang_common['img tag'] ?></a> <?php echo ($pun_config['p_message_img_tag'] == '1') ? $lang_common['on'] : $lang_common['off']; ?></span></li>
+							<li><span><a href="help.php#img" onclick="window.open(this.href); return false;"><?php echo $lang_common['img tag'] ?></a> <?php echo ($pun_config['p_message_bbcode'] == '1' && $pun_config['p_message_img_tag'] == '1') ? $lang_common['on'] : $lang_common['off']; ?></span></li>
 							<li><span><a href="help.php#smilies" ><?php echo $lang_common['Smilies'] ?></a> <?php echo ($pun_config['o_smilies'] == '1') ? $lang_common['on'] : $lang_common['off']; ?></span></li>
 						</ul>
 					</div>
 				</fieldset>
 			</div>
-			<p class="buttons"><input type="submit" name="submit" tabindex="2" value="<?php echo $lang_common['Submit'] ?>" accesskey="s" /></p>
+			<p class="buttons"><input type="submit" name="submit" tabindex="<?php echo $cur_index++ ?>" value="<?php echo $lang_common['Submit'] ?>" accesskey="s" /> <input type="submit" name="preview" value="<?php echo $lang_topic['Preview'] ?>" tabindex="<?php echo $cur_index++ ?>" accesskey="p" /></p>
 		</form>
 	</div>
 </div>

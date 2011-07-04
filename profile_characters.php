@@ -4,6 +4,17 @@ if (!defined('FROM_PROFILE')) {
 	message("Failed to access characters.");
 } //End if.
 
+$pun_config['ts3_ip'] = "10.0.0.3";
+$pun_config['ts3_port'] = "9987";
+$pun_config['ts3_timeout'] = "3";
+$pun_config['ts3_user'] = "serveradmin";
+$pun_config['ts3_pass'] = "dHUw8Xp1";
+$pun_config['ts3_sid'] = 1;
+$pun_config['ts3_group_id'] = 9;
+$pun_config['ts3_channel_id'] = 0;
+$pun_config['ts3_server_name'] = 'Panda Teamspeak Server';
+$pun_config['ts3_auth_group'] = 6;
+
 //Get our language file.
 require PUN_ROOT.'lang/'.$pun_user['language'].'/profile_characters.php';
 
@@ -188,6 +199,8 @@ generate_profile_menu('characters');
 
 	$sql = "
 		SELECT
+			ts3.token,
+			ts3.username AS nickname,
 			sc.*,
 			c.*,
 			a.api_user_id
@@ -201,6 +214,10 @@ generate_profile_menu('characters');
 			".$db->prefix."api_auth AS a
 		ON
 			a.api_character_id=c.character_id
+		LEFT JOIN
+			".$db->prefix."teamspeak3 AS ts3
+		ON
+			ts3.user_id=sc.user_id
 		WHERE
 			sc.user_id=".$id."
 	";
@@ -307,7 +324,19 @@ generate_profile_menu('characters');
 						</table>
 					</div>
 				</fieldset>
-				<a class="api_reload_avatars" href="profile.php?section=characters&amp;id=<?php echo $id ?>&amp;action=reload_pics"><?php echo $lang_profile_characters['reload_avatars']; ?></a>
+				<a class="api_reload_avatars" href="profile.php?section=characters&amp;id=<?php echo $id ?>&amp;action=reload_pics"><?php echo $lang_profile_characters['reload_avatars']; ?></a><br/><br/>
+				<?php
+					if (strlen($selected_char['token']) > 0) {
+				?>
+				<a href="ts3server://<?php
+					echo $pun_config['ts3_ip']?>:<?php
+					echo $pun_config['ts3_port']?>?nickname=<?php
+					echo $selected_char['nickname']?>&amp;addbookmark=<?php
+					echo $pun_config['ts3_server_name']?>&amp;token=<?php
+					echo $selected_char['token']?>">Click here to connect to Teamspeak 3</a>
+				<?php
+					} //End if.
+				?>
 			</div>
 		</form>
 <?php

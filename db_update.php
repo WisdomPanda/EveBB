@@ -1,19 +1,19 @@
 <?php
 
 /**
- * Copyright (C) 2008-2010 FluxBB
+ * Copyright (C) 2008-2011 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
 
 // The FluxBB version this script updates to
-define('UPDATE_TO', '1.4.2');
+define('UPDATE_TO', '1.4.5');
 
-define('UPDATE_TO_DB_REVISION', 8);
-define('UPDATE_TO_SI_REVISION', 1);
-define('UPDATE_TO_PARSER_REVISION', 1);
+define('UPDATE_TO_DB_REVISION', 11);
+define('UPDATE_TO_SI_REVISION', 2);
+define('UPDATE_TO_PARSER_REVISION', 2);
 
-define('MIN_PHP_VERSION', '4.3.0');
+define('MIN_PHP_VERSION', '4.4.0');
 define('MIN_MYSQL_VERSION', '4.1.2');
 define('MIN_PGSQL_VERSION', '7.0.0');
 define('PUN_SEARCH_MIN_WORD', 3);
@@ -34,7 +34,7 @@ define('FORUM_NO_SET_NAMES', 1);
 if (!function_exists('version_compare') || version_compare(PHP_VERSION, MIN_PHP_VERSION, '<'))
 	exit('You are running PHP version '.PHP_VERSION.'. FluxBB '.UPDATE_TO.' requires at least PHP '.MIN_PHP_VERSION.' to run properly. You must upgrade your PHP installation before you can continue.');
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 
 // Attempt to load the configuration file config.php
 if (file_exists(PUN_ROOT.'config.php'))
@@ -44,9 +44,12 @@ if (file_exists(PUN_ROOT.'config.php'))
 if (defined('FORUM'))
 	define('PUN', FORUM);
 
-// If PUN isn't defined, config.php is missing or corrupt or we are outside the root directory
+// If PUN isn't defined, config.php is missing or corrupt
 if (!defined('PUN'))
-	exit('This file must be run from the forum root directory.');
+{
+	header('Location: install.php');
+	exit;
+}
 
 // Enable debug mode
 if (!defined('PUN_DEBUG'))
@@ -115,12 +118,35 @@ $old_connection_charset = defined('FORUM_DEFAULT_CHARSET') ? FORUM_DEFAULT_CHARS
 // Set the connection to UTF-8 now
 $db->set_names('utf8');
 
+// Get the forum config
+$result = $db->query('SELECT * FROM '.$db->prefix.'config') or error('Unable to fetch config.', __FILE__, __LINE__, $db->error());
+while ($cur_config_item = $db->fetch_row($result))
+	$pun_config[$cur_config_item[0]] = $cur_config_item[1];
+
+// Load language file
+$default_lang = $pun_config['o_default_lang'];
+
+if (!file_exists(PUN_ROOT.'lang/'.$default_lang.'/update.php'))
+	$default_lang = 'English';
+
+require PUN_ROOT.'lang/'.$default_lang.'/update.php';
+
+//Debugging.
+if (isset($_GET['attach'])) {
+	install_attach(rtrim(dirname(__FILE__), '/\\') . DIRECTORY_SEPARATOR.'attachments/');
+	exit;
+} //End if.
+
+if (isset($_GET['poll'])) {
+	install_poll();
+	exit;
+} //End if.
+
 // Check current version
-$result = $db->query('SELECT conf_value FROM '.$db->prefix.'config WHERE conf_name=\'o_cur_version\'') or error('Unable to fetch version info.', __FILE__, __LINE__, $db->error());
-$cur_version = $db->result($result);
+$cur_version = $pun_config['o_cur_version'];
 
 if (version_compare($cur_version, '1.2', '<'))
-	exit('Version mismatch. The database \''.$db_name.'\' doesn\'t seem to be running a FluxBB database schema supported by this update script.');
+	error(sprintf($lang_update['Version mismatch error'], $db_name));
 
 // Do some DB type specific checks
 $mysql = false;
@@ -132,7 +158,7 @@ switch ($db_type)
 	case 'mysqli_innodb':
 		$mysql_info = $db->get_version();
 		if (version_compare($mysql_info['version'], MIN_MYSQL_VERSION, '<'))
-			error('You are running MySQL version '.$mysql_info['version'].'. FluxBB '.UPDATE_TO.' requires at least MySQL '.MIN_MYSQL_VERSION.' to run properly. You must upgrade your MySQL installation before you can continue.');
+			error(sprintf($lang_update['You are running error'], 'MySQL', $mysql_info['version'], UPDATE_TO, MIN_MYSQL_VERSION));
 
 		$mysql = true;
 		break;
@@ -140,22 +166,17 @@ switch ($db_type)
 	case 'pgsql':
 		$pgsql_info = $db->get_version();
 		if (version_compare($pgsql_info['version'], MIN_PGSQL_VERSION, '<'))
-			error('You are running PostgreSQL version '.$pgsql_info['version'].'. FluxBB '.UPDATE_TO.' requires at least PostgreSQL '.MIN_PGSQL_VERSION.' to run properly. You must upgrade your PostgreSQL installation before you can continue.');
+			error(sprintf($lang_update['You are running error'], 'PostgreSQL', $pgsql_info['version'], UPDATE_TO, MIN_PGSQL_VERSION));
 
 		break;
 }
 
-// Get the forum config
-$result = $db->query('SELECT * FROM '.$db->prefix.'config') or error('Unable to fetch config.', __FILE__, __LINE__, $db->error());
-while ($cur_config_item = $db->fetch_row($result))
-	$pun_config[$cur_config_item[0]] = $cur_config_item[1];
-
-// Check the database revision and the current version
+// Check the database, search index and parser revision and the current version
 if (isset($pun_config['o_database_revision']) && $pun_config['o_database_revision'] >= UPDATE_TO_DB_REVISION &&
 		isset($pun_config['o_searchindex_revision']) && $pun_config['o_searchindex_revision'] >= UPDATE_TO_SI_REVISION &&
 		isset($pun_config['o_parser_revision']) && $pun_config['o_parser_revision'] >= UPDATE_TO_PARSER_REVISION &&
 		version_compare($pun_config['o_cur_version'], UPDATE_TO, '>='))
-	exit('Your database is already as up-to-date as this script can make it.');
+	error($lang_update['No update error']);
 
 $default_style = $pun_config['o_default_style'];
 if (!file_exists(PUN_ROOT.'style/'.$default_style.'.css'))
@@ -163,9 +184,6 @@ if (!file_exists(PUN_ROOT.'style/'.$default_style.'.css'))
 
 // Start a session, used to queue up errors if duplicate users occur when converting from FluxBB v1.2.
 session_start();
-
-if (!isset($_SESSION['dupe_users']))
-	$_SESSION['dupe_users'] = array();
 
 //
 // Determines whether $str is UTF-8 encoded or not
@@ -437,6 +455,488 @@ function convert_table_utf8($table, $callback, $old_charset, $key = null, $start
 	}
 }
 
+/* EVEBB Updates*/
+/**
+ * Installs the tables for poll support.
+ */
+
+function install_poll()
+{
+	global $db, $db_type, $pun_config;
+
+	$db->add_field('topics', 'poll_type', 'TINYINT(4)', false, 0) or error('Unable to add poll_type field', __FILE__, __LINE__, $db->error());
+	$db->add_field('topics', 'poll_time', 'INT(10) UNSIGNED', false, 0) or error('Unable to add poll_time field', __FILE__, __LINE__, $db->error());
+	$db->add_field('topics', 'poll_term', 'TINYINT(4)', false, 0) or error('Unable to add poll_term field', __FILE__, __LINE__, $db->error());
+	$db->add_field('topics', 'poll_kol', 'INT(10) UNSIGNED', false, 0) or error('Unable to add poll_kol field', __FILE__, __LINE__, $db->error());
+
+	$schema = array(
+			'FIELDS'			=> array(
+					'tid'				=> array(
+							'datatype'			=> 'INT(10) UNSIGNED',
+							'allow_null'    	=> false,
+							'default'			=> '0'
+					),
+					'question'			=> array(
+							'datatype'			=> 'TINYINT(4)',
+							'allow_null'    	=> false,
+							'default'			=> '0'
+					),
+					'field'			=> array(
+							'datatype'			=> 'TINYINT(4)',
+							'allow_null'    	=> false,
+							'default'			=> '0'
+					),
+					'choice'			=> array(
+							'datatype'			=> 'VARCHAR(255)',
+							'allow_null'    	=> false,
+							'default'			=> '\'\''
+					),
+					'votes'				=> array(
+							'datatype'			=> 'INT(10) UNSIGNED',
+							'allow_null'    	=> false,
+							'default'			=> '0'
+					)
+
+			),
+			'PRIMARY KEY'		=> array('tid', 'question', 'field')
+	);
+	$db->create_table('poll', $schema) or error('Unable to create table poll', __FILE__, __LINE__, $db->error());
+
+	$schema = array(
+			'FIELDS'			=> array(
+					'tid'				=> array(
+							'datatype'			=> 'INT(10) UNSIGNED',
+							'allow_null'    	=> false
+					),
+					'uid'			=> array(
+							'datatype'			=> 'INT(10) UNSIGNED',
+							'allow_null'		=> false
+					),
+					'rez'			=> array(
+							'datatype'			=> 'TEXT',
+							'allow_null'    	=> true
+					)
+			),
+			'PRIMARY KEY'		=> array('tid', 'uid')
+	);
+	
+	$db->create_table('poll_voted', $schema) or error('Unable to create table poll_voted', __FILE__, __LINE__, $db->error());
+
+	// Insert config data
+	$config = array(
+		'o_poll_enabled'			=> "'0'",
+		'o_poll_max_ques'			=> "'3'",
+		'o_poll_max_field'		=> "'20'",
+		'o_poll_time'					=> "'60'",
+		'o_poll_term'					=> "'3'",
+		'o_poll_guest'				=> "'0'",
+	);
+
+	while (list($conf_name, $conf_value) = @each($config))
+	{
+		$db->query('INSERT INTO '.$db->prefix."config (conf_name, conf_value) VALUES('$conf_name', $conf_value)")
+			or error('Unable to insert into table '.$db->prefix.'config. Please check your configuration and try again.');
+	}
+
+	forum_clear_cache();
+}
+
+/**
+ * Installs the table for RSS feed support.
+ */
+function install_feed() {
+	$db->query('CREATE TABLE '.$db->prefix.'feeds ( url varchar(255) NOT NULL default \'\', max int(11) NOT NULL default 0, closed tinyint(1) NOT NULL default 0, forum_id int(11) NOT NULL default 0, last_post INT(10) NOT NULL default 0, num_posts INT(10) NOT NULL default 0, PRIMARY KEY  (url) )' );
+} //End install_feed().
+
+/**
+ * This massively long function makes the DB ready for sub forums.
+ */
+function install_subforum() {
+	global $db;
+
+	$db->add_field('forums', 'parent_forum_id', 'INT', true, 0);
+} //End install_subform().
+
+/**
+ * Installs the tables for the Private Messaging System.
+ */
+function install_npms() {
+	global $db, $db_type, $pun_config;
+
+	
+	$schema = array(
+		'FIELDS'		=> array(
+			'bl_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'bl_user_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'bl_user'		=> array(
+				'datatype'		=> 'VARCHAR(200)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+		),
+		'INDEXES'		=> array(
+			'bl_id_idx'	=> array('bl_id'),
+			'bl_user_id_idx'	=> array('bl_user_id')
+		)
+	);
+
+	$db->create_table('pms_new_block', $schema) or error('Unable to create pms_new_block table', __FILE__, __LINE__, $db->error());
+
+	$schema = array(
+		'FIELDS'		=> array(
+			'id'			=> array(
+				'datatype'		=> 'SERIAL',
+				'allow_null'	=> false
+			),
+			'poster'		=> array(
+				'datatype'		=> 'VARCHAR(200)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+			'poster_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '1'
+			),
+			'poster_ip'		=> array(
+				'datatype'		=> 'VARCHAR(39)',
+				'allow_null'	=> true
+			),
+			'message'		=> array(
+				'datatype'		=> 'TEXT',
+				'allow_null'	=> true
+			),
+			'hide_smilies'	=> array(
+				'datatype'		=> 'TINYINT(1)',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'posted'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'edited'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> true
+			),
+			'edited_by'		=> array(
+				'datatype'		=> 'VARCHAR(200)',
+				'allow_null'	=> true
+			),
+			'post_seen'		=> array(
+				'datatype'		=> 'TINYINT(1)',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'post_new'		=> array(
+				'datatype'		=> 'TINYINT(1)',
+				'allow_null'	=> false,
+				'default'		=> '1'
+			),
+			'topic_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			)
+		),
+		'PRIMARY KEY'	=> array('id'),
+		'INDEXES'		=> array(
+			'topic_id_idx'	=> array('topic_id'),
+			'multi_idx'		=> array('poster_id', 'topic_id')
+		)
+	);
+
+	$db->create_table('pms_new_posts', $schema) or error('Unable to create pms_new_posts table', __FILE__, __LINE__, $db->error());
+
+	$schema = array(
+		'FIELDS'		=> array(
+			'id'			=> array(
+				'datatype'		=> 'SERIAL',
+				'allow_null'	=> false
+			),
+			'topic'		=> array(
+				'datatype'		=> 'VARCHAR(255)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+			'starter'		=> array(
+				'datatype'		=> 'VARCHAR(200)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+			'starter_id'	=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'to_user'		=> array(
+				'datatype'		=> 'VARCHAR(200)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+			'to_id'	=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'replies'	=> array(
+				'datatype'		=> 'MEDIUMINT(8) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'last_posted'	=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'last_poster'		=> array(
+				'datatype'		=> 'TINYINT(1)',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'see_st'	=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'see_to'	=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'topic_st'		=> array(
+				'datatype'		=> 'TINYINT(4)',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'topic_to'		=> array(
+				'datatype'		=> 'TINYINT(4)',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+		),
+		'PRIMARY KEY'	=> array('id'),
+		'INDEXES'		=> array(
+			'multi_idx_st'		=> array('starter_id', 'topic_st'),
+			'multi_idx_to'		=> array('to_id', 'topic_to')
+		)
+	);
+
+	$db->create_table('pms_new_topics', $schema) or error('Unable to create pms_new_topics table', __FILE__, __LINE__, $db->error());
+
+	$db->add_field('groups', 'g_pm', 'TINYINT(1)', false, 1) or error('Unable to add g_pm field', __FILE__, __LINE__, $db->error());
+	$db->add_field('groups', 'g_pm_limit', 'INT(10) UNSIGNED', false, 100) or error('Unable to add g_pm_limit field', __FILE__, __LINE__, $db->error());
+
+	$db->add_field('users', 'messages_enable', 'TINYINT(1)', false, 1) or error('Unable to add messages_enable field', __FILE__, __LINE__, $db->error());
+	$db->add_field('users', 'messages_email', 'TINYINT(1)', false, 0) or error('Unable to add messages_email field', __FILE__, __LINE__, $db->error());
+	$db->add_field('users', 'messages_flag', 'TINYINT(1)', false, 0) or error('Unable to add messages_flag field', __FILE__, __LINE__, $db->error());
+	$db->add_field('users', 'messages_new', 'INT(10) UNSIGNED', false, 0) or error('Unable to add messages_new field', __FILE__, __LINE__, $db->error());
+	$db->add_field('users', 'messages_all', 'INT(10) UNSIGNED', false, 0) or error('Unable to add messages_all field', __FILE__, __LINE__, $db->error());
+	$db->add_field('users', 'pmsn_last_post', 'INT(10) UNSIGNED', true) or error('Unable to add pmsn_last_post field', __FILE__, __LINE__, $db->error());
+
+	$db->query('UPDATE '.$db->prefix.'groups SET g_pm_limit=0 WHERE g_id='.PUN_ADMIN) or error('Unable to merge groups', __FILE__, __LINE__, $db->error());
+
+	// Insert config data
+	$config = array(
+		'o_pms_enabled'		=> '1',
+		'o_pms_min_kolvo'	=> '0',
+		'o_pms_flasher'		=> '0',
+	);
+	
+	while (list($conf_name, $conf_value) = @each($config))
+	{
+    if (!array_key_exists($conf_name, $pun_config))
+			$db->query('INSERT INTO '.$db->prefix."config (conf_name, conf_value) VALUES('$conf_name', $conf_value)")
+				or error('Unable to insert into table '.$db->prefix.'config. Please check your configuration and try again.');
+	}
+
+	// Delete all .php files in the cache (someone might have visited the forums while we were updating and thus, generated incorrect cache files)
+	forum_clear_cache();
+} //End install_npms().
+
+/**
+ * Installs the database for the attachements.
+ */
+function install_attach($basepath='')
+{
+	global $db, $db_type, $pun_config, $mod_version;
+	//include PUN_ROOT.'include/attach/attach_incl.php';
+
+	//first check so that the path seems reasonable
+	if(!((substr($basepath,0,1) == '/' || substr($basepath,1,1) == ':') && substr($basepath,-1) == '/'))
+		error('The pathname specified doesn\'t comply with the rules set. Go back and make sure that it\'s the complete path, and that it ends with a slash and that it either start with a slash (example: "/home/username/attachments/", on *nix servers (unix, linux, bsd, solaris etc.)) or a driveletter (example: "C:/webpages/attachments/" on windows servers)');
+
+	// create the files table
+	$schema_files = array(
+			'FIELDS'			=> array(
+					'id'				=> array(
+							'datatype'			=> 'SERIAL',
+							'allow_null'    	=> false
+					),
+					'owner'	=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					),
+					'post_id'	=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					),
+					'filename'	=> array(
+							'datatype'			=> 'VARCHAR(255)',
+							'allow_null'		=> false,
+					),
+					'extension'		=> array(
+							'datatype'			=> 'VARCHAR(64)',
+							'allow_null'		=> false,
+					),
+					'mime'	=> array(
+							'datatype'			=> 'VARCHAR(64)',
+							'allow_null'		=> false
+					),
+					'location'	=> array(
+							'datatype'			=> 'TEXT',
+							'allow_null'		=> false
+					),
+					'size'	=> array(
+							'datatype'		=> 'INT(10)',
+							'allow_null'	=> false,
+							'default'		=> '0'
+					),
+					'downloads'	=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					)
+			),
+			'PRIMARY KEY'		=> array('id'),
+	);
+	
+	$db->create_table('attach_2_files', $schema_files) or error('Unable to create table "attach_2_files"', __FILE__, __LINE__, $db->error());
+	
+	
+	// create the files table
+	$schema_rules = array(
+			'FIELDS'			=> array(
+					'id'				=> array(
+							'datatype'			=> 'SERIAL',
+							'allow_null'    	=> false
+					),
+					'forum_id'	=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					),
+					'group_id'	=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					),
+					'rules'	=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					),
+					'size'		=> array(
+							'datatype'			=> 'INT(10)',
+							'allow_null'		=> false,
+							'default'		=> '0'
+					),
+					'per_post'	=> array(
+							'datatype'			=> 'TINYINT(4)',
+							'allow_null'		=> false,
+							'default'		=> '1'
+					),
+					'file_ext'	=> array(
+							'datatype'			=> 'TEXT',
+							'allow_null'		=> false
+					),
+			),
+			'PRIMARY KEY'		=> array('id'),
+	);
+	
+	$db->create_table('attach_2_rules', $schema_rules) or error('Unable to create table "attach_2_rules"', __FILE__, __LINE__, $db->error());
+	
+	//ok path could be correct, try to make a subfolder :D
+	$newname = attach_generate_pathname($basepath);
+	if(!attach_create_subfolder($newname,$basepath))
+		error('Unable to create new subfolder with name "'.$newname.'", make sure php has write access to that folder!',__FILE__,__LINE__);
+	
+		
+	// ok, add the stuff needed in the config cache
+	$attach_config = array(	'attach_always_deny'	=>	'html"htm"php"php3"php4"php5"exe"com"bat',
+							'attach_basefolder'		=>	$basepath,
+							'attach_create_orphans'	=>	'1',
+							'attach_cur_version'	=>	$mod_version,
+							'attach_icon_folder'	=>	'img/attach/',
+							'attach_icon_extension'	=>	'txt"log"doc"pdf"wav"mp3"ogg"avi"mpg"mpeg"png"jpg"jpeg"gif"zip"rar"7z"gz"tar',
+							'attach_icon_name'		=>	'text.png"text.png"doc.png"doc.png"audio.png"audio.png"audio.png"video.png"video.png"video.png"image.png"image.png"image.png"image.png"compress.png"compress.png"compress.png"compress.png"compress.png',
+							'attach_max_size'		=>	'100000',
+							'attach_subfolder'		=>	$newname,
+							'attach_use_icon'		=>	'1');
+	
+	foreach($attach_config AS $key => $value)
+		$db->query("INSERT INTO ".$db->prefix."config (conf_name, conf_value) VALUES ('$key', '".$db->escape($value)."')") or error('Unable to add column "'.$key.'" to config table', __FILE__, __LINE__, $db->error());
+
+
+	// and now, update the cache...
+	require_once PUN_ROOT.'include/cache.php';
+	generate_config_cache();
+
+} //End install_attach()
+
+function attach_create_subfolder($newfolder='',$basepath){
+		
+	// check to see if that folder is there already, then just update the config ...
+	if(!is_dir($basepath.$newfolder)){
+		// if the folder doesn't exist, try to create it
+		if(!mkdir($basepath.$newfolder,0755))
+			error('Unable to create new subfolder with name \''.$basepath.$newfolder.'\' with mode 0755',__FILE__,__LINE__);
+		// create a .htaccess and index.html file in the new subfolder
+		if(!copy($basepath.'.htaccess', $basepath.$newfolder.'/.htaccess'))
+			error('Unable to copy .htaccess file to new subfolder with name \''.$basepath.$newfolder.'\'',__FILE__,__LINE__);
+		if(!copy($basepath.'index.html', $basepath.$newfolder.'/index.html'))
+			error('Unable to copy index.html file to new subfolder with name \''.$basepath.$newfolder.'\'',__FILE__,__LINE__);
+		// if the folder was created continue
+	}
+	// return true if everything has gone as planned, return false if the new folder could not be created (rights etc?)
+	return true;
+}
+
+function attach_generate_pathname($storagepath=''){
+	if(strlen($storagepath)!=0){
+		//we have to check so that path doesn't exist already...
+		$not_unique=true;
+		while($not_unique){
+			$newdir = attach_generate_pathname();
+			if(!is_dir($storagepath.$newdir))return $newdir;
+		}
+	}else
+		return substr(md5(time().'54£7 k3yw0rd, r3pl4ce |f U w4nt t0'),0,32);
+}
+
+
+
+function attach_generate_filename($storagepath, $messagelenght=0, $filesize=0){
+	$not_unique=true;
+	while($not_unique){
+		$newfile = md5(attach_generate_pathname().$messagelenght.$filesize.'Some more salt keyworbs, change if you want to').'.attach';
+		if(!is_file($storagepath.$newfile))return $newfile;
+	}
+}
+
+/* EVEBB Updates*/
+
 
 header('Content-type: text/html; charset=utf-8');
 
@@ -444,15 +944,14 @@ header('Content-type: text/html; charset=utf-8');
 while (@ob_end_clean());
 
 
-$stage = isset($_GET['stage']) ? $_GET['stage'] : '';
-$old_charset = isset($_GET['req_old_charset']) ? str_replace('ISO8859', 'ISO-8859', strtoupper($_GET['req_old_charset'])) : 'ISO-8859-1';
-$start_at = isset($_GET['start_at']) ? intval($_GET['start_at']) : 0;
+$stage = isset($_REQUEST['stage']) ? $_REQUEST['stage'] : '';
+$old_charset = isset($_REQUEST['req_old_charset']) ? str_replace('ISO8859', 'ISO-8859', strtoupper($_REQUEST['req_old_charset'])) : 'ISO-8859-1';
+$start_at = isset($_REQUEST['start_at']) ? intval($_REQUEST['start_at']) : 0;
 $query_str = '';
 
-switch ($stage)
+// Show form
+if (empty($stage))
 {
-	// Show form
-	case '':
 
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
@@ -460,68 +959,89 @@ switch ($stage)
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>FluxBB Database Update</title>
+<title><?php echo $lang_update['Update'] ?></title>
 <link rel="stylesheet" type="text/css" href="style/<?php echo $default_style ?>.css" />
 </head>
-<body>
+<body onload="document.getElementById('install').req_db_type.focus();document.getElementById('install').start.disabled=false;">
 
 <div id="pundb_update" class="pun">
 <div class="top-box"><div><!-- Top Corners --></div></div>
 <div class="punwrap">
 
-<div class="blockform">
-	<h2><span>FluxBB Update</span></h2>
+<div id="brdheader" class="block">
 	<div class="box">
-		<form method="get" action="<?php echo pun_htmlspecialchars($_SERVER['REQUEST_URI']) ?>" onsubmit="this.start.disabled=true">
-		<input type="hidden" name="stage" value="start" />
+		<div id="brdtitle" class="inbox">
+			<h1><span><?php echo $lang_update['Update'] ?></span></h1>
+			<div id="brddesc"><p><?php echo $lang_update['Update message'] ?></p><p><strong><?php echo $lang_update['Note']; ?></strong> <?php echo $lang_update['Members message']; ?></p></div>
+		</div>
+	</div>
+</div>
+
+<div id="brdmain">
+<div class="blockform">
+	<h2><span><?php echo $lang_update['Update'] ?></span></h2>
+	<div class="box">
+		<form method="post" action="db_update.php">
+			<input type="hidden" name="stage" value="start" />
+			<div class="inform">
+				<fieldset>
+				<legend><?php echo $lang_update['Administrator only'] ?></legend>
+					<div class="infldset">
+						<p><?php echo $lang_update['Database password info'] ?></p>
+						<p><strong><?php echo $lang_update['Note']; ?></strong> <?php echo $lang_update['Database password note'] ?></p>
+						<label class="required"><strong><?php echo $lang_update['Database password'] ?> <span><?php echo $lang_update['Required'] ?></span></strong><br /><input type="password" id="req_db_pass" name="req_db_pass" /><br /></label>
+					</div>
+				</fieldset>
+			</div>
 			<div class="inform">
 				<div class="forminfo">
-					<p style="font-size: 1.1em">This script will update your forum database. The update procedure might take anything from a second to hours depending on the speed of the server and the size of the forum database. Don't forget to make a backup of the database before continuing.</p>
-					<p style="font-size: 1.1em">Did you read the update instructions in the documentation? If not, start there.</p>
+					<p><?php echo $lang_update['Intro 1'] ?></p>
+					<p><?php echo $lang_update['Intro 2'] ?></p>
 <?php
 
-if (strpos($cur_version, '1.2') === 0)
-{
-	if (!function_exists('iconv') && !function_exists('mb_convert_encoding'))
+	if (strpos($cur_version, '1.2') === 0)
 	{
+		if (!function_exists('iconv') && !function_exists('mb_convert_encoding'))
+		{
 
 ?>
-					<p style="font-size: 1.1em"><strong>IMPORTANT!</strong> FluxBB has detected that this PHP environment does not have support for the encoding mechanisms required to do UTF-8 conversion from character sets other than ISO-8859-1. What this means is that if the current character set is not ISO-8859-1, FluxBB won't be able to convert your forum database to UTF-8 and you will have to do it manually. Instructions for doing manual charset conversion can be found in the update instructions.</p>
+					<p><?php echo $lang_update['No charset conversion'] ?></p>
 <?php
 
-	}
+		}
 
 ?>
 				</div>
 			</div>
 			<div class="inform">
 				<div class="forminfo">
-					<p style="font-size: 1.1em"><strong>Enable conversion:</strong> When enabled this update script will, after it has made the required structural changes to the database, convert all text in the database from the current character set to UTF-8. This conversion is required if you're upgrading from version 1.2.</p>
-					<p style="font-size: 1.1em"><strong>Current character set:</strong> If the primary language in your forum is English, you can leave this at the default value. However, if your forum is non-English, you should enter the character set of the primary language pack used in the forum. <i>Getting this wrong can corrupt your database so don't just guess!</i> Note: This is required even if the old database is UTF-8.</p>
+					<p><?php echo $lang_update['Enable conversion'] ?></p>
+					<p><?php echo $lang_update['Current character set'] ?></p>
 				</div>
 				<fieldset>
-					<legend>Charset conversion</legend>
+					<legend><?php echo $lang_update['Charset conversion'] ?></legend>
 					<div class="infldset">
 						<div class="rbox">
-							<label><input type="checkbox" name="convert_charset" value="1" checked="checked" /><strong>Enable conversion</strong> (perform database charset conversion).<br /></label>
+							<label><input type="checkbox" name="convert_charset" value="1" checked="checked" /><?php echo $lang_update['Enable conversion label'] ?><br /></label>
 						</div>
 						<label>
-							<strong>Current character set</strong><br />Accept default for English forums otherwise the character set of the primary language pack.<br />
+							<strong><?php echo $lang_update['Current character set label'] ?></strong><br /><?php echo $lang_update['Current character set info'] ?><br />
 							<input type="text" name="req_old_charset" size="12" maxlength="20" value="<?php echo $old_charset ?>" /><br />
 						</label>
 					</div>
 				</fieldset>
 <?php
 
-}
-else
-	echo "\t\t\t\t".'</div>'."\n";
+	}
+	else
+		echo "\t\t\t\t".'</div>'."\n";
 
 ?>
 			</div>
-			<p class="buttons"><input type="submit" name="start" value="Start update" /></p>
+			<p class="buttons"><input type="submit" name="start" value="<?php echo $lang_update['Start update'] ?>" /></p>
 		</form>
 	</div>
+</div>
 </div>
 
 </div>
@@ -532,9 +1052,66 @@ else
 </html>
 <?php
 
-		break;
+	$db->end_transaction();
+	$db->close();
+	exit;
 
+}
 
+// Read the lock file
+$lock = file_exists(FORUM_CACHE_DIR.'db_update.lock') ? trim(file_get_contents(FORUM_CACHE_DIR.'db_update.lock')) : false;
+$lock_error = false;
+
+// Generate or fetch the UID - this confirms we have a valid admin
+if (isset($_POST['req_db_pass']))
+{
+	$req_db_pass = strtolower(trim($_POST['req_db_pass']));
+
+	switch ($db_type)
+	{
+		// For SQLite we compare against the database file name, since the password is left blank
+		case 'sqlite':
+			if ($req_db_pass != strtolower($db_name))
+				error(sprintf($lang_update['Invalid file error'], 'config.php'));
+
+			break;
+		// For everything else, check the password matches
+		default:
+			if ($req_db_pass != strtolower($db_password))
+				error(sprintf($lang_update['Invalid password error'], 'config.php'));
+
+			break;
+	}
+
+	// Generate a unique id to identify this session, only if this is a valid session
+	$uid = pun_hash($req_db_pass.'|'.uniqid(rand(), true));
+	if ($lock) // We already have a lock file
+		$lock_error = true;
+	else // Create the lock file
+	{
+		$fh = @fopen(FORUM_CACHE_DIR.'db_update.lock', 'wb');
+		if (!$fh)
+			error(sprintf($lang_update['Unable to lock error'], 'cache'));
+
+		fwrite($fh, $uid);
+		fclose($fh);
+	}
+}
+else if (isset($_GET['uid']))
+{
+	$uid = trim($_GET['uid']);
+	if (!$lock || $lock != $uid) // The lock doesn't exist or doesn't match the given UID
+		$lock_error = true;
+}
+else
+	error($lang_update['No password error']);
+
+// If there is an error with the lock file
+if ($lock_error)
+	error(sprintf($lang_update['Script runs error'], FORUM_CACHE_DIR.'db_update.lock'));
+
+switch ($stage)
+{
 	// Start by updating the database structure
 	case 'start':
 		$query_str = '?stage=preparse_posts';
@@ -622,6 +1199,10 @@ else
 		// Insert new config option o_feed_type
 		if (!array_key_exists('o_feed_type', $pun_config))
 			$db->query('INSERT INTO '.$db->prefix.'config (conf_name, conf_value) VALUES (\'o_feed_type\', \'2\')') or error('Unable to insert config value \'o_feed_type\'', __FILE__, __LINE__, $db->error());
+
+		// Insert new config option o_feed_ttl
+		if (!array_key_exists('o_feed_ttl', $pun_config))
+			$db->query('INSERT INTO '.$db->prefix.'config (conf_name, conf_value) VALUES (\'o_feed_ttl\', \'0\')') or error('Unable to insert config value \'o_feed_ttl\'', __FILE__, __LINE__, $db->error());
 
 		// Insert config option o_base_url which was removed in 1.3
 		if (!array_key_exists('o_base_url', $pun_config))
@@ -961,13 +1542,68 @@ else
 			$db->create_table('search_words', $schema);
 		}
 
+		// Rename the subscription table
+		$db->rename_table('subscriptions', 'topic_subscriptions');
+
+		// if we don't have the forum_subscriptions table, create it
+		if (!$db->table_exists('forum_subscriptions'))
+		{
+			$schema = array(
+				'FIELDS'		=> array(
+					'user_id'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false,
+						'default'		=> '0'
+					),
+					'forum_id'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false,
+						'default'		=> '0'
+					)
+				),
+				'PRIMARY KEY'	=> array('user_id', 'forum_id')
+			);
+
+			$db->create_table('forum_subscriptions', $schema) or error('Unable to create forum subscriptions table', __FILE__, __LINE__, $db->error());
+		}
+
+		// Insert new config option o_forum_subscriptions
+		if (!array_key_exists('o_forum_subscriptions', $pun_config))
+			$db->query('INSERT INTO '.$db->prefix.'config (conf_name, conf_value) VALUES (\'o_forum_subscriptions\', \'1\')') or error('Unable to insert config value \'o_forum_subscriptions\'', __FILE__, __LINE__, $db->error());
+
+		// Rename config option o_subscriptions to o_topic_subscriptions
+		if (!array_key_exists('o_topic_subscriptions', $pun_config))
+			$db->query('UPDATE '.$db->prefix.'config SET conf_name=\'o_topic_subscriptions\' WHERE conf_name=\'o_subscriptions\'') or error('Unable to rename config value \'o_subscriptions\'', __FILE__, __LINE__, $db->error());
+
 		// Change the default style if the old doesn't exist anymore
 		if ($pun_config['o_default_style'] != $default_style)
 			$db->query('UPDATE '.$db->prefix.'config SET conf_value = \''.$db->escape($default_style).'\' WHERE conf_name = \'o_default_style\'') or error('Unable to update default style config', __FILE__, __LINE__, $db->error());
 
 		// Should we do charset conversion or not?
-		if (strpos($cur_version, '1.2') === 0 && isset($_GET['convert_charset']))
+		if (strpos($cur_version, '1.2') === 0 && isset($_POST['convert_charset']))
 			$query_str = '?stage=conv_bans&req_old_charset='.$old_charset;
+			
+		//Updates for mods.
+		install_npms();
+		install_subforum();
+		install_attach(rtrim(dirname(__FILE__), '/\\') . DIRECTORY_SEPARATOR.'attachments/');
+		install_feed();
+		install_poll();
+		
+		//Update/insert new configs.
+		$db->insert_or_update(
+			array('conf_name' => 'o_hide_stats', 'conf_value' => '0'), //Fields
+			'conf_name', //Primary Key
+			$db->prefix.'config' //Table
+		);
+		
+		$db->insert_or_update(
+			array('conf_name' => 'o_default_style', 'conf_value' => 'evebbgray'), //Fields
+			'conf_name', //Primary Key
+			$db->prefix.'config' //Table
+		);
+		
+		generate_config_cache();
 
 		break;
 
@@ -978,7 +1614,9 @@ else
 
 		function _conv_bans($cur_item, $old_charset)
 		{
-			echo 'Converting ban '.$cur_item['id'].' …<br />'."\n";
+			global $lang_update;
+
+			echo sprintf($lang_update['Converting item'], $lang_update['ban'], $cur_item['id']).'<br />'."\n";
 
 			convert_to_utf8($cur_item['username'], $old_charset);
 			convert_to_utf8($cur_item['message'], $old_charset);
@@ -998,7 +1636,7 @@ else
 	case 'conv_categories':
 		$query_str = '?stage=conv_censors&req_old_charset='.$old_charset;
 
-		echo 'Converting categories …'."<br />\n";
+		echo sprintf($lang_update['Converting'], $lang_update['categories']).'<br />'."\n";
 
 		function _conv_categories($cur_item, $old_charset)
 		{
@@ -1016,7 +1654,7 @@ else
 	case 'conv_censors':
 		$query_str = '?stage=conv_config&req_old_charset='.$old_charset;
 
-		echo 'Converting censor words …'."<br />\n";
+		echo sprintf($lang_update['Converting'], $lang_update['censor words']).'<br />'."\n";
 
 		function _conv_censoring($cur_item, $old_charset)
 		{
@@ -1035,7 +1673,7 @@ else
 	case 'conv_config':
 		$query_str = '?stage=conv_forums&req_old_charset='.$old_charset;
 
-		echo 'Converting configuration …'."<br />\n";
+		echo sprintf($lang_update['Converting'], $lang_update['configuration']).'<br />'."\n";
 
 		function _conv_config($cur_item, $old_charset)
 		{
@@ -1053,7 +1691,7 @@ else
 	case 'conv_forums':
 		$query_str = '?stage=conv_perms&req_old_charset='.$old_charset;
 
-		echo 'Converting forums …'."<br />\n";
+		echo sprintf($lang_update['Converting'], $lang_update['forums']).'<br />'."\n";
 
 		function _conv_forums($cur_item, $old_charset)
 		{
@@ -1092,7 +1730,7 @@ else
 	case 'conv_groups':
 		$query_str = '?stage=conv_online&req_old_charset='.$old_charset;
 
-		echo 'Converting groups …'."<br />\n";
+		echo sprintf($lang_update['Converting'], $lang_update['groups']).'<br />'."\n";
 
 		function _conv_groups($cur_item, $old_charset)
 		{
@@ -1125,7 +1763,9 @@ else
 
 		function _conv_posts($cur_item, $old_charset)
 		{
-			echo 'Converting post '.$cur_item['id'].' …<br />'."\n";
+			global $lang_update;
+
+			echo sprintf($lang_update['Converting item'], $lang_update['post'], $cur_item['id']).'<br />'."\n";
 
 			convert_to_utf8($cur_item['poster'], $old_charset);
 			convert_to_utf8($cur_item['message'], $old_charset);
@@ -1146,7 +1786,7 @@ else
 	case 'conv_ranks':
 		$query_str = '?stage=conv_reports&req_old_charset='.$old_charset;
 
-		echo 'Converting ranks …'."<br />\n";
+		echo sprintf($lang_update['Converting'], $lang_update['ranks']).'<br />'."\n";
 
 		function _conv_ranks($cur_item, $old_charset)
 		{
@@ -1166,7 +1806,9 @@ else
 
 		function _conv_reports($cur_item, $old_charset)
 		{
-			echo 'Converting report '.$cur_item['id'].' …<br />'."\n";
+			global $lang_update;
+
+			echo sprintf($lang_update['Converting item'], $lang_update['report'], $cur_item['id']).'<br />'."\n";
 
 			convert_to_utf8($cur_item['message'], $old_charset);
 
@@ -1236,7 +1878,9 @@ else
 	case 'conv_subscriptions':
 		$query_str = '?stage=conv_topics&req_old_charset='.$old_charset;
 
-		alter_table_utf8($db->prefix.'subscriptions');
+		// By this stage we should have already renamed the subscription table
+		alter_table_utf8($db->prefix.'topic_subscriptions');
+		alter_table_utf8($db->prefix.'forum_subscriptions'); // This should actually already be utf8, but for consistency...
 
 		break;
 
@@ -1247,7 +1891,9 @@ else
 
 		function _conv_topics($cur_item, $old_charset)
 		{
-			echo 'Converting topic '.$cur_item['id'].' …<br />'."\n";
+			global $lang_update;
+
+			echo sprintf($lang_update['Converting item'], $lang_update['topic'], $cur_item['id']).'<br />'."\n";
 
 			convert_to_utf8($cur_item['poster'], $old_charset);
 			convert_to_utf8($cur_item['subject'], $old_charset);
@@ -1268,9 +1914,14 @@ else
 	case 'conv_users':
 		$query_str = '?stage=preparse_posts';
 
+		if ($start_at == 0)
+			$_SESSION['dupe_users'] = array();
+
 		function _conv_users($cur_item, $old_charset)
 		{
-			echo 'Converting user '.$cur_item['id'].' …<br />'."\n";
+			global $lang_update;
+
+			echo sprintf($lang_update['Converting item'], $lang_update['user'], $cur_item['id']).'<br />'."\n";
 
 			convert_to_utf8($cur_item['username'], $old_charset);
 			convert_to_utf8($cur_item['title'], $old_charset);
@@ -1317,24 +1968,24 @@ else
 				$username = pun_trim($_POST['dupe_users'][$id]);
 
 				if (pun_strlen($username) < 2)
-					$errors[$id][] = 'Usernames must be at least 2 characters long. Please choose another (longer) username.';
+					$errors[$id][] = $lang_update['Username too short error'];
 				else if (pun_strlen($username) > 25) // This usually doesn't happen since the form element only accepts 25 characters
-					$errors[$id][] = 'Usernames must not be more than 25 characters long. Please choose another (shorter) username.';
+					$errors[$id][] = $lang_update['Username too long error'];
 				else if (!strcasecmp($username, 'Guest'))
-					$errors[$id][] = 'The username guest is reserved. Please choose another username.';
+					$errors[$id][] = $lang_update['Username Guest reserved error'];
 				else if (preg_match('/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/', $username) || preg_match('/((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(([0-9A-Fa-f]{1,4}:){0,5}:((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(::([0-9A-Fa-f]{1,4}:){0,5}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))/', $username))
-					$errors[$id][] = 'Usernames may not be in the form of an IP address. Please choose another username.';
+					$errors[$id][] = $lang_update['Username IP format error'];
 				else if ((strpos($username, '[') !== false || strpos($username, ']') !== false) && strpos($username, '\'') !== false && strpos($username, '"') !== false)
-					$errors[$id][] = 'Usernames may not contain all the characters \', " and [ or ] at once. Please choose another username.';
+					$errors[$id][] = $lang_update['Username bad characters error'];
 				else if (preg_match('/(?:\[\/?(?:b|u|s|ins|del|em|i|h|colou?r|quote|code|img|url|email|list|\*)\]|\[(?:img|url|quote|list)=)/i', $username))
-					$errors[$id][] = 'Usernames may not contain any of the text formatting tags (BBCode) that the forum uses. Please choose another username.';
+					$errors[$id][] = $lang_update['Username BBCode error'];
 
-				$result = $db->query('SELECT username FROM '.$db->prefix.'users WHERE (UPPER(username)=UPPER(\''.$db->escape($username).'\') OR UPPER(username)=UPPER(\''.$db->escape(preg_replace('/[^\w]/', '', $username)).'\')) AND id>1') or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+				$result = $db->query('SELECT username FROM '.$db->prefix.'users WHERE (UPPER(username)=UPPER(\''.$db->escape($username).'\') OR UPPER(username)=UPPER(\''.$db->escape(ucp_preg_replace('/[^\p{L}\p{N}]/u', '', $username)).'\')) AND id>1') or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 
 				if ($db->num_rows($result))
 				{
 					$busy = $db->result($result);
-					$errors[$id][] = 'Someone is already registered with the username '.pun_htmlspecialchars($busy).'. The username you entered is too similar. The username must differ from that by at least one alphanumerical character (a-z or 0-9). Please choose a different username.';
+					$errors[$id][] = sprintf($lang_update['Username duplicate error'], pun_htmlspecialchars($busy));
 				}
 
 				if (empty($errors[$id]))
@@ -1396,7 +2047,7 @@ else
 					$mail_message = trim(substr($mail_tpl, $first_crlf));
 
 					$mail_subject = str_replace('<board_title>', $pun_config['o_board_title'], $mail_subject);
-					$mail_message = str_replace('<base_url>', $pun_config['o_base_url'].'/', $mail_message);
+					$mail_message = str_replace('<base_url>', get_base_url().'/', $mail_message);
 					$mail_message = str_replace('<old_username>', $old_username, $mail_message);
 					$mail_message = str_replace('<new_username>', $username, $mail_message);
 					$mail_message = str_replace('<board_mailer>', $pun_config['o_board_title'].' Mailer', $mail_message);
@@ -1418,7 +2069,7 @@ else
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>FluxBB Database Update</title>
+<title><?php echo $lang_update['Update'] ?></title>
 <link rel="stylesheet" type="text/css" href="style/<?php echo $default_style ?>.css" />
 </head>
 <body>
@@ -1428,14 +2079,14 @@ else
 <div class="punwrap">
 
 <div class="blockform">
-	<h2><span>Error converting users</span></h2>
+	<h2><span><?php echo $lang_update['Error converting users'] ?></span></h2>
 	<div class="box">
-		<form method="post" action="db_update.php?stage=conv_users_dupe">
+		<form method="post" action="db_update.php?stage=conv_users_dupe&amp;uid=<?php echo $uid ?>">
 			<input type="hidden" name="form_sent" value="1" />
 			<div class="inform">
 				<div class="forminfo">
-						<p style="font-size: 1.1em">There was an error converting some users. This can occur when converting from FluxBB v1.2 if multiple users have registered with very similar usernames, for example "bob" and "böb".</p>
-						<p style="font-size: 1.1em">Below is a list of users who failed to convert. Please choose a new username for each user. Users who are renamed will automatically be sent an email alerting them of the change.</p>
+						<p style="font-size: 1.1em"><?php echo $lang_update['Error info 1'] ?></p>
+						<p style="font-size: 1.1em"><?php echo $lang_update['Error info 2'] ?></p>
 				</div>
 			</div>
 <?php
@@ -1448,11 +2099,11 @@ else
 				<fieldset>
 					<legend><?php echo pun_htmlspecialchars($cur_user['username']); ?></legend>
 					<div class="infldset">
-						<label class="required"><strong>New username <span>(required)</span></strong><br /><input type="text" name="<?php echo 'dupe_users['.$id.']'; ?>" value="<?php if (isset($_POST['dupe_users'][$id])) echo pun_htmlspecialchars($_POST['dupe_users'][$id]); ?>" size="25" maxlength="25" /><br /></label>
+						<label class="required"><strong><?php echo $lang_update['New username'] ?> <span><?php echo $lang_update['Required'] ?></span></strong><br /><input type="text" name="<?php echo 'dupe_users['.$id.']'; ?>" value="<?php if (isset($_POST['dupe_users'][$id])) echo pun_htmlspecialchars($_POST['dupe_users'][$id]); ?>" size="25" maxlength="25" /><br /></label>
 					</div>
 				</fieldset>
 <?php if (!empty($errors[$id])): ?>				<div class="forminfo error-info">
-					<h3>The following errors need to be corrected:</h3>
+					<h3><?php echo $lang_update['Correct errors'] ?></h3>
 					<ul class="error-list">
 <?php
 
@@ -1467,7 +2118,7 @@ foreach ($errors[$id] as $cur_error)
 			}
 
 ?>
-			<p class="buttons"><input type="submit" name="rename" value="Rename users" /></p>
+			<p class="buttons"><input type="submit" name="rename" value="<?php echo $lang_update['Rename users'] ?>" /></p>
 		</form>
 	</div>
 </div>
@@ -1502,7 +2153,7 @@ foreach ($errors[$id] as $cur_error)
 		$end_at = 0;
 		while ($cur_item = $db->fetch_assoc($result))
 		{
-			echo 'Preparsing post '.$cur_item['id'].' …<br />'."\n";
+			echo sprintf($lang_update['Preparsing item'], $lang_update['post'], $cur_item['id']).'<br />'."\n";
 			$db->query('UPDATE '.$db->prefix.'posts SET message = \''.$db->escape(preparse_bbcode($cur_item['message'], $temp)).'\' WHERE id = '.$cur_item['id']) or error('Unable to update post', __FILE__, __LINE__, $db->error());
 
 			$end_at = $cur_item['id'];
@@ -1537,7 +2188,7 @@ foreach ($errors[$id] as $cur_error)
 		$end_at = 0;
 		while ($cur_item = $db->fetch_assoc($result))
 		{
-			echo 'Preparsing signature '.$cur_item['id'].' …<br />'."\n";
+			echo sprintf($lang_update['Preparsing item'], $lang_update['signature'], $cur_item['id']).'<br />'."\n";
 			$db->query('UPDATE '.$db->prefix.'users SET signature = \''.$db->escape(preparse_bbcode($cur_item['signature'], $temp, true)).'\' WHERE id = '.$cur_item['id']) or error('Unable to update user', __FILE__, __LINE__, $db->error());
 
 			$end_at = $cur_item['id'];
@@ -1593,7 +2244,7 @@ foreach ($errors[$id] as $cur_error)
 		$end_at = 0;
 		while ($cur_item = $db->fetch_assoc($result))
 		{
-			echo 'Rebuilding index for post '.$cur_item['id'].' …<br />'."\n";
+			echo sprintf($lang_update['Rebuilding index item'], $lang_update['post'], $cur_item['id']).'<br />'."\n";
 
 			if ($cur_item['id'] == $cur_item['first_post_id'])
 				update_search_index('post', $cur_item['id'], $cur_item['message'], $cur_item['subject']);
@@ -1646,13 +2297,16 @@ foreach ($errors[$id] as $cur_error)
 		// Empty the PHP cache
 		forum_clear_cache();
 
+		// Delete the update lock file
+		@unlink(FORUM_CACHE_DIR.'db_update.lock');
+
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title>FluxBB Database Update</title>
+<title><?php echo $lang_update['Update'] ?></title>
 <link rel="stylesheet" type="text/css" href="style/<?php echo $default_style ?>.css" />
 </head>
 <body>
@@ -1662,12 +2316,12 @@ foreach ($errors[$id] as $cur_error)
 <div class="punwrap">
 
 <div class="blockform">
-	<h2><span>FluxBB Update</span></h2>
+	<h2><span><?php echo $lang_update['Update'] ?></span></h2>
 	<div class="box">
 		<div class="fakeform">
 			<div class="inform">
 				<div class="forminfo">
-					<p style="font-size: 1.1em">Your forum database was successfully updated. You may now <a href="<?php echo PUN_ROOT ?>index.php">go to the forum index</a>.</p>
+					<p style="font-size: 1.1em"><?php printf($lang_update['Successfully updated'], sprintf('<a href="index.php">%s</a>', $lang_update['go to index'])) ?></p>
 				</div>
 			</div>
 		</div>
@@ -1689,4 +2343,4 @@ $db->end_transaction();
 $db->close();
 
 if ($query_str != '')
-	exit('<script type="text/javascript">window.location="db_update.php'.$query_str.'"</script><noscript>JavaScript seems to be disabled. <a href="db_update.php'.$query_str.'">Click here to continue</a>.</noscript>');
+	exit('<script type="text/javascript">window.location="db_update.php'.$query_str.'&uid='.$uid.'"</script><noscript>'.sprintf($lang_update['JavaScript disabled'], sprintf('<a href="db_update.php'.$query_str.'&uid='.$uid.'">%s</a>', $lang_update['Click here to continue'])).'</noscript>');

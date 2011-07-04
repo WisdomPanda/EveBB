@@ -6,8 +6,10 @@
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
+
+require PUN_ROOT.'include/attach/attach_incl.php'; //Attachment Mod row, loads variables, functions and lang file
 
 
 if ($pun_user['g_read_board'] == '0')
@@ -56,6 +58,7 @@ if (isset($_POST['delete']))
 	if ($is_topic_post)
 	{
 		// Delete the topic and all of it's posts
+		attach_delete_thread($cur_post['tid']);	// Attachment Mod , delete the attachments in the whole thread (orphan check is checked in this function)
 		delete_topic($cur_post['tid']);
 		update_forum($cur_post['fid']);
 
@@ -64,10 +67,15 @@ if (isset($_POST['delete']))
 	else
 	{
 		// Delete just this one post
+		attach_delete_post($id);	// Attachment Mod , delete the attachments in this post (orphan check is checked in this function)
 		delete_post($id, $cur_post['tid']);
 		update_forum($cur_post['fid']);
 
-		redirect('viewtopic.php?id='.$cur_post['tid'], $lang_delete['Post del redirect']);
+		// Redirect towards the previous post
+		$result = $db->query('SELECT id FROM '.$db->prefix.'posts WHERE topic_id='.$cur_post['tid'].' AND id < '.$id.' ORDER BY id DESC LIMIT 1') or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
+		$post_id = $db->result($result);
+
+		redirect('viewtopic.php?pid='.$post_id.'#p'.$post_id, $lang_delete['Post del redirect']);
 	}
 }
 
@@ -108,7 +116,7 @@ $cur_post['message'] = parse_message($cur_post['message'], $cur_post['hide_smili
 
 <div id="postreview">
 	<div class="blockpost">
-		<div class="box<?php echo ($post_count % 2 == 0) ? ' roweven' : ' rowodd' ?>">
+		<div class="box">
 			<div class="inbox">
 				<div class="postbody">
 					<div class="postleft">

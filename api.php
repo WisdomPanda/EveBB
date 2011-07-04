@@ -2,7 +2,11 @@
 
 define('EVE_ENABLED', 1);
 define('PUN_DEBUG', 1);
-require("include/eve_functions.php");
+
+
+define('PUN_ROOT', dirname(__FILE__).'/');
+
+require(PUN_ROOT."include/eve_functions.php");
 
 
 $error = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>

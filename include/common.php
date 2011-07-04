@@ -10,12 +10,12 @@ if (!defined('PUN_ROOT'))
 	exit('The constant PUN_ROOT must be defined and point to a valid FluxBB installation root directory.');
 
 // Define the version and database revision that this code was written for
-define('FORUM_VERSION', '1.4.2');
-define('EVE_BB_VERSION', '1.0.0');
+define('FORUM_VERSION', '1.4.5');
+define('EVE_BB_VERSION', '1.1.0');
 
-define('FORUM_DB_REVISION', 8);
-define('FORUM_SI_REVISION', 1);
-define('FORUM_PARSER_REVISION', 1);
+define('FORUM_DB_REVISION', 11);
+define('FORUM_SI_REVISION', 2);
+define('FORUM_PARSER_REVISION', 2);
 
 // Block prefetch requests
 if (isset($_SERVER['HTTP_X_MOZ']) && $_SERVER['HTTP_X_MOZ'] == 'prefetch')
@@ -39,16 +39,38 @@ if (file_exists(PUN_ROOT.'config.php'))
 if (defined('FORUM'))
 	define('PUN', FORUM);
 
-// If PUN isn't defined, config.php is missing or corrupt
-if (!defined('PUN'))
-	exit('The file \'config.php\' doesn\'t exist or is corrupt. Please run <a href="install.php">install.php</a> to install EveBB first.');
-
 // Load the functions script
 require PUN_ROOT.'include/functions.php';
 
 /*********** EvE-BB FUNCTIONS ***********/
 //Functions for EvE-BB
 define('EVE_ENABLED', 1);
+
+//We now make our hooks so we can run tasks via plugins.
+$_HOOKS = array(
+'rules' => array(),
+'startup' => array(),
+'users' => array(),
+'api' => array(),
+);
+
+include(PUN_ROOT.'include/hook_classes.php');
+
+//Now lets load the hook files...
+$dir = scandir(PUN_ROOT.'plugins/hooks');
+foreach ($dir as $d) {
+	if (strlen($d) < 5) {
+		continue;
+	} //End if.
+	
+	if (substr($d, -3) != "php") {
+		continue;
+	} //End if.
+
+	require(PUN_ROOT.'plugins/hooks/'.$d);
+	
+} //End foreach().
+
 require(PUN_ROOT.'include/eve_functions.php');
 /*********** EvE-BB FUNCTIONS ***********/
 
@@ -60,6 +82,13 @@ forum_remove_bad_characters();
 
 // Reverse the effect of register_globals
 forum_unregister_globals();
+
+// If PUN isn't defined, config.php is missing or corrupt
+if (!defined('PUN'))
+{
+    header('Location: install.php');
+    exit;
+}
 
 // Record the start time (will be used to calculate the generation time for the page)
 $pun_start = get_microtime();
@@ -127,7 +156,10 @@ if (!isset($pun_config['o_database_revision']) || $pun_config['o_database_revisi
 		!isset($pun_config['o_searchindex_revision']) || $pun_config['o_searchindex_revision'] < FORUM_SI_REVISION ||
 		!isset($pun_config['o_parser_revision']) || $pun_config['o_parser_revision'] < FORUM_PARSER_REVISION ||
 		version_compare($pun_config['o_cur_version'], FORUM_VERSION, '<'))
-	exit('Your FluxBB database is out-of-date and must be upgraded in order to continue. Please run <a href="'.PUN_ROOT.'db_update.php">db_update.php</a> in order to complete the upgrade process.');
+{
+	header('Location: db_update.php');
+	exit;
+}
 
 // Enable output buffering
 if (!defined('PUN_DISABLE_BUFFERING'))
@@ -193,6 +225,10 @@ if (!defined('PUN_SEARCH_MIN_WORD'))
 if (!defined('PUN_SEARCH_MAX_WORD'))
 	define('PUN_SEARCH_MAX_WORD', 20);
 	
+ if (!defined('FORUM_MAX_COOKIE_SIZE'))
+ 	define('FORUM_MAX_COOKIE_SIZE', 4048);
+	
 /*********** EVE-BB ***********/
 task_runner(); //Run our updating tasks, skip it if possible to avoid load.
+
 /*********** EVE-BB ***********/

@@ -4,9 +4,6 @@ if (!defined('EVE_ENABLED')) {
 	exit('Must be called locally.');
 } //End if.
 
-if (!defined(PUN_ROOT)) {
-	define('PUN_ROOT', './');
-} //End if.
 
 require(PUN_ROOT.'include/eve_alliance_functions.php');
 require(PUN_ROOT.'include/api/api_common.php');
@@ -351,9 +348,9 @@ function purge_unclean($users, $group_id) {
 	
 	$log = array();
 	
-	if (defined('PUN_DEBUG')) {
+	/*if (defined('PUN_DEBUG')) {
 		error("We have hit the purge stage. This means someone has been marked as not in a permitted corp. (Disable Debug mode to clear this message.)<br/>Dumping user list: ".print_r($users, true));
-	} //End if.
+	} //End if.*/
 	
 	foreach ($users as $row) {
 		$sql = "UPDATE ".$db->prefix."users SET group_id=".$group_id." WHERE id=".$row['user_id'].";";
@@ -484,7 +481,7 @@ function check_rules() {
  * Applies any user defined rules to the user list.
  */
 function apply_rules() {
-	global $db, $pun_config;
+	global $db, $pun_config, $_HOOKS;
 	
 	//Before we do anything, we make sure the rules are safe.
 	if (!check_rules()) {
@@ -507,7 +504,8 @@ function apply_rules() {
 		c.*,
 		corp.*,
 		u.*,
-		g.*
+		g.*,
+		ally.*
 	FROM
 		".$db->prefix."api_selected_char AS sc
 	INNER JOIN
@@ -525,7 +523,11 @@ function apply_rules() {
 	LEFT JOIN
 		".$db->prefix."api_allowed_corps AS corp
 	ON
-		corp.corporationID=c.corp_id;
+		corp.corporationID=c.corp_id
+	LEFT JOIN
+		".$db->prefix."api_alliance_list AS ally
+	ON
+		corp.allianceID=ally.allianceID;
 	";
 	
 	if (!$result = $db->query($sql)) {
@@ -546,6 +548,11 @@ function apply_rules() {
 		return false; //This is bad.
 	} //End if.
 	
+	//Lets go through our hooks and let them work on any data.
+	foreach ($_HOOKS['rules'] as $hook) {
+		$hook->first_load($characters);
+	} //End foreach().
+	
 	
 	//This does whore on the DB quite a bit, but it has kept it readable.
 	foreach($characters as $row) {
@@ -553,7 +560,7 @@ function apply_rules() {
 		//Watch this space.
 		
 		//First, lets purge their extra groups - this will reassign all of them, assuming they're not locked.
-		$sql = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$row['id']." AND group_id NOT IN (SELECT sg.g_id FROM ".$db->prefix."groups AS sg WHERE sg.g_locked=1)";
+		$sql = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$row['id']." AND group_id NOT IN (SELECT sg.g_id FROM ".$db->prefix."groups AS sg WHERE sg.g_locked=1) AND group_id!=".PUN_ADMIN;
 		
 		if (!$db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
@@ -642,6 +649,13 @@ function apply_rules() {
 		
 		//They haven't been moved and they aren't in a locked group, TROUBLES!
 		if (!$moved && $row['g_locked'] != 1 && $row['g_id'] != PUN_ADMIN && $row['g_id'] != PUN_MOD) {
+			$pass = true;
+			foreach ($_HOOKS['rules'] as $hook) {
+				$pass = $hook->restrict_user($row);
+			} //End foreach().
+			if ($pass === true) {
+				continue; //The plugin has decided we're wrong, continue onwards.
+			} //End if.
 			$sql = "UPDATE ".$db->prefix."users SET group_id=".$pun_config['o_eve_restricted_group']." WHERE id=".$row['id'].";";
 			//error("User is being moved for no reason.<br/> SQL: ".$sql."<br/>Data Dump: ".print_r($row, true)."<br/>Moved: ".$moved."<br/>".$log, __FILE__, __LINE__, $db->error());
 			if (!$db->query($sql)) {
@@ -650,13 +664,22 @@ function apply_rules() {
 				} //End if.
 				return false;
 			} //End if.
+			continue;
 		} //End if.
+		
+		//Run any post rule tasks that may be required.
+		foreach ($_HOOKS['rules'] as $hook) {
+			$hook->authed_user($row);
+		} //End foreach().
 		
 	} //End foreach().
 	
+	//Run any post rule tasks that may be required.
+	foreach ($_HOOKS['rules'] as $hook) {
+		$hook->last_load($characters);
+	} //End foreach().
 	
 	return true;
-	
 	
 } //End apply_rules().
 
@@ -1295,17 +1318,17 @@ function fetch_topic_poster_character($id) {
 	";
 	
 	if (!$result = $db->query($sql)) {
-		if (defined('PUN_DEBUG')) {
+		/*if (defined('PUN_DEBUG')) {
 			error("Unable to query character data.", __FILE__, __LINE__, $db->error());
-		} //End if.\
+		} //End if.*/
 		return false;
 	} //End if.
 	
 	if ($db->num_rows($result) == 0) {
-		if (defined('PUN_DEBUG')) {
+		/*if (defined('PUN_DEBUG')) {
 			error("Unable to find character data.".$sql, __FILE__, __LINE__, $db->error());
 		} //End if.
-		return false;
+		return false;*/
 	} //End if.
 	
 	return $db->fetch_assoc($result);

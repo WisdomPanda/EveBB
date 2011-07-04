@@ -9,7 +9,7 @@
 // Tell header.php to use the admin template
 define('PUN_ADMIN_CONSOLE', 1);
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 require PUN_ROOT.'include/common_admin.php';
 
@@ -125,24 +125,23 @@ else if (isset($_POST['del_cat']) || isset($_POST['del_cat_comply']))
 else if (isset($_POST['update'])) // Change position and name of the categories
 {
 	confirm_referrer('admin_categories.php');
+	$categories = $_POST['cat'];
+	if (empty($categories))
+		message($lang_common['Bad request']);
+	
 
-	$cat_order = array_map('trim', $_POST['cat_order']);
-	$cat_name = array_map('pun_trim', $_POST['cat_name']);
-
-	$result = $db->query('SELECT id, disp_position FROM '.$db->prefix.'categories ORDER BY disp_position') or error('Unable to fetch category list', __FILE__, __LINE__, $db->error());
-	$num_cats = $db->num_rows($result);
-
-	for ($i = 0; $i < $num_cats; ++$i)
+	foreach ($categories as $cat_id => $cur_cat)
 	{
-		if ($cat_name[$i] == '')
+		$cur_cat['name'] = pun_trim($cur_cat['name']);
+		$cur_cat['order'] = trim($cur_cat['order']);
+		
+		if ($cur_cat['name'] == '')
 			message($lang_admin_categories['Must enter name message']);
 
-		if ($cat_order[$i] == '' || preg_match('/[^0-9]/', $cat_order[$i]))
+		if ($cur_cat['order'] == '' || preg_match('/[^0-9]/', $cur_cat['order']))
 			message($lang_admin_categories['Must enter integer message']);
 
-		list($cat_id, $position) = $db->fetch_row($result);
-
-		$db->query('UPDATE '.$db->prefix.'categories SET cat_name=\''.$db->escape($cat_name[$i]).'\', disp_position='.$cat_order[$i].' WHERE id='.$cat_id) or error('Unable to update category', __FILE__, __LINE__, $db->error());
+		$db->query('UPDATE '.$db->prefix.'categories SET cat_name=\''.$db->escape($cur_cat['name']).'\', disp_position='.$cur_cat['order'].' WHERE id='.intval($cat_id)) or error('Unable to update category', __FILE__, __LINE__, $db->error());
 	}
 
 	// Regenerate the quick jump cache
@@ -159,7 +158,7 @@ $result = $db->query('SELECT id, cat_name, disp_position FROM '.$db->prefix.'cat
 $num_cats = $db->num_rows($result);
 
 for ($i = 0; $i < $num_cats; ++$i)
-	$cat_list[] = $db->fetch_row($result);
+	$cat_list[] = $db->fetch_assoc($result);
 
 $page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_admin_common['Admin'], $lang_admin_common['Categories']);
 define('PUN_ACTIVE_PAGE', 'admin');
@@ -171,7 +170,7 @@ generate_admin_menu('categories');
 	<div class="blockform">
 		<h2><span><?php echo $lang_admin_categories['Add categories head'] ?></span></h2>
 		<div class="box">
-			<form method="post" action="admin_categories.php?action=foo">
+			 <form method="post" action="admin_categories.php">
 				<div class="inform">
 					<fieldset>
 						<legend><?php echo $lang_admin_categories['Add categories subhead'] ?></legend>
@@ -193,7 +192,7 @@ generate_admin_menu('categories');
 
 <?php if ($num_cats): ?>		<h2 class="block2"><span><?php echo $lang_admin_categories['Delete categories head'] ?></span></h2>
 		<div class="box">
-			<form method="post" action="admin_categories.php?action=foo">
+			 <form method="post" action="admin_categories.php">
 				<div class="inform">
 					<fieldset>
 						<legend><?php echo $lang_admin_categories['Delete categories subhead'] ?></legend>
@@ -205,8 +204,8 @@ generate_admin_menu('categories');
 										<select name="cat_to_delete" tabindex="3">
 <?php
 
-	foreach ($cat_list as $category)
-		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$category[0].'">'.pun_htmlspecialchars($category[1]).'</option>'."\n";
+	foreach ($cat_list as $cur_cat)
+		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$cur_cat['id'].'">'.pun_htmlspecialchars($cur_cat['cat_name']).'</option>'."\n";
 
 ?>
 										</select>
@@ -223,7 +222,7 @@ generate_admin_menu('categories');
 
 <?php if ($num_cats): ?>		<h2 class="block2"><span><?php echo $lang_admin_categories['Edit categories head'] ?></span></h2>
 		<div class="box">
-			<form method="post" action="admin_categories.php?action=foo">
+			<form method="post" action="admin_categories.php">
 				<div class="inform">
 					<fieldset>
 						<legend><?php echo $lang_admin_categories['Edit categories subhead'] ?></legend>
@@ -238,13 +237,13 @@ generate_admin_menu('categories');
 							<tbody>
 <?php
 
-	foreach ($cat_list as $i => $category)
+	foreach ($cat_list as $cur_cat)
 	{
 
 ?>
 								<tr>
-									<td class="tcl"><input type="text" name="cat_name[<?php echo $i ?>]" value="<?php echo pun_htmlspecialchars($category[1]) ?>" size="35" maxlength="80" /></td>
-									<td><input type="text" name="cat_order[<?php echo $i ?>]" value="<?php echo $category[2] ?>" size="3" maxlength="3" /></td>
+									<td class="tcl"><input type="text" name="cat[<?php echo $cur_cat['id'] ?>][name]" value="<?php echo pun_htmlspecialchars($cur_cat['cat_name']) ?>" size="35" maxlength="80" /></td>
+									<td><input type="text" name="cat[<?php echo $cur_cat['id'] ?>][order]" value="<?php echo $cur_cat['disp_position'] ?>" size="3" maxlength="3" /></td>
 								</tr>
 <?php
 

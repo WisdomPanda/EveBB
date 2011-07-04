@@ -9,7 +9,7 @@
 if (isset($_GET['action']))
 	define('PUN_QUIET_VISIT', 1);
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 
 
@@ -56,16 +56,32 @@ if (isset($_POST['form_sent']) && $action == 'in')
 			}
 		}
 		// Otherwise we should have a normal sha1 password
-		else
+		else {
 			$authorized = ($cur_user['password'] == $form_password_hash);
+		} //End if - else.
 	}
 
-	if (!$authorized)
+	if (!$authorized) {
+		foreach ($_HOOKS['users'] as $hook) {
+			$hook->login_failed($cur_user['id']);
+		} //End foreach().
 		message($lang_login['Wrong user/pass'].' <a href="login.php?action=forget">'.$lang_login['Forgotten pass'].'</a>');
+	} //End if.
+	
+	foreach ($_HOOKS['users'] as $hook) {
+		$hook->login($cur_user['id']);
+	} //End foreach().
 
 	// Update the status if this is the first time the user logged in
-	if ($cur_user['group_id'] == PUN_UNVERIFIED)
+	if ($cur_user['group_id'] == PUN_UNVERIFIED) {
 		$db->query('UPDATE '.$db->prefix.'users SET group_id='.$pun_config['o_default_user_group'].' WHERE id='.$cur_user['id']) or error('Unable to update user status', __FILE__, __LINE__, $db->error());
+		
+		 // Regenerate the users info cache
+		if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
+			require PUN_ROOT.'include/cache.php';
+		
+		generate_users_info_cache();
+	} //End if.
 
 	// Remove this users guest entry from the online list
 	$db->query('DELETE FROM '.$db->prefix.'online WHERE ident=\''.$db->escape(get_remote_address()).'\'') or error('Unable to delete from online list', __FILE__, __LINE__, $db->error());
@@ -98,7 +114,7 @@ else if ($action == 'out')
 	if (isset($pun_user['logged']))
 		$db->query('UPDATE '.$db->prefix.'users SET last_visit='.$pun_user['logged'].' WHERE id='.$pun_user['id']) or error('Unable to update user visit data', __FILE__, __LINE__, $db->error());
 
-	pun_setcookie(1, md5(uniqid(rand(), true)), time() + 31536000);
+	pun_setcookie(1, pun_hash(uniqid(rand(), true)), time() + 31536000);
 
 	redirect('index.php', $lang_login['Logout redirect']);
 }
@@ -137,7 +153,7 @@ else if ($action == 'forget' || $action == 'forget_2')
 				$mail_message = trim(substr($mail_tpl, $first_crlf));
 
 				// Do the generic replacements first (they apply to all emails sent out here)
-				$mail_message = str_replace('<base_url>', $pun_config['o_base_url'].'/', $mail_message);
+				$mail_message = str_replace('<base_url>', get_base_url().'/', $mail_message);
 				$mail_message = str_replace('<board_mailer>', $pun_config['o_board_title'].' '.$lang_common['Mailer'], $mail_message);
 
 				// Loop through users we found
@@ -154,7 +170,7 @@ else if ($action == 'forget' || $action == 'forget_2')
 
 					// Do the user specific replacements to the template
 					$cur_mail_message = str_replace('<username>', $cur_hit['username'], $mail_message);
-					$cur_mail_message = str_replace('<activation_url>', $pun_config['o_base_url'].'/profile.php?id='.$cur_hit['id'].'&action=change_pass&key='.$new_password_key, $cur_mail_message);
+					$cur_mail_message = str_replace('<activation_url>', get_base_url().'/profile.php?id='.$cur_hit['id'].'&action=change_pass&key='.$new_password_key, $cur_mail_message);
 					$cur_mail_message = str_replace('<new_password>', $new_password, $cur_mail_message);
 
 					pun_mail($email, $mail_subject, $cur_mail_message);
@@ -226,7 +242,32 @@ if (!$pun_user['is_guest'])
 	header('Location: index.php');
 
 // Try to determine if the data in HTTP_REFERER is valid (if not, we redirect to index.php after login)
-$redirect_url = (isset($_SERVER['HTTP_REFERER']) && preg_match('#^'.preg_quote($pun_config['o_base_url']).'/(.*?)\.php#i', $_SERVER['HTTP_REFERER'])) ? htmlspecialchars($_SERVER['HTTP_REFERER']) : $pun_config['o_base_url'].'/index.php';
+if (!empty($_SERVER['HTTP_REFERER']))
+{
+    $referrer = parse_url($_SERVER['HTTP_REFERER']);
+    // Remove www subdomain if it exists
+    if (strpos($referrer['host'], 'www.') === 0)
+        $referrer['host'] = substr($referrer['host'], 4);
+
+    // Make sure the path component exists
+    if (!isset($referrer['path']))
+        $referrer['path'] = '';
+
+    $valid = parse_url(get_base_url());
+    // Remove www subdomain if it exists
+    if (strpos($valid['host'], 'www.') === 0)
+        $valid['host'] = substr($valid['host'], 4);
+
+    // Make sure the path component exists
+    if (!isset($valid['path']))
+        $valid['path'] = '';
+
+    if ($referrer['host'] == $valid['host'] && preg_match('#^'.preg_quote($valid['path']).'/(.*?)\.php#i', $referrer['path']))
+        $redirect_url = $_SERVER['HTTP_REFERER'];
+}
+
+if (!isset($redirect_url))
+    $redirect_url = 'index.php';
 
 $page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_common['Login']);
 $required_fields = array('req_username' => $lang_common['Username'], 'req_password' => $lang_common['Password']);
@@ -244,7 +285,7 @@ require PUN_ROOT.'header.php';
 					<legend><?php echo $lang_login['Login legend'] ?></legend>
 					<div class="infldset">
 						<input type="hidden" name="form_sent" value="1" />
-						<input type="hidden" name="redirect_url" value="<?php echo $redirect_url ?>" />
+						<input type="hidden" name="redirect_url" value="<?php echo pun_htmlspecialchars($redirect_url) ?>" />
 						<label class="conl required"><strong><?php echo $lang_common['Username'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br /><input type="text" name="req_username" size="25" maxlength="25" tabindex="1" /><br /></label>
 						<label class="conl required"><strong><?php echo $lang_common['Password'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br /><input type="password" name="req_password" size="25" tabindex="2" /><br /></label>
 

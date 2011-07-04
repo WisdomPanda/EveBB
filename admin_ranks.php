@@ -9,7 +9,7 @@
 // Tell header.php to use the admin template
 define('PUN_ADMIN_CONSOLE', 1);
 
-define('PUN_ROOT', './');
+define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 require PUN_ROOT.'include/common_admin.php';
 
@@ -113,7 +113,7 @@ generate_admin_menu('ranks');
 	<div class="blockform">
 		<h2><span><?php echo $lang_admin_ranks['Ranks head'] ?></span></h2>
 		<div class="box">
-			<form id="ranks" method="post" action="admin_ranks.php?action=foo">
+			<form id="ranks" method="post" action="admin_ranks.php">
 				<div class="inform">
 					<fieldset>
 						<legend><?php echo $lang_admin_ranks['Add rank subhead'] ?></legend>
