@@ -1584,6 +1584,33 @@ switch ($stage)
 			$query_str = '?stage=conv_bans&req_old_charset='.$old_charset;
 			
 		//Updates for mods.
+		
+		// If we don't have the teamspeak3 table, create it
+		if (!$db->table_exists('teamspeak3')) {
+			$schema = array(
+				'FIELDS'		=> array(
+					'user_id'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false,
+						'default'		=> '0'
+					),
+					'username'		=> array(
+						'datatype'		=> 'VARCHAR(100)',
+						'allow_null'	=> false,
+						'default'		=> ''
+					),
+					'token'		=> array(
+						'datatype'		=> 'VARCHAR(100)',
+						'allow_null'	=> false,
+						'default'		=> ''
+					)
+				),
+				'PRIMARY KEY'	=> array('user_id')
+			);
+
+			$db->create_table('teamspeak3', $schema) or error('Unable to create teamspeak3 table', __FILE__, __LINE__, $db->error());
+		} //End if.
+			
 		install_npms();
 		install_subforum();
 		install_attach(rtrim(dirname(__FILE__), '/\\') . DIRECTORY_SEPARATOR.'attachments/');

@@ -2002,6 +2002,30 @@ else
 	);
 
 	$db->create_table('groups_users', $schema) or error('Unable to create groups table', __FILE__, __LINE__, $db->error());
+	
+	//Teamspeak3 table
+	$schema = array(
+		'FIELDS'		=> array(
+			'user_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'username'		=> array(
+				'datatype'		=> 'VARCHAR(100)',
+				'allow_null'	=> false,
+				'default'		=> ''
+			),
+			'token'		=> array(
+				'datatype'		=> 'VARCHAR(100)',
+				'allow_null'	=> false,
+				'default'		=> ''
+			)
+		),
+		'PRIMARY KEY'	=> array('user_id')
+	);
+
+	$db->create_table('teamspeak3', $schema) or error('Unable to create teamspeak3 table', __FILE__, __LINE__, $db->error());
 		
 	/*---------- EvE-BB INSTALL TABLE CONSTRUCTION ---------*/
 
