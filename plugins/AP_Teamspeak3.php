@@ -1,142 +1,199 @@
 <?php
 /**
- *
- * telnet in.
- *
- * tokenadd tokentype=0 tokenid1=7 tokenid2=0 tokendescription=automatically\screated\stoken\sfor\s$USER tokencustomset=ident=forum_user\svalue=$USER\pident=forum_id\svalue=$USER_ID
- *
- * <a href="ts3server://voice.teamspeak.com?nickname=$USER&addbookmark=TS-Forum-Server&token=eKnFZQ9EK7G7MhtuQB6+N2B1PNZZ6OZL3ycDp2OW/">Click here to connect</a>
- *
- *
- *
-This script will connect to a TS3-Server via query-port and display
-all actualy valied tokens for a desired servergroup.
-
-Written by Nils Cibula
-
-Dieses Script verbindet über den Query-Port zu einem TS3-Server und zeigt alle
-aktuell verfügbaren Tokens für eine ausgewählte Gruppe an
-
-Geschrieben von Nils Cibula
-
-// Fill in connection-information for your TS3-Server
-// Ab hier die nötigen Informationen deines TS3-Servers eintragen
-
-// IP-Adress of the TS3-Server
-// IP-Adresse des TS3-Servers
-$ip = 'XX.XX.XX.XX';
-
-// query-port of the TS3-Server (default: 10011)
-// Query-Port des TS3-Servers (Standard: 10011)
-$t_port = '10011';
-
-// ID of the virtual server
-// Server-ID des virtuellen Servers
-$sid = '1';
-
-// Login-name for query
-// Login-Name zur Abfrage
-$Login_Name = 'serveradmin';
-
-// password for query-user
-// Passwort zur Abfrage
-$Login_pwd = '********';
-
-// ID of the group tokens will be displayed from
-// ID der Gruppe dessen Tokens angezeigt werden sollen
-$Group_id = '7';
-
-// Message if there are no tokens availible
-// Nachrit wenn keine Tokens verfügbar sind
-$NoTokens = 'No Tokens generated, please see your serveradministrator!';
-
-// Generate a Token if there is none (0=No, display message instead | 1=Yes
-// Neues Token erstellen falls keines verfügbar (0 = Nein, zeige die Meldung stattdessen | 1 = Yes)
-$GenerateToken = '1';
-
-// Here you can enter Text to be displayed before and after each token
-// (e.g. before="<li>" and after = "</li>" to display Tokens in an unordered list)
-// Hier kann Text festgelegt werden, der vor und nach jedem Token ausgegeben wird
-// (z.B. vorher="<li>" und nachher = "</li>" um die Tokens in einer Liste auszugeben
-$TextBefore = '';
-$TextAfter = '<br /><br />';
-
-
-// Don't change anything from here on (Except you are knowing what you are doing)!
-// Ab hier keine Änderungen mehr vornehmen (außer du weist was du tust)!
-// ------------------------------------------------------------------------------------------------------------
-
-$error = array();
-
-function sendCmd($fp, $cmd){
-    $msg = '';
-    fputs($fp, $cmd);
-    while(strpos($msg, 'msg=') === false){
-        $msg .= fread($fp, 8096);
-    }
-    if(!strpos($msg, 'msg=ok')){
-        return false;
-    }else{
-        return $msg;
-    }
-}
-
-function readToken ($fp){
-    global $Group_id;
-    global $NoTokens;
-    $FMToken[0] = $NoTokens;
-    $cmd="tokenlist\n";
-    $i=0;
-    if(!($tokens = sendCmd($fp, $cmd))){
-        $error[] = 'no tokens availible';
-    }else{
-        $zeichen = explode('|',$tokens);
-        foreach ($zeichen as &$token) {
-            $token = explode(' ',$token);
-            if ($token[2]=='token_id1='.$Group_id){
-                $ausgabe = explode('=',$token[0]);
-                $FMToken[$i] = stripcslashes($ausgabe[1]);
-                $i++;
-            }
-        }
-    }
-    return $FMToken;
-}
-
-function makeToken ($fp){
-    global $Group_id;
-    $cmd="tokenadd tokentype=0 tokenid1=".$Group_id." tokenid2=0\n";
-    $newToken=sendCmd($fp, $cmd);
-    return $newToken;
-}
-
-error_reporting(E_ALL);
-
-$fp = @fsockopen($ip, $t_port, $errno, $errstr, 2);
-if($fp){
-    $cmd = "use sid=".$sid."\n";
-    if(!($select = sendCmd($fp, $cmd))){
-        echo ("Auf Server 1 geschaltet");
-        $error[] = 'Wrong Server ID';
-    }
-
-    $cmd="login $Login_Name $Login_pwd\n";
-    if(!($sinfo = sendCmd($fp, $cmd))){
-        $error[] = 'Login Denied';
-    }
-
-    $FMToken = readToken($fp);
-    if ($FMToken[0] === $NoTokens){
-        if ($GenerateToken === '1'){
-            $NewToken = makeToken($fp);
-            $FMToken = readToken($fp);
-        }
-    }
-
-    
-}else{
-    $error[] = 'Can not connect to the server';
-}
- *
- *
+ * 05/06/2011
+ * AP_Teamspeak3.php
+ * Panda
  */
+
+// Make sure no one attempts to run this script "directly"
+if (!defined('PUN'))
+	exit;
+
+// Load the language file
+require PUN_ROOT.'lang/'.$admin_language.'/ts3_plugin.php';
+
+// Tell admin_loader.php that this is indeed a plugin and that it is loaded
+define('PUN_PLUGIN_LOADED', 1);
+
+if (isset($_POST['update_settings'])) {
+		//settings we'll be changing.
+		$settings = array(
+			'ts3_enabled',
+			'ts3_ip',
+			'ts3_port',
+			'ts3_query_port',
+			'ts3_timeout',
+			'ts3_user',
+			'ts3_pass',
+			'ts3_sid',
+			'ts3_group_id',
+			'ts3_channel_id',
+			'ts3_server_name',
+			'ts3_auth_group'
+		);
+		
+		$log = '';
+		
+		foreach ($settings as $key) {
+			//Lets check if it's set in both $_POST and $pun_config...
+			//I like to use ''.$key.'' to remind my self that it's a text key, does no harm.
+			if (isset($_POST[''.$key.''])) {
+				//It's in $_POST and in $pun_config, lets see if it's changed.
+				if ($_POST[''.$key.''] == $pun_config[''.$key.'']) {
+					$log .= 'Nothing has changed for '.$key.'<br/>';
+					continue; //Nothing has changed, don't bother.
+				} //End if.
+				
+				//We also don't want to insert empty values
+				if ($_POST[''.$key.''] == '') {
+					continue;
+				} //End if.
+				
+				$db->insert_or_update(
+					array('conf_name' => $key, 'conf_value' => $_POST[$key]),
+					'conf_name',
+					$db->prefix.'config'
+				) or error("Unable to update '".$key."' to '".$_POST[''.$key.'']."'.", __FILE__, __LINE__, $db->error());
+				
+			} //End if.
+		} //End for each().
+		
+		if (!defined('FORUM_CACHE_FUNCTIONS_LOADED')) {
+			require PUN_ROOT.'include/cache.php';
+		} //End if.
+		
+		generate_config_cache();
+		
+		redirect(pun_htmlspecialchars($_SERVER['REQUEST_URI']), $lang_ts3_plugin['update_settings_redirect']);
+	
+} //End if.
+
+// Display the admin navigation menu
+generate_admin_menu($plugin);
+
+?>
+	<div class="plugin blockform">
+		<h2><span><?php echo $lang_ts3_plugin['title1'] ?></span></h2>
+		<div class="box">
+			<div class="inbox">
+				<p><?php echo $lang_ts3_plugin['info1'] ?></p>
+				<p><?php echo $lang_ts3_plugin['info2'] ?></p>
+			</div>
+		</div>
+
+		<h2 class="block2"><span><?php echo $lang_ts3_plugin['title2'] ?></span></h2>
+		<div class="box">
+			<form id="ts3" method="post" action="<?php echo pun_htmlspecialchars($_SERVER['REQUEST_URI']) ?>">
+				<div class="inform">
+					<fieldset>
+						<legend><?php echo $lang_ts3_plugin['legend1'] ?></legend>
+						<div class="infldset">
+							<table class="aligntop" cellspacing="0">
+								<tr>
+									<th scope="row"><?php echo $lang_ts3_plugin['ts3_enabled'] ?></th>
+									<td>
+										<input type="radio" name="ts3_enabled" value="1"<?php if ($pun_config['ts3_enabled'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="ts3_enabled" value="0"<?php if ($pun_config['ts3_enabled'] == '0') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_ts3_plugin['ts3_enabled_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_ts3_plugin['ts3_ip'] ?></th>
+									<td>
+										<input type="text" name="ts3_ip" size="25" tabindex="1" value="<?php echo $pun_config['ts3_ip']; ?>"/>
+										<span><?php echo $lang_ts3_plugin['ts3_ip_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_ts3_plugin['ts3_port'] ?></th>
+									<td>
+										<input type="text" name="ts3_port" size="25" tabindex="1" value="<?php echo $pun_config['ts3_port']; ?>"/>
+										<span><?php echo $lang_ts3_plugin['ts3_port_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_ts3_plugin['ts3_query_port'] ?></th>
+									<td>
+										<input type="text" name="ts3_query_port" size="25" tabindex="1" value="<?php echo $pun_config['ts3_query_port']; ?>"/>
+										<span><?php echo $lang_ts3_plugin['ts3_query_port_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_ts3_plugin['ts3_timeout'] ?></th>
+									<td>
+										<input type="text" name="ts3_timeout" size="25" tabindex="1" value="<?php echo $pun_config['ts3_timeout']; ?>"/>
+										<span><?php echo $lang_ts3_plugin['ts3_timeout_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_ts3_plugin['ts3_user'] ?></th>
+									<td>
+										<input type="text" name="ts3_user" size="25" tabindex="1" value="<?php echo $pun_config['ts3_user']; ?>"/>
+										<span><?php echo $lang_ts3_plugin['ts3_user_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_ts3_plugin['ts3_pass'] ?></th>
+									<td>
+										<input type="password" name="ts3_pass" size="25" tabindex="1" value=""/>
+										<span><?php echo $lang_ts3_plugin['ts3_pass_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_ts3_plugin['ts3_sid'] ?></th>
+									<td>
+										<input type="text" name="ts3_sid" size="25" tabindex="1" value="<?php echo $pun_config['ts3_sid']; ?>"/>
+										<span><?php echo $lang_ts3_plugin['ts3_sid_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_ts3_plugin['ts3_group_id'] ?></th>
+									<td>
+										<input type="text" name="ts3_group_id" size="25" tabindex="1" value="<?php echo $pun_config['ts3_group_id']; ?>"/>
+										<span><?php echo $lang_ts3_plugin['ts3_group_id_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_ts3_plugin['ts3_channel_id'] ?></th>
+									<td>
+										<input type="text" name="ts3_channel_id" size="25" tabindex="1" value="<?php echo $pun_config['ts3_channel_id']; ?>"/>
+										<span><?php echo $lang_ts3_plugin['ts3_channel_id_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_ts3_plugin['ts3_server_name'] ?></th>
+									<td>
+										<input type="text" name="ts3_server_name" size="25" tabindex="1" value="<?php echo $pun_config['ts3_server_name']; ?>"/>
+										<span><?php echo $lang_ts3_plugin['ts3_server_name_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_ts3_plugin['ts3_auth_group'] ?></th>
+									<td>
+										<select id="ts3_auth_group" name="ts3_auth_group" tabindex="1">
+<?php
+
+$result = $db->query('SELECT g_id, g_title FROM '.$db->prefix.'groups WHERE g_id!='.PUN_ADMIN.' AND g_id!='.PUN_GUEST.' AND g_moderator=0 ORDER BY g_title') or error('Unable to fetch user group list', __FILE__, __LINE__, $db->error());
+
+$groups = array();
+
+while ($row = $db->fetch_assoc($result))
+{
+	if ($row['g_id'] == $pun_config['ts3_auth_group'])
+		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$row['g_id'].'" selected="selected">'.pun_htmlspecialchars($row['g_title']).'</option>'."\n";
+	else
+		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$row['g_id'].'">'.pun_htmlspecialchars($row['g_title']).'</option>'."\n";
+}
+
+?>
+										</select>
+										<span><?php echo $lang_admin_eve_online['ts3_auth_group_info'] ?></span>
+									</td>
+								</tr>
+							</table>
+						</div>
+					</fieldset>
+				</div>
+				<p class="submitend"><input type="submit" name="update_settings" value="<?php echo $lang_ts3_plugin['save'] ?>" tabindex="<?php echo ($cur_index++) ?>" /></p>
+			</form>
+		</div>
+	</div>

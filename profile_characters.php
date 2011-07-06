@@ -4,19 +4,58 @@ if (!defined('FROM_PROFILE')) {
 	message("Failed to access characters.");
 } //End if.
 
-$pun_config['ts3_ip'] = "10.0.0.3";
-$pun_config['ts3_port'] = "9987";
-$pun_config['ts3_timeout'] = "3";
-$pun_config['ts3_user'] = "serveradmin";
-$pun_config['ts3_pass'] = "dHUw8Xp1";
-$pun_config['ts3_sid'] = 1;
-$pun_config['ts3_group_id'] = 9;
-$pun_config['ts3_channel_id'] = 0;
-$pun_config['ts3_server_name'] = 'Panda Teamspeak Server';
-$pun_config['ts3_auth_group'] = 6;
-
 //Get our language file.
 require PUN_ROOT.'lang/'.$pun_user['language'].'/profile_characters.php';
+
+$error = array();
+
+$sql = "
+	SELECT
+		ts3.token,
+		ts3.username AS nickname,
+		sc.*,
+		c.*,
+		corp.*,
+		ally.*,
+		a.api_user_id
+	FROM
+		".$db->prefix."api_selected_char AS sc
+	INNER JOIN
+		".$db->prefix."api_characters AS c
+	ON
+		sc.character_id=c.character_id
+	INNER JOIN
+		".$db->prefix."api_auth AS a
+	ON
+		a.api_character_id=c.character_id
+	LEFT JOIN
+		".$db->prefix."teamspeak3 AS ts3
+	ON
+		ts3.user_id=sc.user_id
+	LEFT JOIN
+		".$db->prefix."api_allowed_corps AS corp
+	ON
+		corp.corporationID=c.corp_id
+	LEFT JOIN
+		".$db->prefix."api_alliance_list AS ally
+	ON
+		corp.allianceID=ally.allianceID;
+	WHERE
+		sc.user_id=".$id."
+";
+	
+if (!$result = $db->query($sql)) {
+	$error[] = "Unable to fetch your character.";
+	message("Unable to fetch character.");
+} //End if.
+
+if ($db->num_rows($result) == 0) {
+	$error[] = "Unable to find your character.";
+} //End if.
+
+if (empty($error)) {
+	$selected_char = $db->fetch_assoc($result);
+} //End if.
 
 if ($action == 'select_character') {
 	if (isset($_POST['form_sent_characters'])) {
@@ -31,6 +70,29 @@ if ($action == 'select_character') {
 		
 		redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['select_redirect']);
 	} //End if.
+} //End if.
+
+if ($action == 'regen_token') {
+	
+	//Let it silently fall through.
+	if ($pun_user['g_id'] == PUN_ADMIN && $pun_config['ts3_enabled'] == '1') {
+		
+		if (!function_exists('create_token')) {
+			require(PUN_ROOT.'plugins/hooks/H_Teamspeak3.php');
+			
+			$username = $user['ticker'].'-'.$user['character_name'];
+			if (strlen($user['allianceID']) > 0) {
+				$username = $user['shortName'].'-'.$username;
+			} //End if.
+			
+			create_token($id, $username) or message("Unable to regen the key, enable debugging for more information.");
+			
+			redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['regen_redirect']);
+			
+		} //End if.
+		
+	} //End if.
+	
 } //End if.
 
 if ($action == 'refresh_keys') {
@@ -93,14 +155,6 @@ if ($action == 'add_character') {
 		} else if (is_array($result)) {
 			message(sprintf($lang_profile_characters['add_errors'], implode('<br/>', $result)));
 		}  //End if - else if.
-		/*
-		if (!$char = fetch_character_api($auth)) {
-			message("Unable to fetch character information.");
-		} //End if.
-		
-		//Ok, now we're in business.
-		add_api_keys($id, $api_user_id, $api_character_id, $api_key);
-		update_character_sheet($id, array(), $char); //Pass it a dummy array and our already fetched character sheet.*/
 		
 		redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['add_redirect']);
 	} //End if.
@@ -195,44 +249,8 @@ generate_profile_menu('characters');
 
 	<div class="blockform">
 <?php
-	$error = array();
-
-	$sql = "
-		SELECT
-			ts3.token,
-			ts3.username AS nickname,
-			sc.*,
-			c.*,
-			a.api_user_id
-		FROM
-			".$db->prefix."api_selected_char AS sc
-		INNER JOIN
-			".$db->prefix."api_characters AS c
-		ON
-			sc.character_id=c.character_id
-		INNER JOIN
-			".$db->prefix."api_auth AS a
-		ON
-			a.api_character_id=c.character_id
-		LEFT JOIN
-			".$db->prefix."teamspeak3 AS ts3
-		ON
-			ts3.user_id=sc.user_id
-		WHERE
-			sc.user_id=".$id."
-	";
-	
-	if (!$result = $db->query($sql)) {
-		$error[] = "Unable to fetch your character.";
-		message("Unable to fetch character.");
-	} //End if.
-	
-	if ($db->num_rows($result) == 0) {
-		$error[] = "Unable to find your character.";
-	} //End if.
 	
 	if (empty($error)) {
-		$selected_char = $db->fetch_assoc($result);
 		
 		$sql = "
 			SELECT
@@ -326,7 +344,7 @@ generate_profile_menu('characters');
 				</fieldset>
 				<a class="api_reload_avatars" href="profile.php?section=characters&amp;id=<?php echo $id ?>&amp;action=reload_pics"><?php echo $lang_profile_characters['reload_avatars']; ?></a><br/><br/>
 				<?php
-					if (strlen($selected_char['token']) > 0) {
+					if (strlen($selected_char['token']) > 0 && $pun_config['ts3_enabled'] == '1') {
 				?>
 				<a href="ts3server://<?php
 					echo $pun_config['ts3_ip']?>:<?php
@@ -335,6 +353,12 @@ generate_profile_menu('characters');
 					echo $pun_config['ts3_server_name']?>&amp;token=<?php
 					echo $selected_char['token']?>">Click here to connect to Teamspeak 3</a>
 				<?php
+			
+						if ($pun_user['g_id'] == PUN_ADMIN) {
+							//Let them regenerate the token, for what ever reason.
+							echo '<br/><br/><a href="profile.php?section=characters&amp;id='.$id.'&amp;action=regen_token">Issue User New Token</a>';
+						} //End if.
+				
 					} //End if.
 				?>
 			</div>

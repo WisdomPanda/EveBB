@@ -389,7 +389,7 @@ $groups = array();
 
 while ($row = $db->fetch_assoc($result))
 {
-	if ($row['g_id'] == $pun_config['o_default_user_group'])
+	if ($row['g_id'] == $pun_config['o_eve_restricted_group'])
 		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$row['g_id'].'" selected="selected">'.pun_htmlspecialchars($row['g_title']).'</option>'."\n";
 	else
 		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$row['g_id'].'">'.pun_htmlspecialchars($row['g_title']).'</option>'."\n";

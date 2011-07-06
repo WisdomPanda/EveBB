@@ -38,6 +38,7 @@ $lang_profile_characters = array(
 'removed_redirect'			=> 'API keys have been removed! Redirecting...',
 'remove_keys' 					=> '[Remove Keys]',
 'refresh_keys' 					=> '[Refresh Characters]',
+'regen_redirect' 				=> 'TS3 token successfully regenerated! Redirecting...',
 
 
 );
