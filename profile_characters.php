@@ -39,7 +39,7 @@ $sql = "
 	LEFT JOIN
 		".$db->prefix."api_alliance_list AS ally
 	ON
-		corp.allianceID=ally.allianceID;
+		corp.allianceID=ally.allianceID
 	WHERE
 		sc.user_id=".$id."
 ";
