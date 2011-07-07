@@ -7,7 +7,7 @@
  */
 
 //Comment this out after.
-define('PUN_DEBUG', 1);
+//define('PUN_DEBUG', 1);
 
 //
 // Return current timestamp (with microseconds) as a float

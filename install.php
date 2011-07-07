@@ -2015,13 +2015,11 @@ else
 			),
 			'username'		=> array(
 				'datatype'		=> 'VARCHAR(100)',
-				'allow_null'	=> false,
-				'default'		=> ''
+				'allow_null'	=> false
 			),
 			'token'		=> array(
 				'datatype'		=> 'VARCHAR(100)',
-				'allow_null'	=> false,
-				'default'		=> ''
+				'allow_null'	=> false
 			)
 		),
 		'PRIMARY KEY'	=> array('user_id')
