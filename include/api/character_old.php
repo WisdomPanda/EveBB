@@ -154,12 +154,21 @@ class Character {
 		} //End if.
 		xml_parser_free($xml_parser);
 		
+		if ($_LAST_ERROR > 0) {
+			return false;
+		} //End if.
+		
 		$_LAST_ERROR = 0;
 		return true;
 	} //End load_skill_queue().
 		
 	function startElement($parser, $name, $attrs) {
 		$this->current_tag = $name;
+		
+		if ($name == 'error') {
+			global $_LAST_ERROR;
+			$_LAST_ERROR = intval($attrs['CODE']);
+		} //End if.
 		
 		if ($name == 'ROWSET') {
 			$this->in_rowset = true;
@@ -169,7 +178,7 @@ class Character {
 			} else if ($attrs['NAME'] == 'skillqueue') {
 				$this->in_queue = true;
 			} else if ($attrs['NAME'] == 'characters') {
-				
+				$this->in_characters = true;
 			} //End if - else if.
 			
 			return;
@@ -216,6 +225,7 @@ class Character {
 			$this->in_rowset = false;
 			$this->in_roles = false;
 			$this->in_queue = false;
+			$this->in_characters = false;
 		} //End if.
 	} //End endElement.
 	

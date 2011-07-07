@@ -14,6 +14,7 @@ define('API_SERVER_DOWN', 1000);
 define('API_BAD_REQUEST', 1001);
 define('API_BAD_AUTH', 1002);
 define('API_SERVER_ERROR', 1003);
+define('API_ACCOUNT_STATUS', 1004);
 
 $_LAST_ERROR = 0;
 
@@ -257,7 +258,12 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 		if (update_character_sheet($row['user_id'], array('apiKey' => $row['api_key'],'userID' => $row['api_user_id'],'characterID' => $row['api_character_id']), false)) {
 			$log [] = sprintf($lang_eve_bb['char_sheet_updated'], $row['character_id'], $row['character_name']);
 		} else {
-			if ($_LAST_ERROR == API_BAD_AUTH) {
+			
+			if ($_LAST_ERROR == API_ACCOUNT_STATUS) {
+				$log [] = sprintf("API account is inactive, purging.", $row['character_id'], $row['character_name']);
+				purge_user(array($row['user_id']), $pun_config['o_eve_restricted_group']);
+				remove_api_keys($row['user_id']);
+			} else if ($_LAST_ERROR == API_BAD_AUTH) {
 				$log [] = sprintf($lang_eve_bb['char_sheet_failed'], $row['character_id'], $row['character_name']);
 			} else if ($_LAST_ERROR == API_BAD_FETCH || $_LAST_ERROR == API_SERVER_ERROR) {
 				if (defined('PUN_DEBUG')) {
