@@ -57,6 +57,16 @@ if (empty($error)) {
 	$selected_char = $db->fetch_assoc($result);
 } //End if.
 
+if ($action == 'add_corp') {
+	
+	if ($pun_user['g_id'] == PUN_ADMIN) {
+		add_corp($selected_char['corporationID']) or message("Unable to add corp");
+		
+		redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['add_redirect']);
+	} //End if.
+	
+} //End if.
+
 if ($action == 'select_character') {
 	if (isset($_POST['form_sent_characters'])) {
 		
@@ -300,7 +310,7 @@ generate_profile_menu('characters');
 							</tr>
 							<tr>
 								<td><strong><?php echo $lang_profile_characters['corp']; ?></strong></td>
-								<td><?php echo $selected_char['corp_name']; ?></td>
+								<td><?php echo $selected_char['corp_name']; ?> <a href="profile.php?section=characters&amp;id=<?php echo $id ?>&amp;action=add_corp"><?php echo $lang_profile_characters['auth_corp']?></a></td>
 							</tr>
 							<tr>
 								<td><strong><?php echo $lang_profile_characters['ally']; ?></strong></td>
@@ -342,6 +352,7 @@ generate_profile_menu('characters');
 						</table>
 					</div>
 				</fieldset>
+				<br/>
 				<a class="api_reload_avatars" href="profile.php?section=characters&amp;id=<?php echo $id ?>&amp;action=reload_pics"><?php echo $lang_profile_characters['reload_avatars']; ?></a><br/><br/>
 				<?php
 					if (strlen($selected_char['token']) > 0 && $pun_config['ts3_enabled'] == '1') {

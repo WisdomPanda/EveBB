@@ -545,6 +545,7 @@ function install_poll()
  * Installs the table for RSS feed support.
  */
 function install_feed() {
+	global $db;
 	$db->query('CREATE TABLE '.$db->prefix.'feeds ( url varchar(255) NOT NULL default \'\', max int(11) NOT NULL default 0, closed tinyint(1) NOT NULL default 0, forum_id int(11) NOT NULL default 0, last_post INT(10) NOT NULL default 0, num_posts INT(10) NOT NULL default 0, PRIMARY KEY  (url) )' );
 } //End install_feed().
 

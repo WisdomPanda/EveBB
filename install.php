@@ -21,6 +21,8 @@ define('MIN_PGSQL_VERSION', '7.0.0');
 define('PUN_SEARCH_MIN_WORD', 3);
 define('PUN_SEARCH_MAX_WORD', 20);
 
+//Functions for EvE-BB
+define('EVE_ENABLED', 1);
 
 define('PUN_ROOT', dirname(__FILE__).'/');
 
