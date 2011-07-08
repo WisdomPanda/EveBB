@@ -634,7 +634,10 @@ function doToolbar() {
 
 //Adding the Toolbar on the right place
 function addToolbar(){
-        var textarea = document.getElementsByName('<?php echo $textarea_name ?>')[0];
+    var textarea = document.getElementsByName('<?php echo $textarea_name ?>')[0];
+    if (textarea == null) {
+		return;
+    } //End if.
 	var span = document.createElement('span');
 	span.setAttribute("id","ezbbctoolbar");
 	span.setAttribute("idName","ezbbctoolbar"); /* For IE */

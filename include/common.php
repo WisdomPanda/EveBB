@@ -229,6 +229,13 @@ if (!defined('PUN_SEARCH_MAX_WORD'))
  	define('FORUM_MAX_COOKIE_SIZE', 4048);
 	
 /*********** EVE-BB ***********/
+ 	
+//See if they are allowed to have their own style.
+
+if ($pun_config['o_allow_style'] != '1') {
+	$pun_user['style'] = $pun_config['o_default_style'];
+} //End if.
+ 	
 task_runner(); //Run our updating tasks, skip it if possible to avoid load.
 
 /*********** EVE-BB ***********/

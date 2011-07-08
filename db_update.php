@@ -1629,6 +1629,12 @@ switch ($stage)
 			$db->prefix.'config' //Table
 		);
 		
+		$db->insert_or_update(
+			array('conf_name' => 'o_allow_style', 'conf_value' => '1'), //Fields
+			'conf_name', //Primary Key
+			$db->prefix.'config' //Table
+		);
+		
 		generate_config_cache();
 
 		break;

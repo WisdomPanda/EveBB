@@ -152,7 +152,7 @@ if (!isset($_POST['form_sent']))
 	$title = $lang_install['My FluxBB Forum'];
 	$description = '<p><span>'.$lang_install['Description'].'</span></p>';
 	$default_lang = $install_lang;
-	$default_style = 'evebb';
+	$default_style = 'evebbgray';
 }
 else
 {
@@ -2103,6 +2103,7 @@ else
 		'o_make_links'				=> "'1'",
 		'o_default_lang'			=> "'".$db->escape($default_lang)."'",
 		'o_default_style'			=> "'".$db->escape($default_style)."'",
+		'o_allow_style' 			=> "'1'",
 		'o_default_user_group'		=> "'4'",
 		'o_topic_review'			=> "'15'",
 		'o_disp_topics_default'		=> "'30'",
