@@ -31,6 +31,8 @@ $lang_admin_options = array(
 'Language help'						=>	'The default language for guests and users who haven\'t changed from the default in their profile. If you remove a language pack, this must be updated.',
 'Default style label'				=>	'Default style',
 'Default style help'				=>	'The default style for guests and users who haven\'t changed from the default in their profile.',
+'allow_style_label'					=>	'Allow Personal Style',
+'allow_style_help'					=>	'Allow users to select their own styles. If set to no, the default style will override their choice.',
 
 // Essentials section timezone options
 'UTC-12:00'							=>	'(UTC-12:00) International Date Line West',

@@ -33,6 +33,7 @@ if (isset($_POST['form_sent']))
 		'default_dst'			=> $_POST['form']['default_dst'] != '1' ? '0' : '1',
 		'default_lang'            => pun_trim($_POST['form']['default_lang']),
 		'default_style'            => pun_trim($_POST['form']['default_style']),
+		'allow_style'            => pun_trim($_POST['form']['allow_style']),
 		'time_format'			=> pun_trim($_POST['form']['time_format']),
 		'date_format'			=> pun_trim($_POST['form']['date_format']),
 		'timeout_visit'			=> intval($_POST['form']['timeout_visit']),
@@ -200,7 +201,17 @@ if (isset($_POST['form_sent']))
 				$value = 'NULL';
 
 			$db->query('UPDATE '.$db->prefix.'config SET conf_value='.$value.' WHERE conf_name=\'o_'.$db->escape($key).'\'') or error('Unable to update board config', __FILE__, __LINE__, $db->error());
-		}
+		} else if (in_array($key, $form)) {
+			//New value added to $form, lets insert it.
+			
+			//Just to be on the safe side.
+			$db->insert_or_update(
+				array('conf_name' => 'o_'.$key, 'conf_value' => $input), //Fields
+				'conf_name', //Primary Key
+				$db->prefix.'config' //Table
+			);
+			
+		} //End if - else.
 	}
 
 	// Regenerate the config cache
@@ -347,6 +358,13 @@ generate_admin_menu('options');
 ?>
 										</select>
 										<span><?php echo $lang_admin_options['Default style help'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_options['allow_style_label'] ?></th>
+									<td>
+										<input type="radio" name="form[allow_style]" value="1"<?php if ($pun_config['o_allow_style'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[allow_style]" value="0"<?php if ($pun_config['o_allow_style'] == '0') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_options['allow_style_help'] ?></span>
 									</td>
 								</tr>
 							</table>
@@ -588,6 +606,7 @@ generate_admin_menu('options');
                                 <tr>
                                     <th scope="row"><?php echo $lang_admin_options['Default feed label'] ?></th>
                                     <td>
+										<input type="radio" name="form[feed_type]" value="0"<?php if ($pun_config['o_feed_type'] == '0') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_options['None'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[feed_type]" value="1"<?php if ($pun_config['o_feed_type'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_options['RSS'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[feed_type]" value="2"<?php if ($pun_config['o_feed_type'] == '2') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_options['Atom'] ?></strong>
                                         <span><?php echo $lang_admin_options['Default feed help'] ?></span>
                                     </td>
                                 </tr>

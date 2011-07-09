@@ -310,7 +310,7 @@ generate_profile_menu('characters');
 							</tr>
 							<tr>
 								<td><strong><?php echo $lang_profile_characters['corp']; ?></strong></td>
-								<td><?php echo $selected_char['corp_name']; ?> <a href="profile.php?section=characters&amp;id=<?php echo $id ?>&amp;action=add_corp"><?php echo $lang_profile_characters['auth_corp']?></a></td>
+								<td><?php echo $selected_char['corp_name']; ?> <?php if ($pun_user['g_id'] == PUN_ADMIN && $selected_char['allowed'] == 0) { ?><a href="profile.php?section=characters&amp;id=<?php echo $id ?>&amp;action=add_corp"><?php echo $lang_profile_characters['auth_corp']?></a><?php }?></td>
 							</tr>
 							<tr>
 								<td><strong><?php echo $lang_profile_characters['ally']; ?></strong></td>

@@ -41,10 +41,62 @@ if ($action == 'del_group') {
 	
 	confirm_referrer('profile.php');
 	
-	$sql = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$id." AND group_id=".intval($_GET['g_id']);
+	$g_id = intval($_GET['g_id']);
+	
+	//Need to get some details.
+	$sql = "SELECT group_id FROM ".$db->prefix."users WHERE id=".$id;
+	
+	if (!$result = $db->query($sql)) {
+		if (defined('PUN_DEBUG')) {
+			error('Unable to fetch user information.', __FILE__, __LINE__, $db->error());
+		} //End if.
+		message('Unable to fetch user information.');
+	} //End if.
+	
+	if ($db->num_rows($result) != 1) {
+		if (defined('PUN_DEBUG')) {
+			error('User information is incomplete.', __FILE__, __LINE__, $db->error());
+		} //End if.
+		message('User information is incomplete.');
+	} //End if.
+	
+	$result = $db->fetch_assoc($result);
+	
+	
+	if ($result['group_id'] == $g_id) {
+		
+		//Lets see if they are in any other groups...
+		$sql = "SELECT group_id FROM ".$db->prefix."groups_users WHERE user_id=".$id." ORDER BY group_id ASC";
+		
+		if (!$result = $db->query($sql)) {
+			if (defined('PUN_DEBUG')) {
+				error('Unable to fetch group information.', __FILE__, __LINE__, $db->error());
+			} //End if.
+			message('Unable to fetch group information.');
+		} //End if.
+		
+		$new_g_id = $pun_config['o_eve_restricted_group'];
+		
+		if ($db->num_rows($result) > 0) {
+			$result = $db->fetch_assoc($result);
+			$new_g_id = $result['group_id']; //Move the to the highest group, numerically speaking.
+		} //End if.
+		
+		//We update their main group...
+		$sql = "UPDATE ".$db->prefix."users SET group_id=".$new_g_id." WHERE id=".$id;
+		if (!$result = $db->query($sql)) {
+			if (defined('PUN_DEBUG')) {
+				error('Unable to update user information.', __FILE__, __LINE__, $db->error());
+			} //End if.
+			message('Unable to update user information.');
+		} //End if.
+		
+	} //End if.
+		
+	$sql = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$id." AND group_id=".$g_id;
 	if (!$db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error('Unable to delete group from table.');
+			error('Unable to delete group from table.', __FILE__, __LINE__, $db->error());
 		} //End if.
 		message($lang_common['Bad request']);
 	} //End if.
@@ -1786,6 +1838,7 @@ else
 				while ($cur_group = $db->fetch_assoc($result)) {
 					if ($cur_group['g_id'] == $user['g_id'] || ($cur_group['g_id'] == $pun_config['o_default_user_group'] && $user['g_id'] == '')) {
 						echo "\t\t\t\t\t\t\t\t".'<option value="'.$cur_group['g_id'].'" selected="selected">'.pun_htmlspecialchars($cur_group['g_title']).'</option>'."\n";
+						$current_group = pun_htmlspecialchars($cur_group['g_title']);
 					} else {
 						echo "\t\t\t\t\t\t\t\t".'<option value="'.$cur_group['g_id'].'">'.pun_htmlspecialchars($cur_group['g_title']).'</option>'."\n";
 					} //End if - else.
@@ -1827,6 +1880,7 @@ echo $add_group_select;
 							<table class="aligntop" cellspacing="0">
 <?php
 
+echo "\t\t\t\t\t\t\t\t".'<tr><th scope="row"><a href="profile.php?section=admin&amp;action=del_group&amp;g_id='.$user['g_id'].'&amp;id='.$id.'">'.$lang_profile['Delete link'].'</a></th><td>'.pun_htmlspecialchars($current_group).'</td></tr>'."\n";
 $sql = '
 	SELECT
 		ug.*,
@@ -1846,9 +1900,7 @@ if ($db->num_rows($result) > 0) {
 	while ($row = $db->fetch_assoc($result)) {
 		echo "\t\t\t\t\t\t\t\t".'<tr><th scope="row"><a href="profile.php?section=admin&amp;action=del_group&amp;g_id='.$row['g_id'].'&amp;id='.$id.'">'.$lang_profile['Delete link'].'</a></th><td>'.pun_htmlspecialchars($row['g_title']).'</td></tr>'."\n";
 	} //End while loop.
-} else {
-	echo "\t\t\t\t\t\t\t\t".'<tr><td>'.$lang_profile['delete_group_none'].'</td></tr>'."\n";
-} //End if - else.
+}  //End if - else.
 ?>
 							</table>
 						</div>
