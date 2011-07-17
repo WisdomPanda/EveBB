@@ -211,7 +211,7 @@ function create_token($id, $username) {
 	
 	telnet_send($socket, $token);
 	$response = telnet_read($socket);
-	if ($response['id'] != 0 && isset($response['token'])) {
+	if ($response['id'] != 0 && !isset($response['token'])) {
 		if (defined('PUN_DEBUG')) {
 			message("An error has occured while creating the token for <b>".$username."</b> on the Teamspeak3 server.<br/><br/>".$response['msg']);
 		} //End if.
