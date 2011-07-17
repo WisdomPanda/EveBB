@@ -68,6 +68,16 @@ if (isset($_POST['update_settings'])) {
 	
 } //End if.
 
+if (isset($_GET['create_tokens'])) {
+	create_token(2, 'TEST') or message("Unable to create token");
+	message("TS3 token created.");
+} //End if.
+
+if (isset($_GET['clean_tokens'])) {
+	clean_tokens() or message("Unable to clean tokens");
+	message("TS3 tokens cleaned.");
+} //End if.
+
 // Display the admin navigation menu
 generate_admin_menu($plugin);
 
@@ -78,6 +88,7 @@ generate_admin_menu($plugin);
 			<div class="inbox">
 				<p><?php echo $lang_ts3_plugin['info1'] ?></p>
 				<p><?php echo $lang_ts3_plugin['info2'] ?></p>
+				<p><?php echo $lang_ts3_plugin['clean'] ?></p>
 			</div>
 		</div>
 
