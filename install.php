@@ -235,6 +235,40 @@ else
 		// Validate prefix
 		if (strlen($db_prefix) > 0 && (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $db_prefix) || strlen($db_prefix) > 40))
 			error(sprintf($lang_install['Table prefix error'], $db->prefix));
+			
+		// Load the appropriate DB layer class
+		switch ($db_type)
+		{
+			case 'mysql':
+				require PUN_ROOT.'include/dblayer/mysql.php';
+				break;
+	
+			case 'mysql_innodb':
+				require PUN_ROOT.'include/dblayer/mysql_innodb.php';
+				break;
+	
+			case 'mysqli':
+				require PUN_ROOT.'include/dblayer/mysqli.php';
+				break;
+	
+			case 'mysqli_innodb':
+				require PUN_ROOT.'include/dblayer/mysqli_innodb.php';
+				break;
+	
+			case 'pgsql':
+				require PUN_ROOT.'include/dblayer/pgsql.php';
+				break;
+	
+			case 'sqlite':
+				require PUN_ROOT.'include/dblayer/sqlite.php';
+				break;
+	
+			default:
+				error(sprintf($lang_install['DB type not valid'], pun_htmlspecialchars($db_type)));
+		}
+	
+		// Create the database object (and connect/select db)
+		$db = new DBLayer($db_host, $db_username, $db_password, $db_name, $db_prefix, false);
 	
 		// Do some DB type specific checks
 		switch ($db_type)
