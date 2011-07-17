@@ -13,6 +13,8 @@ define('PUN_PLUGIN_LOADED', 1);
 // The rest is up to you!
 //
 
+$plugin = 'AP_Feed_Aggregator.php';
+
 $result = $db->query('SELECT f.url, f.max, f.closed, f.forum_id, f.last_post, f.num_posts, fo.forum_name FROM '.$db->prefix.'feeds AS f LEFT JOIN '.$db->prefix.'forums AS fo ON f.forum_id = fo.id ORDER BY fo.forum_name ASC, f.last_post ASC');
 
 // Unistalled
@@ -20,7 +22,7 @@ if( $result === FALSE ) {
 
 	if( isset( $_REQUEST['install'] ) ) {
 		$db->query('CREATE TABLE '.$db->prefix.'feeds ( url varchar(255) NOT NULL default \'\', max int(11) NOT NULL default 0, closed tinyint(1) NOT NULL default 0, forum_id int(11) NOT NULL default 0, last_post INT(10) NOT NULL default 0, num_posts INT(10) NOT NULL default 0, PRIMARY KEY  (url) )' );
-		redirect( '?plugin='.$plugin, 'Feed Agregator installed' );
+		redirect( 'admin_loader.php?plugin='.$plugin, 'Feed Agregator installed' );
 	}
 
 // Display the admin navigation menu
@@ -58,16 +60,16 @@ $url = trim( $_REQUEST['url'] );
 
 if( isset( $_REQUEST['uninstall'] ) ) {
 	$db->query('DROP TABLE '.$db->prefix.'feeds') or error('Unable to drop table \'feeds\'', __FILE__, __LINE__, $db->error());
-	redirect( '?plugin='.$plugin, 'Feed Agregator uninstalled' );
+	redirect( 'admin_loader.php?plugin='.$plugin, 'Feed Agregator uninstalled' );
 
 } else if( isset( $_REQUEST['delete'] ) && isset( $feeds[$url] ) ) {
 	$db->query('DELETE FROM '.$db->prefix.'feeds WHERE url = \''.$db->escape( $url ).'\'' ) or error('Unable to delete feed', __FILE__, __LINE__, $db->error());
-	redirect( '?plugin='.$plugin, 'Feed deleted' );
+	redirect( 'admin_loader.php?plugin='.$plugin, 'Feed deleted' );
 
 } else if( isset( $_REQUEST['add'] ) && ! isset( $feeds[$url] ) ) {
 	$closed = empty( $_REQUEST['closed'] ) ? 0 : 1;
 	$db->query('INSERT INTO '.$db->prefix.'feeds ( url, max, closed, forum_id ) VALUES ( \''.$db->escape( $url ).'\', '.intval( $_REQUEST['max'] ).', '.$closed.', '.intval( $_REQUEST['forum_id'] ).' )') or error('Unable to create feed', __FILE__, __LINE__, $db->error());
-	redirect( '?plugin='.$plugin, 'Feed added' );
+	redirect( 'admin_loader.php?plugin='.$plugin, 'Feed added' );
 }
 
 generate_admin_menu( $plugin );
@@ -114,7 +116,7 @@ generate_admin_menu( $plugin );
 
 						<tbody>
 							<tr>
-								<td><input type="text" maxlength="255" size="40" name="url" value="http://" /></td>
+								<td><input type="text" maxlength="255" name="url" value="http://" /></td>
 								<td>
 									<select name="forum_id">
 <?php
