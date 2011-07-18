@@ -16,11 +16,21 @@ require PUN_ROOT.'lang/'.$admin_language.'/admin_eve_online.php';
 
 $action = isset($_GET['action']) ? $_GET['action'] : null;
 
-if ($action == "refresh_alliance_list") {
+if ($action == 'refresh_alliance_list') {
 	
 	if (!refresh_alliance_list()) {
-		message("Unable to refresh alliance list.");
+		message('Unable to refresh alliance list.');
 	} //End if.
+	
+	$sql = "SELECT * FROM ".$db->prefix."api_allowed_alliance";
+	$result = $db->query($sql) or error("Unable to fetch current alliance list.");
+	
+	while ($row = $db->fetch_assoc($result)) {
+		add_alliance($row['allianceID']);
+	} //End while loop.
+
+	task_check_auth();
+	apply_rules();
 	
 	redirect('admin_eve_alliance.php', $lang_admin_eve_online['alliance_list_refresh_redirect']);
 	
