@@ -255,9 +255,7 @@ function test_connection(&$msg, &$log) {
 	$socket;
 
 	if (!telnet_open($pun_config['ts3_ip'], intval($pun_config['ts3_query_port']), intval($pun_config['ts3_timeout']), $socket)) {
-		if (defined('PUN_DEBUG')) {
-			$msg = "Unable to open a connection to the Teamspeak3 server.<br/><br/>Please verify it is currently running and accepting connections.";
-		} //End if.
+		$msg = "Unable to open a connection to the Teamspeak3 server.<br/><br/>Please verify it is currently running and accepting connections.";
 		telnet_close($socket);
 		return false;
 	} //End if.
@@ -268,12 +266,10 @@ function test_connection(&$msg, &$log) {
 	telnet_send($socket, "login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass']);
 	$response = telnet_read($socket);
 	if ($response['id'] != 0) {
-		if (defined('PUN_DEBUG')) {
-			$msg = "An error has occured while logging into the Teamspeak3 server.<br/><br/>".$response['error'].
+		$msg = "An error has occured while logging into the Teamspeak3 server.<br/><br/>".$response['error'].
 				'Server: '.$pun_config['ts3_ip'].':'.intval($pun_config['ts3_query_port']).', '.intval($pun_config['ts3_timeout']).'<br/><br/>'.
 				'Command sent: '."login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass'].'<br/><br/>'.
 				'Received: '.$response['msg'];
-		} //End if.
 		telnet_close($socket);
 		return false;
 	} //End if.
@@ -284,9 +280,7 @@ function test_connection(&$msg, &$log) {
 	telnet_send($socket, "use sid=".$pun_config['ts3_sid']);
 	$response = telnet_read($socket);
 	if ($response['id'] != 0) {
-		if (defined('PUN_DEBUG')) {
-			$msg = "An error has occured while selecting the <b>sid</b> of the Teamspeak3 server.<br/><br/>".$response['msg'];
-		} //End if.
+		$msg = "An error has occured while selecting the <b>sid</b> of the Teamspeak3 server.<br/><br/>".$response['msg'];
 		telnet_close($socket);
 		return false;
 	} //End if.
@@ -298,9 +292,7 @@ function test_connection(&$msg, &$log) {
 	
 	$response = telnet_read_blob($socket);
 	if ($response['id'] !=  0) {
-		if (defined('PUN_DEBUG')) {
-			$msg = "An error has occured while listing the tokens of the Teamspeak3 server.<br/><br/>".$response['msg'];
-		} //End if.
+		$msg = "An error has occured while listing the tokens of the Teamspeak3 server.<br/><br/>".$response['msg'];
 		telnet_close($socket);
 		return false;
 	} //End if.
