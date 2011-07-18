@@ -248,6 +248,83 @@ function telnet_read_blob(&$socket) {
 	
 } //End function telnet_read().
 
+function test_connection(&$msg, &$log) {
+	global $db, $pun_config;
+	$log = 'Trying to connect to server... ';
+	
+	$socket;
+
+	if (!telnet_open($pun_config['ts3_ip'], intval($pun_config['ts3_query_port']), intval($pun_config['ts3_timeout']), $socket)) {
+		if (defined('PUN_DEBUG')) {
+			$msg = "Unable to open a connection to the Teamspeak3 server.<br/><br/>Please verify it is currently running and accepting connections.";
+		} //End if.
+		telnet_close($socket);
+		return false;
+	} //End if.
+	
+	$log .= "Done.\n";
+	$log .= "Sending login information... ";
+	
+	telnet_send($socket, "login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass']);
+	$response = telnet_read($socket);
+	if ($response['id'] != 0) {
+		if (defined('PUN_DEBUG')) {
+			$msg = "An error has occured while logging into the Teamspeak3 server.<br/><br/>".$response['error'].
+				'Server: '.$pun_config['ts3_ip'].':'.intval($pun_config['ts3_query_port']).', '.intval($pun_config['ts3_timeout']).'<br/><br/>'.
+				'Command sent: '."login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass'].'<br/><br/>'.
+				'Received: '.$response['msg'];
+		} //End if.
+		telnet_close($socket);
+		return false;
+	} //End if.
+	
+	$log .= "Done.\n";
+	$log .= "Selecting server... ";
+	
+	telnet_send($socket, "use sid=".$pun_config['ts3_sid']);
+	$response = telnet_read($socket);
+	if ($response['id'] != 0) {
+		if (defined('PUN_DEBUG')) {
+			$msg = "An error has occured while selecting the <b>sid</b> of the Teamspeak3 server.<br/><br/>".$response['msg'];
+		} //End if.
+		telnet_close($socket);
+		return false;
+	} //End if.
+	
+	$log .= "Done.\n";
+	$log .= "Listing tokens... ";
+	
+	telnet_send($socket, "privilegekeylist");
+	
+	$response = telnet_read_blob($socket);
+	if ($response['id'] !=  0) {
+		if (defined('PUN_DEBUG')) {
+			$msg = "An error has occured while listing the tokens of the Teamspeak3 server.<br/><br/>".$response['msg'];
+		} //End if.
+		telnet_close($socket);
+		return false;
+	} //End if.
+	
+	if (count($response['tokens']) == 0) {
+		$log .= " [0] tokens found.";
+		telnet_close($socket);
+		return true;
+	} //End if.
+	
+	$log .= " [".count($response['tokens'])."] tokens found.\n";
+	$log .= "Listing token descriptions; \n";
+	
+	foreach($response['tokens'] as $token) {
+		$log .= str_replace('\s', ' ', $token['token_description'])."\n";
+	} //End foreach().
+	
+	telnet_close($socket);
+	
+	$msg = 'EveBB has successfully establish a connection to your Teamspeak3 server!';
+	
+	return true;
+} //End test_connection().
+
 function create_token($id, $username) {
 	global $db, $pun_config;
 	
@@ -257,6 +334,7 @@ function create_token($id, $username) {
 		if (defined('PUN_DEBUG')) {
 			message("Unable to open a connection to the Teamspeak3 server.<br/><br/>Please verify it is currently running and accepting connections.");
 		} //End if.
+		telnet_close($socket);
 		return false;
 	} //End if.
 	
@@ -266,6 +344,7 @@ function create_token($id, $username) {
 		if (defined('PUN_DEBUG')) {
 			message("An error has occured while logging into the Teamspeak3 server.<br/><br/>".$response['msg']);
 		} //End if.
+		telnet_close($socket);
 		return false;
 	} //End if.
 	
@@ -275,6 +354,7 @@ function create_token($id, $username) {
 		if (defined('PUN_DEBUG')) {
 			message("An error has occured while selecting the <b>sid</b> of the Teamspeak3 server.<br/><br/>".$response['msg']);
 		} //End if.
+		telnet_close($socket);
 		return false;
 	} //End if.
 	
@@ -289,6 +369,7 @@ function create_token($id, $username) {
 		if (defined('PUN_DEBUG')) {
 			message("An error has occured while creating the token for <b>".$username."</b> on the Teamspeak3 server.<br/><br/>".$response['msg']);
 		} //End if.
+		telnet_close($socket);
 		return false;
 	} //End if.
 	
@@ -316,6 +397,7 @@ function delete_token($id, $username, $cldbid = 0) {
 		if (defined('PUN_DEBUG')) {
 			message("Unable to open a connection to the Teamspeak3 server.<br/><br/>Please verify it is currently running and accepting connections.");
 		} //End if.
+		telnet_close($socket);
 		return false;
 	} //End if.
 	
@@ -325,6 +407,7 @@ function delete_token($id, $username, $cldbid = 0) {
 		if (defined('PUN_DEBUG')) {
 			message("An error has occured while logging into the Teamspeak3 server.<br/><br/>".$response['msg']);
 		} //End if.
+		telnet_close($socket);
 		return false;
 	} //End if.
 	
@@ -334,6 +417,7 @@ function delete_token($id, $username, $cldbid = 0) {
 		if (defined('PUN_DEBUG')) {
 			message("An error has occured while selecting the <b>sid</b> of the Teamspeak3 server.<br/><br/>".$response['msg']);
 		} //End if.
+		telnet_close($socket);
 		return false;
 	} //End if.
 	
@@ -344,6 +428,7 @@ function delete_token($id, $username, $cldbid = 0) {
 			if (defined('PUN_DEBUG')) {
 				message("An error has occured while searching for the token beloning to <b>".$username."</b> on the Teamspeak3 server.<br/><br/>".$response['msg']);
 			} //End if.
+		telnet_close($socket);
 			return false;
 		} //End if.
 		
@@ -361,9 +446,12 @@ function delete_token($id, $username, $cldbid = 0) {
 			if (defined('PUN_DEBUG')) {
 				message("An error has occured while deleting <b>".$username."</b> from the Teamspeak3 server.<br/><br/>".$response['msg']);
 			} //End if.
+			telnet_close($socket);
 			return false;
 		} //End if.
 	} //End if.
+	
+	telnet_close($socket);
 	
 	$sql = "DELETE FROM ".$db->prefix."teamspeak3 WHERE id=".$id;
 	if (!$db->query($sql)) {
@@ -372,8 +460,6 @@ function delete_token($id, $username, $cldbid = 0) {
 		} //End if.
 		return false;
 	} //End if.
-	
-	telnet_close($socket);
 	
 	clean_tokens(true);
 	

@@ -51,6 +51,7 @@ This should be a basic access group, without any special rights other than being
 'ts3_auth_group_info' => 'Only the users in this group will have tokens created.<br/>Use the Group Rules to facilitate easy admin!',
 'clean' => 'You may wish to peridoically <a href="admin_loader.php?plugin=AP_Teamspeak3.php&amp;clean_tokens">Remove old Privilege Keys</a> to clear out unused keys.<br/>
 However, this is called when a user is found to be disallowed, so it shouldn\'t be totally required.',
+'test' => '<a href="admin_loader.php?plugin=AP_Teamspeak3.php&amp;test_connection">Test Connection</a>',
 
 );
 ?>
