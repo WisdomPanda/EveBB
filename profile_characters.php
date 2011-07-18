@@ -46,7 +46,6 @@ $sql = "
 	
 if (!$result = $db->query($sql)) {
 	$error[] = "Unable to fetch your character.";
-	message("Unable to fetch character.");
 } //End if.
 
 if ($db->num_rows($result) == 0) {
@@ -60,9 +59,10 @@ if (empty($error)) {
 if ($action == 'add_corp') {
 	
 	if ($pun_user['g_id'] == PUN_ADMIN) {
-		add_corp($selected_char['corporationID']) or message("Unable to add corp");
+				
+		add_corp($selected_char['corp_id']) or error("Unable to add corp", __FILE__, __LINE__, $db->error());
 		
-		redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['add_redirect']);
+		redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['add_corp_redirect']);
 	} //End if.
 	
 } //End if.

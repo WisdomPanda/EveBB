@@ -289,8 +289,6 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 function task_check_auth() {
 	global $db, $pun_config, $lang_common;
 	
-	//We catch any exceptions thrown, so their text is more for debugging than real input.
-	
 	$sql = "
 		SELECT
 			noauth.user_id,
@@ -500,7 +498,7 @@ function apply_rules() {
 	$sql = '';
 	$characters = array();
 	
-	//We are fetching a lot of character data here, this is mainly for future planning, the information will just be there.
+	//We are fetching a lot of character data here, this is now passed to the new $_HOOKS classes for any handling they want to do.
 	
 	//We need to get the characters we'll be working with first.
 	
@@ -857,12 +855,14 @@ function purge_corp($id, $remove_group = true) {
  * Use purge corp if you wish to disallow a corp.
  */
 function add_corp($corpID, $allowed = true) {
-	global $db;
-	$url = "http://api.eve-online.com/corp/CorporationSheet.xml.aspx";
+	global $db,$_LAST_ERROR;
 	
 	$corp_sheet = new Corporation();
 	
 	if (!$corp_sheet->load_corp($corpID)) {
+		if (defined('PUN_DEBUG')) {
+			error("[".$_LAST_ERROR."] Unable to fetch corp data.", __FILE__, __LINE__, $db->error());
+		} //End if.
 		return false;
 	} //End if.
 	
@@ -1333,8 +1333,8 @@ function fetch_topic_poster_character($id) {
 	if ($db->num_rows($result) == 0) {
 		/*if (defined('PUN_DEBUG')) {
 			error("Unable to find character data.".$sql, __FILE__, __LINE__, $db->error());
-		} //End if.
-		return false;*/
+		} //End if.*/
+		return false;
 	} //End if.
 	
 	return $db->fetch_assoc($result);
@@ -1564,11 +1564,8 @@ function post_request($url, $data = array(), $optional_headers = array()) {
 	$context;
 	
 	if (count($data) == 0) {
-		
 		$context = stream_context_create();
-		
 		$file = fopen($url, 'r', false, $context);
-
 	} else {
 		$params = array('http' =>
 				array(
@@ -1576,20 +1573,16 @@ function post_request($url, $data = array(), $optional_headers = array()) {
 					'content' => http_build_query($data)
 				)
 		);
-		
 		$context = stream_context_create($params);
-
 	}  //End if - else.
 	
 	$file = @fopen($url, 'r', false, $context);
 	
 	if (!$file) {
 		return false;
-		//throw new Exception("Unable to fetch data.<br/>URL: ".$url);
 	} //End if.
 	
 	$response = stream_get_contents($file);
-	
 	fclose($file);
 	
 	return $response;

@@ -40,7 +40,7 @@ $lang_profile_characters = array(
 'refresh_keys' 					=> '[Refresh Characters]',
 'regen_redirect' 				=> 'TS3 token successfully regenerated! Redirecting...',
 'auth_corp' 						=> '(Add corp to allowed list)',
-'add_redirect' 					=> 'Corporation allowed successfully! Redirecting...',
+'add_corp_redirect' 			=> 'Corporation allowed successfully! Redirecting...',
 
 
 );

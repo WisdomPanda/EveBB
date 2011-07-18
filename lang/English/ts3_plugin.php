@@ -48,7 +48,10 @@ This should be a basic access group, without any special rights other than being
 (See above link for details)',
 'ts3_channel_id_info' => 'Their default Channel ID, safe to leave it at 0.',
 'ts3_server_name_info' => 'Name of your server, does not need to be accurate, it is used to create bookmark links.',
-'ts3_auth_group_info' => 'Only the users in this group will have tokens created.<br/>Use the Group Rules to facilitate easy admin!'
+'ts3_auth_group_info' => 'Only the users in this group will have tokens created.<br/>Use the Group Rules to facilitate easy admin!',
+'clean' => 'You may wish to peridoically <a href="admin_loader.php?plugin=AP_Teamspeak3.php&amp;clean_tokens">Remove old Privilege Keys</a> to clear out unused keys.<br/>
+However, this is called when a user is found to be disallowed, so it shouldn\'t be totally required.',
+'test' => '<a href="admin_loader.php?plugin=AP_Teamspeak3.php&amp;test_connection">Test Connection</a>',
 
 );
 ?>
