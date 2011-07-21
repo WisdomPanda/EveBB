@@ -12,6 +12,9 @@ if (!defined('PUN_ROOT'))
 // Define the version and database revision that this code was written for
 define('FORUM_VERSION', '1.4.5');
 define('EVE_BB_VERSION', '1.1.0');
+//Functions for EvE-BB
+define('EVE_ENABLED', 1);
+require(PUN_ROOT.'include/eve_functions.php');
 
 define('FORUM_DB_REVISION', 11);
 define('FORUM_SI_REVISION', 2);
@@ -41,38 +44,6 @@ if (defined('FORUM'))
 
 // Load the functions script
 require PUN_ROOT.'include/functions.php';
-
-/*********** EvE-BB FUNCTIONS ***********/
-//Functions for EvE-BB
-define('EVE_ENABLED', 1);
-
-//We now make our hooks so we can run tasks via plugins.
-$_HOOKS = array(
-'rules' => array(),
-'startup' => array(),
-'users' => array(),
-'api' => array(),
-);
-
-include(PUN_ROOT.'include/hook_classes.php');
-
-//Now lets load the hook files...
-$dir = scandir(PUN_ROOT.'plugins/hooks');
-foreach ($dir as $d) {
-	if (strlen($d) < 5) {
-		continue;
-	} //End if.
-	
-	if (substr($d, -3) != "php") {
-		continue;
-	} //End if.
-
-	require(PUN_ROOT.'plugins/hooks/'.$d);
-	
-} //End foreach().
-
-require(PUN_ROOT.'include/eve_functions.php');
-/*********** EvE-BB FUNCTIONS ***********/
 
 // Load UTF-8 functions
 require PUN_ROOT.'include/utf8/utf8.php';
@@ -235,6 +206,31 @@ if (!defined('PUN_SEARCH_MAX_WORD'))
 if ($pun_config['o_allow_style'] != '1') {
 	$pun_user['style'] = $pun_config['o_default_style'];
 } //End if.
+
+//We now make our hooks so we can run tasks via plugins.
+$_HOOKS = array(
+'rules' => array(),
+'startup' => array(),
+'users' => array(),
+'api' => array(),
+);
+
+include(PUN_ROOT.'include/hook_classes.php');
+
+//Now lets load the hook files...
+$dir = scandir(PUN_ROOT.'plugins/hooks');
+foreach ($dir as $d) {
+	if (strlen($d) < 5) {
+		continue;
+	} //End if.
+	
+	if (substr($d, -3) != "php") {
+		continue;
+	} //End if.
+
+	require(PUN_ROOT.'plugins/hooks/'.$d);
+	
+} //End foreach().
  	
 task_runner(); //Run our updating tasks, skip it if possible to avoid load.
 
