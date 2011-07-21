@@ -2218,7 +2218,7 @@ else
 		'o_eve_banner_height'	=> "'150'",
 		'o_eve_banner_text_enable' => "'1'",
 		'o_eve_max_groups' => "'100'",
-		'o_hide_stats' => false
+		'o_hide_stats' => "'0'"
 		/*---------- EvE-BB INSTALL Options ---------*/
 	);
 
