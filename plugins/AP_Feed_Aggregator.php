@@ -9,6 +9,7 @@ if (!defined('PUN'))
 // Tell admin_loader.php that this is indeed a plugin and that it is loaded
 define('PUN_PLUGIN_LOADED', 1);
 
+
 //
 // The rest is up to you!
 //
