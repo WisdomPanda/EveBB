@@ -213,37 +213,9 @@ function add_alliance($allianceID) {
 		return false;
 	} //End if.
 	
-	/*$sql = "
-			INSERT INTO
-				".$db->prefix."api_allowed_alliance
-					(
-						allianceID,
-						allianceName,
-						ticker,
-						executorCorpID,
-						memberCount,
-						startDate,
-						allowed
-					)
-			VALUES
-					(
-						".$allianceID.",
-						'".$alliance['name']."',
-						'".$alliance['shortName']."',
-						".$alliance['executorCorpID'].",
-						".$alliance['memberCount'].",
-						'".$alliance['startDate']."',
-						1
-					)
-			ON DUPLICATE KEY UPDATE
-				executorCorpID=".$alliance['executorCorpID'].",
-				memberCount=".$alliance['memberCount'].",
-				allowed=1
-			;";*/
-	
 	$fields = array(
 			'allianceID' => $allianceID,
-			'allianceName' => $alliance['name'],
+			'allianceName' => addslashes($alliance['name']),
 			'ticker' => $alliance['shortName'],
 			'startDate' => $alliance['startDate'],
 			'executorCorpID' => $alliance['executorCorpID'],
