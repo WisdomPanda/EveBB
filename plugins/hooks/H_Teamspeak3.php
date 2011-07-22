@@ -352,7 +352,7 @@ function create_token($id, $username) {
 	
 	$token = "tokenadd tokentype=0 tokenid1=".$pun_config['ts3_group_id'].
 		" tokenid2=".$pun_config['ts3_channel_id'].
-		" tokendescription=EveBB\screated\stoken\sfor\s".str_replace(' ', '\s', $username).
+		" tokendescription=EveBB\screated\stoken\sfor\s".str_replace(' ', '\s', addslashes($username)).
 		" tokencustomset=ident=forum_id\svalue=".$id;
 	
 	telnet_send($socket, $token);
