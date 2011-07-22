@@ -370,10 +370,10 @@ function create_token($id, $username) {
 	telnet_close($socket);
 	
 	//Now we add/update this to the DB.
-	if (!$db->insert_or_update(array('user_id' => $id, 'username' => $username, 'token' => $token),'user_id',$db->prefix.'teamspeak3')) {
-		if (defined('PUN_DEBUG')) {
-			message("An error has occured while creating the database information for <b>".$username."</b>.<br/><br/>Please ensure your database is correctly configured.");
-		} //End if.
+if (!$db->insert_or_update(array('user_id' => $id, 'username' => addslashes($username), 'token' => $token),'user_id',$db->prefix.'teamspeak3')) {
+		//if (defined('PUN_DEBUG')) {
+			message("An error has occured while creating the database information for <b>".$username."</b>.<br/><br/>Please ensure your database is correctly configured.<br /><br />".$db);
+		//} //End if.
 		return false;
 	} //End if.
 
