@@ -118,6 +118,7 @@ $lang_install = array(
 'FluxBB fully installed'		=>	'EveBB has been fully installed! You may now <a href="index.php">go to the forum index</a>.',
 
 //EveBB specifics.
+'Evebb_admin_api_fetch' => 'Fetch Characters',
 'Evebb_admin_api_legend' => 'Enter Administrator\'s API Details',
 'Evebb_admin_api_info1' => 'The API details of the forum administrator.',
 'Evebb_admin_api_info2' => 'You can find your EVE-Online API Key <a href="http://www.eve-online.com/api">here.</a>',

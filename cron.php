@@ -10,4 +10,6 @@ foreach ($log as $l) {
 	echo $l."<br/>";
 } //End foreach.
 
+$db->end_transaction();
+
 ?>

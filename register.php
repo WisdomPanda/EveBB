@@ -214,7 +214,8 @@ if (isset($_POST['form_sent']))
 			update_characters($new_uid, $auth);
 			select_character($new_uid, $api_character_id);
 			add_corp_from_character($api_character_id, ($pun_config['o_eve_restrict_reg_corp'] == '1' ? true : false));
-			apply_rules();
+			$log = '';
+			apply_rules($log);
 			cache_char_pic($api_character_id);
 			
 			foreach ($_HOOKS['users'] as $hook) {

@@ -94,7 +94,7 @@ You may update a rules priority by simply creating it again with a different pri
 'allowed_alliance_redirect' => 'Allowed alliance added succesfully! Redirecting...',
 'removed_alliance_redirect' => 'Alliance purged succesfully! Redirecting...',
 'removed_corp_redirect' => 'Corp purged succesfully! Redirecting...',
-'apply_rules_redirect' => 'Group rules applied succesfully! Redirecting...',
+'apply_rules' => 'Group rules have been reapplied.<br/><br/>See below for details.',
 
 //Options
 'update_settings_redirect' => 'Config updated! Redirecting...',

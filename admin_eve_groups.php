@@ -88,17 +88,21 @@ if ($action == "del_group") {
 		message("Incorrect variables sent for delete.");
 	} //End if.
 	
+	$log = '';
 	remove_rule($id, $group, $type, $role) or message("Unable to modify group rule information.");
-	apply_rules();
+	apply_rules($log);
 	redirect('admin_eve_groups.php', $lang_admin_eve_online['group_rule_del_redirect']);
 } //End if.
 
 if ($action == 'refresh_rules') {
-	if (!apply_rules()) {
+	$log = '';
+	if (!apply_rules($log)) {
 		message("Unable to apply rules.");
 	} //End if.
 	
-	redirect('admin_eve_groups.php', $lang_admin_eve_online['apply_rules_redirect']);
+	message($lang_admin_eve_online['apply_rules'].'<br/>
+		<br/>
+		<div class="codebox"><pre class="vscroll"><code>'.$log.'</code></pre></div>');
 } //End if.
 
 $page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_admin_common['Admin'], $lang_admin_common['Eve Online']);
@@ -150,18 +154,18 @@ foreach ($api_roles as $key => $value) {
 											<optgroup label="Corporations">
 <?php
 
-$result = $db->query('SELECT corporationName, corporationID FROM '.$db->prefix.'api_allowed_corps WHERE allowed=1 ORDER BY corporationName') or error('Unable to fetch corporation list', __FILE__, __LINE__, $db->error());
+$result = $db->query('SELECT corporationname, corporationid FROM '.$db->prefix.'api_allowed_corps WHERE allowed=1 ORDER BY corporationName') or error('Unable to fetch corporation list', __FILE__, __LINE__, $db->error());
 
 while ($corp = $db->fetch_assoc($result))
 {
-	echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$corp['corporationID'].':0">'.pun_htmlspecialchars($corp['corporationName']).'</option>'."\n";
+	echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$corp['corporationid'].':0">'.pun_htmlspecialchars($corp['corporationname']).'</option>'."\n";
 }
 
 ?>
 											</optgroup>
 <?php
 
-$result = $db->query('SELECT allianceName, allianceID FROM '.$db->prefix.'api_allowed_alliance WHERE allowed=1 ORDER BY allianceName') or error('Unable to fetch corporation list', __FILE__, __LINE__, $db->error());
+$result = $db->query('SELECT alliancename, allianceid FROM '.$db->prefix.'api_allowed_alliance WHERE allowed=1 ORDER BY alliancename') or error('Unable to fetch corporation list', __FILE__, __LINE__, $db->error());
 
 if ($db->num_rows($result) > 0) {
 ?>
@@ -169,7 +173,7 @@ if ($db->num_rows($result) > 0) {
 <?php
 while ($corp = $db->fetch_assoc($result))
 {
-	echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$corp['allianceID'].':1">'.pun_htmlspecialchars($corp['allianceName']).'</option>'."\n";
+	echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$corp['allianceid'].':1">'.pun_htmlspecialchars($corp['alliancename']).'</option>'."\n";
 }
 ?>
 											</optgroup>

@@ -21,7 +21,7 @@ class Teamspeak3_RulesHook extends RulesHook {
 		global $db, $pun_config;
 		
 		if ($pun_config['ts3_enabled'] != '1') {
-			return; //Not enabled, do nothing.
+			return false; //Not enabled, do nothing.
 		} //End if.
 		
 		//Are they in the group we require?
@@ -29,7 +29,7 @@ class Teamspeak3_RulesHook extends RulesHook {
 		
 		//Bit of a time saver first.
 		if ($user['group_id'] != $pun_config['ts3_auth_group']) {
-			$sql = "SELECT group_id FROM ".$db->prefix."groups_users WHERE user_id=".$user['id'];
+			$sql = "SELECT group_id FROM ".$db->prefix."groups_users WHERE user_id=".$user['id']." AND group_id=".$pun_config['ts3_auth_group'];
 			
 			if (!$result = $db->query($sql)) {
 				if (defined('PUN_DEBUG')) {
@@ -39,16 +39,8 @@ class Teamspeak3_RulesHook extends RulesHook {
 			} //End if.
 			
 			if ($db->num_rows($result) == 0) {
-				//Errorz!
+				//No auths.
 				return;
-			} //End if.
-			
-			while ($row = $db->fetch_assoc($result)) {
-				$groups[] = $row['group_id'];
-			} //End while loop.
-			
-			if (!in_array($pun_config['ts3_auth_group'], $groups)) {
-				return; //Not in the right group.
 			} //End if.
 			
 		} //End if.
@@ -75,14 +67,9 @@ class Teamspeak3_RulesHook extends RulesHook {
 			return;
 		} //End if.
 		
-		//Lets build them a token!
-		$username = $user['ticker'].'-'.$user['character_name'];
-		if (strlen($user['allianceID']) > 0) {
-			$username = $user['shortName'].'-'.$username;
-		} //End if.
-		return create_token($user['id'], $username);
-		
-		return;
+		//Flag them for a token.
+		$sql = "INSERT INTO ".$db->prefix."teamspeak3(user_id, username, token) VALUES(".$user['id'].", 'queued', '0')";
+		$db->query($sql);
 	} //End authed_row().
 	
 	function restrict_user($user) {
@@ -92,15 +79,208 @@ class Teamspeak3_RulesHook extends RulesHook {
 			return; //Not enabled, do nothing.
 		} //End if.
 		
-		//The user has been moved to the naughty corner, lets strip their TS roles as well.
-		delete_token($user['id'], $user['character_name']); //username is for debugging.
+		//Flag them for delete.
+		$sql = "UPDATE ".$db->prefix."teamspeak3 SET token='d' WHERE user_id=".$user['id'].";";
+		$db->query($sql);
 		
 		return false;
 	} //End restrict_user().
 	
 } //End Teamspeak3_RulesHook class.
 
-function telnet_open($ip, $port, $timeout, &$socket) {
+function ts3_cron_task(&$log) {
+	global $db, $pun_config;
+	
+	if ($pun_config['ts3_enabled'] != '1') {
+		$log .= 'TS3 not enabled.';
+		return; //Not enabled, do nothing.
+	} //End if.
+	
+	$log .= "Starting token evaluation...<br/>\n";
+	
+	//Let's first get the list of people to get tokens
+	
+	$sql = "
+		SELECT
+			ts3.*,
+			sc.*,
+			c.*,
+			corp.*,
+			u.*,
+			g.*,
+			ally.*
+		FROM
+			".$db->prefix."teamspeak3 AS ts3
+		INNER JOIN
+			".$db->prefix."api_selected_char AS sc
+		ON
+			ts3.user_id=sc.user_id
+		INNER JOIN
+			".$db->prefix."api_characters AS c
+		ON
+			sc.character_id=c.character_id
+		INNER JOIN
+			".$db->prefix."users AS u
+		ON
+			u.id=sc.user_id
+		INNER JOIN
+			".$db->prefix."groups AS g
+		ON
+			u.group_id=g.g_id
+		LEFT JOIN
+			".$db->prefix."api_allowed_corps AS corp
+		ON
+			corp.corporationID=c.corp_id
+		LEFT JOIN
+			".$db->prefix."api_alliance_list AS ally
+		ON
+			corp.allianceID=ally.allianceID
+		WHERE
+			ts3.token='0';";
+	if (!$create_result = $db->query($sql)) {
+		if (defined('PUN_DEBUG')) {
+			error("Unable to get create list.", __FILE__, __LINE__, $db->error());
+		} //End if.
+		$log .= "Unable to get create list.<br/>\n";
+		return false;
+	} //End if.
+	
+	$log .= "Creation list gathered...<br/>\n";
+	
+	//Ok, that's done, now lets get the ones that will have a token removed...
+	
+	$sql = "
+		SELECT
+			ts3.*
+		FROM
+			".$db->prefix."teamspeak3 AS ts3
+		WHERE
+			ts3.token='d';";
+	if (!$delete_result = $db->query($sql)) {
+		if (defined('PUN_DEBUG')) {
+			error("Unable to get delete list.", __FILE__, __LINE__, $db->error());
+		} //End if.
+		$log .= "Unable to get delete list.<br/>\n";
+		return false;
+	} //End if.
+	
+	
+	$log .= "Delete list gathered...<br/>\n";
+	
+	//Now, return silently if either don't require any action...
+	if ($db->num_rows($create_result) == 0 && $db->num_rows($delete_result) == 0) {
+		$log .= "No action required, stopping process.<br/>\n";
+		return false;
+	} //End if.
+	
+	$log .= "Establishing TS3 connection...<br/>\n";
+	
+	//Someone needs something, on we go!
+	
+	//This is our persistant ts3 socket. This will stop us from flooding the server with connections.
+	$socket = null;
+	
+	if (!ts3_telnet_open($pun_config['ts3_ip'], intval($pun_config['ts3_query_port']), intval($pun_config['ts3_timeout']), $socket)) {
+		$log .= "Unable to open a connection to the Teamspeak3 server.<br/><br/>Please verify it is currently running and accepting connections.";
+		ts3_telnet_close($socket);
+		return false;
+	} //End if.
+	
+	ts3_telnet_send($socket, "login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass']);
+	$response = ts3_telnet_read($socket);
+	if ($response['id'] != 0) {
+		$log .= "An error has occured while logging into the Teamspeak3 server.<br/><br/>".$response['msg'];
+		ts3_telnet_close($socket);
+		return false;
+	} //End if.
+	
+	ts3_telnet_send($socket, "use sid=".$pun_config['ts3_sid']);
+	$response = ts3_telnet_read($socket);
+	if ($response['id'] != 0) {
+		$log .= "An error has occured while selecting the ServerID of the Teamspeak3 server.<br/><br/>".$response['msg'];
+		ts3_telnet_close($socket);
+		return false;
+	} //End if.
+
+	$log .= "Connection established.<br/>\n";
+	$log .= "Issuing tokens...<br/>\n";
+	
+	while ($user  = $db->fetch_assoc($create_result)) {
+		//Are they in the group we require?
+		$groups = array();
+		
+		$log .= "[".$user['username']."]: Checking group assignments...<br/>\n";
+		
+		//Bit of a time saver first.
+		if ($user['group_id'] != $pun_config['ts3_auth_group']) {
+			$sql = "SELECT group_id FROM ".$db->prefix."groups_users WHERE user_id=".$user['id']." AND group_id=".$pun_config['ts3_auth_group'];
+			
+			if (!$result = $db->query($sql)) {
+				$log .= "Unable to get user [".$user['id']."] group list.<br/>\n";
+				return; //Keep it silent.
+			} //End if.
+			
+			if ($db->num_rows($result) == 0) {
+				//No auths.
+				$db->query("DELETE FROM ".$db->prefix."teamspeak3 WHERE user_id=".$user['id']);
+				$log .= "Unauthed user foudn to be flagged for token, removing..<br/>\n";
+				continue;
+			} //End if.
+			
+		} //End if.
+	
+		$log .= "[".$user['username']."]: Group checks out.<br/>\n";
+		$log .= "[".$user['username']."]: Checking for existing tokens...<br/>\n";
+		
+		//The user checks out. Check to make sure they exist in the DB, and if they don't, we'll add them.
+		$sql = "
+			SELECT
+				ts3.token,
+				ts3.username AS nickname
+			FROM
+				".$db->prefix."teamspeak3 AS ts3
+			WHERE
+				ts3.user_id=".$user['id']." AND token!='0' AND token!='d'";
+
+		if (!$result = $db->query($sql)) {
+			$log .= "[".$user['username']."]: Unable to get token list.<br/>\n";
+			return; //Keep it silent.
+		} //End if.
+		
+		if ($db->num_rows($result) > 0) {
+			//They already exist.
+			$log .= "[".$user['username']."]: User already has a token.<br/>\n";
+			return;
+		} //End if.
+		
+		$log .= "[".$user['username']."]: No tokens found.<br/>\n";
+		$log .= "[".$user['username']."]: Issuing creation command...<br/>\n";
+		
+		//Lets build them a token!
+		$username = $user['ticker'].'-'.$user['character_name'];
+		if (strlen($user['allianceid']) > 0) {
+			$username = $user['shortname'].'-'.$username;
+		} //End if.
+		
+		if (!ts3_create_token($user['id'], $username, $socket)) {
+			$log .= "[".$user['username']."]:  Token creation failed. On fail we shut down the connection, so the process has been stopped.<br/>\n";
+			return;
+		} //End if.
+		
+		$log .= "[".$user['username']."]: Token created.<br/>\n";
+	} //End while loop().
+	
+	//Now, onto the delete corner!
+	while ($user = $db->fetch_assoc($delete_result)) {
+		//The user has been moved to the naughty corner, lets strip their TS roles as well.
+		ts3_delete_token($user['user_id'], $user['username'], 0, $socket); //username is for debugging.
+	} //End while loop().
+	
+	return true;
+	
+} //End ts3_cron_task().
+
+function ts3_telnet_open($ip, $port, $timeout, &$socket) {
 	$socket = @fsockopen($ip, $port, $errno, $errstr, $timeout);
 	
 	if (!$socket) {
@@ -118,17 +298,17 @@ function telnet_open($ip, $port, $timeout, &$socket) {
 	
 } //End telnet_open().
 
-function telnet_close(&$socket) {
+function ts3_telnet_close(&$socket) {
 	fputs($socket, "quit\n");
 	fclose($socket);
 	$socket = null;
 } //End telnet_close().
 
-function telnet_send(&$socket, $msg) {
+function ts3_telnet_send(&$socket, $msg) {
 	fputs($socket, $msg."\n");
 } //End telnet_send().
 
-function telnet_read(&$socket) {
+function ts3_telnet_read(&$socket) {
 	
 	$end = false;
 	$response = array();
@@ -178,7 +358,7 @@ function telnet_read(&$socket) {
 	
 } //End function telnet_read().
 
-function telnet_read_blob(&$socket) {
+function ts3_telnet_read_blob(&$socket) {
 	
 	$end = false;
 	$response = array();
@@ -248,58 +428,58 @@ function telnet_read_blob(&$socket) {
 	
 } //End function telnet_read().
 
-function test_connection(&$msg, &$log) {
+function ts3_test_connection(&$msg, &$log) {
 	global $db, $pun_config;
 	$log = 'Trying to connect to server... ';
 	
 	$socket;
 
-	if (!telnet_open($pun_config['ts3_ip'], intval($pun_config['ts3_query_port']), intval($pun_config['ts3_timeout']), $socket)) {
+	if (!ts3_telnet_open($pun_config['ts3_ip'], intval($pun_config['ts3_query_port']), intval($pun_config['ts3_timeout']), $socket)) {
 		$msg = "Unable to open a connection to the Teamspeak3 server.<br/><br/>Please verify it is currently running and accepting connections.";
-		telnet_close($socket);
+		ts3_telnet_close($socket);
 		return false;
 	} //End if.
 	
 	$log .= "Done.\n";
 	$log .= "Sending login information... ";
 	
-	telnet_send($socket, "login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass']);
-	$response = telnet_read($socket);
+	ts3_telnet_send($socket, "login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass']);
+	$response = ts3_telnet_read($socket);
 	if ($response['id'] != 0) {
 		$msg = "An error has occured while logging into the Teamspeak3 server.<br/><br/>".$response['error'].
 				'Server: '.$pun_config['ts3_ip'].':'.intval($pun_config['ts3_query_port']).', '.intval($pun_config['ts3_timeout']).'<br/><br/>'.
 				'Command sent: '."login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass'].'<br/><br/>'.
 				'Received: '.$response['msg'];
-		telnet_close($socket);
+		ts3_telnet_close($socket);
 		return false;
 	} //End if.
 	
 	$log .= "Done.\n";
 	$log .= "Selecting server... ";
 	
-	telnet_send($socket, "use sid=".$pun_config['ts3_sid']);
-	$response = telnet_read($socket);
+	ts3_telnet_send($socket, "use sid=".$pun_config['ts3_sid']);
+	$response = ts3_telnet_read($socket);
 	if ($response['id'] != 0) {
 		$msg = "An error has occured while selecting the <b>sid</b> of the Teamspeak3 server.<br/><br/>".$response['msg'];
-		telnet_close($socket);
+		ts3_telnet_close($socket);
 		return false;
 	} //End if.
 	
 	$log .= "Done.\n";
 	$log .= "Listing tokens... ";
 	
-	telnet_send($socket, "privilegekeylist");
+	ts3_telnet_send($socket, "privilegekeylist");
 	
-	$response = telnet_read_blob($socket);
+	$response = ts3_telnet_read_blob($socket);
 	if ($response['id'] !=  0) {
 		$msg = "An error has occured while listing the tokens of the Teamspeak3 server.<br/><br/>".$response['msg'];
-		telnet_close($socket);
+		ts3_telnet_close($socket);
 		return false;
 	} //End if.
 	
 	if (count($response['tokens']) == 0) {
 		$log .= " [0] tokens found.";
-		telnet_close($socket);
+		ts3_telnet_close($socket);
 		return true;
 	} //End if.
 	
@@ -310,45 +490,51 @@ function test_connection(&$msg, &$log) {
 		$log .= str_replace('\s', ' ', $token['token_description'])."\n";
 	} //End foreach().
 	
-	telnet_close($socket);
+	ts3_telnet_close($socket);
 	
 	$msg = 'EveBB has successfully establish a connection to your Teamspeak3 server!';
 	
 	return true;
 } //End test_connection().
 
-function create_token($id, $username) {
+function ts3_create_token($id, $username, &$socket) {
 	global $db, $pun_config;
 	
-	$socket;
+	$persist = false;
 	
-	if (!telnet_open($pun_config['ts3_ip'], intval($pun_config['ts3_query_port']), intval($pun_config['ts3_timeout']), $socket)) {
-		if (defined('PUN_DEBUG')) {
-			message("Unable to open a connection to the Teamspeak3 server.<br/><br/>Please verify it is currently running and accepting connections.");
-		} //End if.
-		telnet_close($socket);
-		return false;
-	} //End if.
+	if ($socket == null) {
 	
-	telnet_send($socket, "login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass']);
-	$response = telnet_read($socket);
-	if ($response['id'] != 0) {
-		if (defined('PUN_DEBUG')) {
-			message("An error has occured while logging into the Teamspeak3 server.<br/><br/>".$response['msg']);
+		if (!ts3_telnet_open($pun_config['ts3_ip'], intval($pun_config['ts3_query_port']), intval($pun_config['ts3_timeout']), $socket)) {
+			if (defined('PUN_DEBUG')) {
+				message("Unable to open a connection to the Teamspeak3 server.<br/><br/>Please verify it is currently running and accepting connections.");
+			} //End if.
+			ts3_telnet_close($socket);
+			return false;
 		} //End if.
-		telnet_close($socket);
-		return false;
-	} //End if.
+		
+		ts3_telnet_send($socket, "login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass']);
+		$response = ts3_telnet_read($socket);
+		if ($response['id'] != 0) {
+			if (defined('PUN_DEBUG')) {
+				message("An error has occured while logging into the Teamspeak3 server.<br/><br/>".$response['msg']);
+			} //End if.
+			ts3_telnet_close($socket);
+			return false;
+		} //End if.
 	
-	telnet_send($socket, "use sid=".$pun_config['ts3_sid']);
-	$response = telnet_read($socket);
-	if ($response['id'] != 0) {
-		if (defined('PUN_DEBUG')) {
-			message("An error has occured while selecting the <b>sid</b> of the Teamspeak3 server.<br/><br/>".$response['msg']);
+		ts3_telnet_send($socket, "use sid=".$pun_config['ts3_sid']);
+		$response = ts3_telnet_read($socket);
+		if ($response['id'] != 0) {
+			if (defined('PUN_DEBUG')) {
+				message("An error has occured while selecting the <b>sid</b> of the Teamspeak3 server.<br/><br/>".$response['msg']);
+			} //End if.
+			telnet_close($socket);
+			return false;
 		} //End if.
-		telnet_close($socket);
-		return false;
-	} //End if.
+	
+	} else {
+		$persist = true;
+	} //End if - else.
 	
 	$username = str_replace(' ', '\s', addslashes($username));
 	
@@ -357,19 +543,21 @@ function create_token($id, $username) {
 		" tokendescription=EveBB\screated\stoken\sfor\s".$username.
 		" tokencustomset=ident=forum_id\svalue=".$id;
 	
-	telnet_send($socket, $token);
-	$response = telnet_read($socket);
+	ts3_telnet_send($socket, $token);
+	$response = ts3_telnet_read($socket);
 	if ($response['id'] != 0 || !isset($response['token'])) {
 		if (defined('PUN_DEBUG')) {
 			message("An error has occured while creating the token for <b>".$username."</b> on the Teamspeak3 server.<br/><br/>".$response['msg']);
 		} //End if.
-		telnet_close($socket);
+		ts3_telnet_close($socket);
 		return false;
 	} //End if.
 	
 	$token = $response['token'];
 	
-	telnet_close($socket);
+	if (!$persist) {
+		ts3_telnet_close($socket);
+	} //End if.
 	
 	//Now we add/update this to the DB.
 	if (!$db->insert_or_update(array('user_id' => $id, 'username' => $username, 'token' => $token),'user_id',$db->prefix.'teamspeak3')) {
@@ -382,47 +570,55 @@ function create_token($id, $username) {
 	return true;
 } //End create_token().
 
-function delete_token($id, $username, $cldbid = 0) {
+function ts3_delete_token($id, $username, $cldbid, &$socket) {
 	global $db, $pun_config;
 	
-	$socket;
+	$persist = false;
+	
+	if ($socket == null) {
+	
+		$socket;
 
-	if (!telnet_open($pun_config['ts3_ip'], intval($pun_config['ts3_query_port']), intval($pun_config['ts3_timeout']), $socket)) {
-		if (defined('PUN_DEBUG')) {
-			message("Unable to open a connection to the Teamspeak3 server.<br/><br/>Please verify it is currently running and accepting connections.");
+		if (!ts3_telnet_open($pun_config['ts3_ip'], intval($pun_config['ts3_query_port']), intval($pun_config['ts3_timeout']), $socket)) {
+			if (defined('PUN_DEBUG')) {
+				message("Unable to open a connection to the Teamspeak3 server.<br/><br/>Please verify it is currently running and accepting connections.");
+			} //End if.
+			ts3_telnet_close($socket);
+			return false;
 		} //End if.
-		telnet_close($socket);
-		return false;
-	} //End if.
+		
+		ts3_telnet_send($socket, "login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass']);
+		$response = ts3_telnet_read($socket);
+		if ($response['id'] != 0) {
+			if (defined('PUN_DEBUG')) {
+				message("An error has occured while logging into the Teamspeak3 server.<br/><br/>".$response['msg']);
+			} //End if.
+			ts3_telnet_close($socket);
+			return false;
+		} //End if.
 	
-	telnet_send($socket, "login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass']);
-	$response = telnet_read($socket);
-	if ($response['id'] != 0) {
-		if (defined('PUN_DEBUG')) {
-			message("An error has occured while logging into the Teamspeak3 server.<br/><br/>".$response['msg']);
+		ts3_telnet_send($socket, "use sid=".$pun_config['ts3_sid']);
+		$response = ts3_telnet_read($socket);
+		if ($response['id'] != 0) {
+			if (defined('PUN_DEBUG')) {
+				message("An error has occured while selecting the <b>sid</b> of the Teamspeak3 server.<br/><br/>".$response['msg']);
+			} //End if.
+			ts3_telnet_close($socket);
+			return false;
 		} //End if.
-		telnet_close($socket);
-		return false;
-	} //End if.
 	
-	telnet_send($socket, "use sid=".$pun_config['ts3_sid']);
-	$response = telnet_read($socket);
-	if ($response['id'] != 0) {
-		if (defined('PUN_DEBUG')) {
-			message("An error has occured while selecting the <b>sid</b> of the Teamspeak3 server.<br/><br/>".$response['msg']);
-		} //End if.
-		telnet_close($socket);
-		return false;
-	} //End if.
+	} else {
+		$persist = true;
+	} //End if - else.
 	
 	if ($cldbid == 0) {
-		telnet_send($socket, "customsearch ident=forum_id pattern=".$id);
-		$response = telnet_read($socket);
+		ts3_telnet_send($socket, "customsearch ident=forum_id pattern=".$id);
+		$response = ts3_telnet_read($socket);
 		if ($response['id'] != 0) {
 			if (defined('PUN_DEBUG')) {
 				message("An error has occured while searching for the token beloning to <b>".$username."</b> on the Teamspeak3 server.<br/><br/>".$response['msg']);
 			} //End if.
-		telnet_close($socket);
+		ts3_telnet_close($socket);
 			return false;
 		} //End if.
 		
@@ -434,18 +630,20 @@ function delete_token($id, $username, $cldbid = 0) {
 	} //End if.
 	
 	if ($cldbid > 0) {
-		telnet_send($socket, "clientdbdelete cldbid=".$cldbid);
-		$response = telnet_read($socket);
+		ts3_telnet_send($socket, "clientdbdelete cldbid=".$cldbid);
+		$response = ts3_telnet_read($socket);
 		if ($response['id'] != 0) {
 			if (defined('PUN_DEBUG')) {
 				message("An error has occured while deleting <b>".$username."</b> from the Teamspeak3 server.<br/><br/>".$response['msg']);
 			} //End if.
-			telnet_close($socket);
+			ts3_telnet_close($socket);
 			return false;
 		} //End if.
 	} //End if.
 	
-	telnet_close($socket);
+	if (!$persist) {
+		ts3_telnet_close($socket);
+	} //End if.
 	
 	$sql = "DELETE FROM ".$db->prefix."teamspeak3 WHERE id=".$id;
 	if (!$db->query($sql)) {
@@ -461,7 +659,7 @@ function delete_token($id, $username, $cldbid = 0) {
 	
 } //End delete_token().
 
-function clean_tokens($return = false) {
+function ts3_clean_tokens($return = false) {
 	global $db, $pun_config;
 	
 	$sql = "SELECT * FROM ".$db->prefix."teamspeak3";
@@ -484,15 +682,15 @@ function clean_tokens($return = false) {
 	
 	$socket;
 
-	if (!telnet_open($pun_config['ts3_ip'], intval($pun_config['ts3_query_port']), intval($pun_config['ts3_timeout']), $socket)) {
+	if (!ts3_telnet_open($pun_config['ts3_ip'], intval($pun_config['ts3_query_port']), intval($pun_config['ts3_timeout']), $socket)) {
 		if (defined('PUN_DEBUG')) {
 			message("Unable to open a connection to the Teamspeak3 server.<br/><br/>Please verify it is currently running and accepting connections.");
 		} //End if.
 		return false;
 	} //End if.
 	
-	telnet_send($socket, "login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass']);
-	$response = telnet_read($socket);
+	ts3_telnet_send($socket, "login ".$pun_config['ts3_user']." ".$pun_config['ts3_pass']);
+	$response = ts3_telnet_read($socket);
 	if ($response['id'] != 0) {
 		if (defined('PUN_DEBUG')) {
 			message("An error has occured while logging into the Teamspeak3 server.<br/><br/>".$response['error'].
@@ -503,8 +701,8 @@ function clean_tokens($return = false) {
 		return false;
 	} //End if.
 	
-	telnet_send($socket, "use sid=".$pun_config['ts3_sid']);
-	$response = telnet_read($socket);
+	ts3_telnet_send($socket, "use sid=".$pun_config['ts3_sid']);
+	$response = ts3_telnet_read($socket);
 	if ($response['id'] != 0) {
 		if (defined('PUN_DEBUG')) {
 			message("An error has occured while selecting the <b>sid</b> of the Teamspeak3 server.<br/><br/>".$response['msg']);
@@ -512,9 +710,9 @@ function clean_tokens($return = false) {
 		return false;
 	} //End if.
 	
-	telnet_send($socket, "privilegekeylist");
+	ts3_telnet_send($socket, "privilegekeylist");
 	
-	$response = telnet_read_blob($socket);
+	$response = ts3_telnet_read_blob($socket);
 	if ($response['id'] !=  0) {
 		if (defined('PUN_DEBUG')) {
 			message("An error has occured while listing the tokens of the Teamspeak3 server.<br/><br/>".$response['msg']);
@@ -528,8 +726,8 @@ function clean_tokens($return = false) {
 	
 	foreach($response['tokens'] as $token) {
 		if ($token['token_id1'] == $pun_config['ts3_group_id'] && !in_array($token['token'], $tokens)) {
-			telnet_send($socket, "privilegekeydelete token=".$token['token']);
-			$response = telnet_read($socket);
+			ts3_telnet_send($socket, "privilegekeydelete token=".$token['token']);
+			$response = ts3_telnet_read($socket);
 			if ($response['id'] !=  0) {
 				$log .= 'Unable to remove token ['.$token['token'].'] with description '.str_replace('\s', ' ', $token['token_description']).'<br/>';
 			} else {
@@ -540,7 +738,7 @@ function clean_tokens($return = false) {
 		} //End if - else.
 	} //End foreach().
 	
-	telnet_close($socket);
+	ts3_telnet_close($socket);
 	
 	if ($return) {
 		return true;

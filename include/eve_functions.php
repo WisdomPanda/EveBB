@@ -93,7 +93,8 @@ function task_runner() {
 	} //End if.
 	
 	if ($run_rules) {
-		if (!apply_rules()) {
+		$ignore = '';
+		if (!apply_rules($ignore)) {
 			$log[] = 'Unable to complete rule check!<br/>';
 		} else {
 			$log[] = 'Rule applied!<br/>';
@@ -178,11 +179,7 @@ function task_update_skills($cron = false, $character = 0) {
 		$char = new Character();
 		
 		if ($char->load_skill_queue(array('apiKey' => $row['api_key'],'userID' => $row['api_user_id'],'characterID' => $row['api_character_id']))) {
-			$sql = "DELETE FROM ".$db->prefix."api_skill_queue WHERE character_id=".$row['character_id'];
-			if (!$db->query($sql)) {
-				$log [] = sprintf("[%s] %s - Unable to purge existing skill information.", $row['character_id'], $row['character_name']);
-				continue;
-			} //End if.
+
 			
 			foreach($char->skillQueue as $skill) {
 				
@@ -288,6 +285,12 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
  */
 function task_check_auth() {
 	global $db, $pun_config, $lang_common;
+				
+	//End any open transactions, incase we've recently added corps or the likes.
+	$db->end_transaction();
+	
+	//Start a new one...
+	$db->start_transaction();
 	
 	$sql = "
 		SELECT
@@ -324,9 +327,6 @@ function task_check_auth() {
 	} //End if.
 	
 	if ($db->num_rows($result) == 0) {
-		/*if (defined('PUN_DEBUG')) {
-			error($lang_common['api_no_users']);
-		} //End if.*/
 		return true;
 	} //End if.
 	
@@ -352,17 +352,22 @@ function purge_unclean($users, $group_id) {
 	
 	$log = array();
 	
-	/*if (defined('PUN_DEBUG')) {
-		error("We have hit the purge stage. This means someone has been marked as not in a permitted corp. (Disable Debug mode to clear this message.)<br/>Dumping user list: ".print_r($users, true));
-	} //End if.*/
-	
 	foreach ($users as $row) {
-		$sql = "UPDATE ".$db->prefix."users SET group_id=".$group_id." WHERE id=".$row['user_id'].";";
-		if (!$result = $db->query($sql)) {
-			$log[] = sprintf($lang_common['eve_purge_user_failed'], $row['character_name']);
-			continue;
+		
+		$pass = false;
+		foreach ($_HOOKS['rules'] as $hook) {
+			$pass = $hook->restrict_user($row);
+		} //End foreach().
+		
+		if ($pass !== true) {
+			$sql = "UPDATE ".$db->prefix."users SET group_id=".$group_id." WHERE id=".$row['user_id'].";";
+			if (!$result = $db->query($sql)) {
+				$log[] = sprintf($lang_common['eve_purge_user_failed'], $row['character_name']);
+				continue;
+			} //End if.
+			$log[] = sprintf($lang_common['eve_purge_user_done'], $row['character_name']);
 		} //End if.
-		$log[] = sprintf($lang_common['eve_purge_user_done'], $row['character_name']);
+		
 	} //End foreach.
 	
 	return $logs;
@@ -423,7 +428,7 @@ function check_rules() {
 		
 		if ($corp_more) {
 			if ($corp_temp = $db->fetch_assoc($corps)) {
-				$corp_ids[] = $corp_temp['corporationID'];
+				$corp_ids[] = $corp_temp['corporationid'];
 			} else {
 				$corp_more = false;
 			} //End if - else.
@@ -439,7 +444,7 @@ function check_rules() {
 		
 		if ($ally_more) {
 			if ($ally_temp = $db->fetch_assoc($allies)) {
-				$ally_ids[] = $ally_temp['allianceID'];
+				$ally_ids[] = $ally_temp['allianceid'];
 			} else {
 				$ally_more = false;
 			} //End if - else.
@@ -484,8 +489,14 @@ function check_rules() {
 /**
  * Applies any user defined rules to the user list.
  */
-function apply_rules() {
+function apply_rules(&$log) {
 	global $db, $pun_config, $_HOOKS;
+	
+	//Finish any out standing transactions.
+	$db->end_transaction();
+	
+	//Start a new one.
+	$db->start_transaction();
 	
 	//Before we do anything, we make sure the rules are safe.
 	if (!check_rules()) {
@@ -497,6 +508,7 @@ function apply_rules() {
 	
 	$sql = '';
 	$characters = array();
+	$purge = array();
 	
 	//We are fetching a lot of character data here, this is now passed to the new $_HOOKS classes for any handling they want to do.
 	
@@ -540,143 +552,110 @@ function apply_rules() {
 		} //End if.
 		return false;
 	} //End if.
+
 	
-	while($row = $db->fetch_assoc($result)) {
-		$characters[] = $row;
-	} //End while loop().
+	//New group rule assignment block.
 	
-	if (empty($characters)) {
-		if (defined('PUN_DEBUG')) {
-			error("No characters in the list.<br/>".$sql, __FILE__, __LINE__, $db->error());
-		} //End if.
-		return false; //This is bad.
-	} //End if.
-	
-	//Lets go through our hooks and let them work on any data.
+	//Let's tell the hooks we're about to process characters - we won't be passing them an arrayfilled with characters.
+	//This is just for inital loads or tasks before the rules.
 	foreach ($_HOOKS['rules'] as $hook) {
 		$hook->first_load($characters);
 	} //End foreach().
 	
-	
-	//This does whore on the DB quite a bit, but it has kept it readable.
-	foreach($characters as $row) {
-		//This is where any future refinements will go.
-		//Watch this space.
+	$log = '';
+	$no_auth = true;
+	//Primary loop, does all the work.
+	while ($row = $db->fetch_assoc($result)) {
 		
-		//First, lets purge their extra groups - this will reassign all of them, assuming they're not locked.
-		$sql = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$row['id']." AND group_id NOT IN (SELECT sg.g_id FROM ".$db->prefix."groups AS sg WHERE sg.g_locked=1) AND group_id!=".PUN_ADMIN;
+		$auth = true;
 		
-		if (!$db->query($sql)) {
+		//Get the group rules that apply to this character.
+		$sql = "SELECT * FROM ".$db->prefix."api_groups WHERE id=".$row['corp_id']." OR id=".$row['ally_id']." OR id=0 ORDER BY priority ASC;";
+		if (!$rules_result = $db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
-				error("Unable to clear group listing.<br/>".$sql, __FILE__, __LINE__, $db->error());
+				error("Unable to get rule listing.<br/>".$sql, __FILE__, __LINE__, $db->error());
 			} //End if.
-			return false;
-		} //End if.
-		
-		$sql = "SELECT * FROM ".$db->prefix."api_groups WHERE id=".$row['corp_id']." OR id=".$row['ally_id']." OR id=0;";
-		if (!$any_result = $db->query($sql)) {
-			if (defined('PUN_DEBUG')) {
-				error("Unable to get group listing.<br/>".$sql, __FILE__, __LINE__, $db->error());
-			} //End if.
-			return false;
-		} //End if.
-		
-		$last_group = array();
-		$moved = false;
-		$roles = convert_roles($row['roles']);
-		
-		while ($rule = $db->fetch_assoc($any_result)) {
-			
-			//We know they've already qualified to be in this group from the SQL, so what we're checking now is their roles, as well as multiple group assignments.
-			//The function we use turns our BC Math string into an array of bools so that we can test the role simply by going
-			//if $role[stringFromDB] is true then move else continue.
-			//Pretty simple, no?
-			
-			//Putting this here so we don't make it harder to read.
-			$skip = false;
-			if ($row['g_locked'] == 1) {
-				$log .= "Skip is true. [Lock]<br/>";
-				$skip = true;
-			} else if (($row['group_id'] < 3 && $row['group_id'] > 0) || $row['g_moderator'] == 1) {
-				$log .= "Skip is true. [Group]<br/>";
-				$skip = true;
-			} //End if.
-			
-			if ($roles[$rule['role']]) {
-				//They have auth!
-				if ((!isset($last_group['priority']) || $rule['priority'] < $last_group['priority']) && !$skip) {
-					$log .= "Applying the first rule.<br/>";
-					//This sets their primary group.
-					//We take their previous group, move it into the multiple groups, then set their current group to the one we are looking at.
-					//Basically we are using the push principle; the new one always gets added to the top.
-					if (isset($last_group['priority'])) {
-						$fields = array(
-							'user_id' => $row['id'],
-							'group_id' => $last_group['group_id']
-							);
-							$log .= "Adjusting primary group, adding current group to list: [".$rule['group_id']."]<br/>";
-						if (!$db->insert_or_update($fields, array('user_id', 'group_id'), $db->prefix.'groups_users')) {
-							if (defined('PUN_DEBUG')) {
-								error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
-							} //End if.
-							return false;
-						} //End if.
-					} //End if.
-					$sql = "UPDATE ".$db->prefix."users SET group_id=".$rule['group_id']." WHERE id=".$row['id'].";";
-					$log .= "Moving to new primary group: [".$row['g_id']."] -> [".$rule['group_id']."]<br/>";
-					if (!$db->query($sql)) {
-						if (defined('PUN_DEBUG')) {
-							error("Unable to update groups.".$sql, __FILE__, __LINE__, $db->error());
-						} //End if.
-						return false;
-					} //End if.
-				} else {
-					//We have skipped past them due to a lock or have hit a lower priority group.
-					$fields = array(
-						'user_id' => $row['id'],
-						'group_id' => $rule['group_id']
-						);
-					$log .= "Adding new group to list: [".$rule['group_id']."]<br/>";
-					if (!$db->insert_or_update($fields, array('user_id', 'group_id'), $db->prefix.'groups_users')) {
-						if (defined('PUN_DEBUG')) {
-							error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
-						} //End if.
-						return false;
-					} //End if.
-				} //End if - else.
-
-				$last_group = $rule;
-				$moved = true;
-			} //End if.
-			
-		} //End while loop.
-		
-		//They haven't been moved and they aren't in a locked group, TROUBLES!
-		if (!$moved && $row['g_locked'] != 1 && $row['g_id'] != PUN_ADMIN && $row['g_id'] != PUN_MOD) {
-			$pass = true;
-			foreach ($_HOOKS['rules'] as $hook) {
-				$pass = $hook->restrict_user($row);
-			} //End foreach().
-			if ($pass === true) {
-				continue; //The plugin has decided we're wrong, continue onwards.
-			} //End if.
-			$sql = "UPDATE ".$db->prefix."users SET group_id=".$pun_config['o_eve_restricted_group']." WHERE id=".$row['id'].";";
-			//error("User is being moved for no reason.<br/> SQL: ".$sql."<br/>Data Dump: ".print_r($row, true)."<br/>Moved: ".$moved."<br/>".$log, __FILE__, __LINE__, $db->error());
-			if (!$db->query($sql)) {
-				if (defined('PUN_DEBUG')) {
-					error("Unable to update groups.".$sql, __FILE__, __LINE__, $db->error());
-				} //End if.
-				return false;
-			} //End if.
+			$log .= "[".$row['username']."]: Unable to fetch rules.\n";
 			continue;
 		} //End if.
 		
-		//Run any post rule tasks that may be required.
-		foreach ($_HOOKS['rules'] as $hook) {
-			$hook->authed_user($row);
-		} //End foreach().
+		//Do they have any rules that apply to them?
+		if ($db->num_rows($rules_result) == 0) {
+			$log .= "[".$row['username']."]: No rules apply to this user.\n";
+			if ($row['g_locked'] == '1' || $row['group_id'] == PUN_ADMIN || $row['group_id'] == PUN_MOD) {
+				$log .= "[".$row['username']."]: Is a restricted user, allowing plugin usage.\n";
+				//Let it fall through and do the update to old groups.
+				//There is also nothing to say that they shouldn't have plugin access.
+				$auth = true; //Should be true, but still...
+			} else {
+				$log .= "[".$row['username']."]: Has no rules associated with them. Plugin usage has been disallowed.\n";
+				$auth = false;
+			} //End if - else.
+		} //End if.
 		
-	} //End foreach().
+		//Now we get the groups that don't apply to them any more!
+		//Select all their groups that are not locked and groups that are not specified as rules that apply to them.
+		//You could put this as the primary delete SQL as well, but from memory that can be flakey when you go two deep.
+		//I seem to recall some cache issues on MySQL as well. Either way; this works.
+		$sql = "SELECT g.g_id FROM ".$db->prefix."groups_users AS ug INNER JOIN ".$db->prefix."groups AS g ON g.g_id=ug.group_id WHERE g.g_locked=0 AND ug.group_id NOT IN
+			(SELECT group_id FROM ".$db->prefix."api_groups WHERE id=".$row['corp_id']." OR id=".$row['ally_id']." OR id=0)";
+		if (!$groups_result = $db->query($sql)) {
+			if (defined('PUN_DEBUG')) {
+				error("Unable to list groups for removal.<br/>".$sql, __FILE__, __LINE__, $db->error());
+			} //End if.
+			$log .= "[".$row['username']."]: Unable to fetch groups and rules for removal.\n";
+			continue;
+			//return false;
+		} //End if.
+		
+		//Remove old groups...
+		while ($group = $db->fetch_assoc($groups_result)) {
+			//There isn't a huge amount we need to do past this.
+			$db->query("DELETE FROM ".$db->prefix."groups_users WHERE group_id=".$group['g_id'].";");
+		} //End while loop.
+		
+		//Now we actually assign them groups
+		$primary_restricted = ($row['g_locked'] == '1' || $row['group_id'] == PUN_ADMIN || $row['group_id'] == PUN_MOD);
+		
+		while ($rule = $db->fetch_assoc($rules_result)) {
+			if (!$primary_restricted) {
+				//Update their primary group.
+				$sql = "UPDATE ".$db->prefix."users SET group_id=".$rule['group_id']." WHERE id=".$row['id'];
+				if (!$groups_result = $db->query($sql)) {
+					if (defined('PUN_DEBUG')) {
+						error("Unable to update primary group.<br/>".$sql, __FILE__, __LINE__, $db->error());
+					} //End if.
+					$log .= "[".$row['username']."]: Unable to update main group to [".$rule['group_id']."].\n";
+					continue;
+					//return false;
+				} //End if.
+				$log .= "[".$row['username']."]: Updated main group to [".$rule['group_id']."].\n";
+			} else {
+				$fields = array(
+					'user_id' => $row['id'],
+					'group_id' => $rule['group_id']
+					);
+				if (!$db->insert_or_update($fields, array('user_id', 'group_id'), $db->prefix.'groups_users')) {
+					if (defined('PUN_DEBUG')) {
+						error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
+					} //End if.
+					$log .= "[".$row['username']."]: Unable to add user to group [".$rule['group_id']."].\n";
+					continue;
+				} //End if.
+				$log .= "[".$row['username']."]: Added to group [".$rule['group_id']."].\n";
+			} //End if - else.
+		} //End while loop().
+		
+		//Finally, call the hooks, assuming they have auth.
+		if ($auth) {
+			foreach ($_HOOKS['rules'] as $hook) {
+				$hook->authed_user($row);
+			} //End foreach().
+		} //End if.
+		
+		$log .= "\n";
+		
+	} //End while loop.
 	
 	//Run any post rule tasks that may be required.
 	foreach ($_HOOKS['rules'] as $hook) {
@@ -693,7 +672,7 @@ function apply_rules() {
 function remove_rule($id, $group_id, $type = 0, $role = 0) {
 	global $db;
 	
-	$sql = "DELETE FROM ".$db->prefix."api_groups WHERE id=".$id." AND group_id=".$group_id." AND type=".$type." AND role=".$role.";";
+	$sql = "DELETE FROM ".$db->prefix."api_groups WHERE id=".$id." AND group_id=".$group_id." AND type=".$type." AND role='".$role."';";
 	if (!$db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
 			error("Unable to remove rule.<br/>".$sql, __FILE__, __LINE__, $db->error());
@@ -712,7 +691,7 @@ function is_allowed_corp($corpID) {
 	global $db;
 	
 	//Get the allowed corps.
-	$sql = "SELECT corporationID FROM ".$db->prefix."api_allowed_corps WHERE allowed=1 AND corporationID=".$corpID.";";
+	$sql = "SELECT corporationid FROM ".$db->prefix."api_allowed_corps WHERE allowed=1 AND corporationid=".$corpID.";";
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
 			error("Enable to get corp list.", __FILE__, __LINE__, $db->error());
@@ -803,7 +782,7 @@ function purge_corp($id, $remove_group = true) {
 	WHERE
 		sc.character_id=c.character_id
 	AND
-		corp.corporationID=c.corp_id
+		corp.corporationid=c.corp_id
 	AND
 		u.id=sc.user_id
 	AND
@@ -826,7 +805,7 @@ function purge_corp($id, $remove_group = true) {
 	//Lets us reproduce without effecting. :)
 	//error("We are trying to disallow a corp for some reason.", __FILE__, __LINE__, $db->error());
 	
-	$sql = "UPDATE ".$db->prefix."api_allowed_corps SET allowed=0 WHERE corporationID=".$id.";";
+	$sql = "UPDATE ".$db->prefix."api_allowed_corps SET allowed=0 WHERE corporationid=".$id.";";
 	if (!$db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
 			error("Unable to delete corp.<br/>".$sql, __FILE__, __LINE__, $db->error());
@@ -887,10 +866,10 @@ function add_corp($corpID, $allowed = true) {
 	} //End if.
 	
 	return array(
-		'corporationID' => $corp_sheet->corporationID,
-		'corporationName' => $corp_sheet->corporationName,
-		'allianceID' => $corp_sheet->allianceID,
-		'allianceName' => ((!isset($corp_sheet->allianceName)) ? '' : $corp_sheet->allianceName)
+		'corporationid' => $corp_sheet->corporationID,
+		'corporationname' => $corp_sheet->corporationName,
+		'allianceid' => $corp_sheet->allianceID,
+		'alliancename' => ((!isset($corp_sheet->allianceName)) ? '' : $corp_sheet->allianceName)
 	);
 	
 } //End add_corp().

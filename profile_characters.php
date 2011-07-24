@@ -76,7 +76,8 @@ if ($action == 'select_character') {
 			message("Unable to select that character.");
 		} //End if.
 		
-		apply_rules(); //We need to make sure they get moved correctly.
+		$log = '';
+		apply_rules($log); //We need to make sure they get moved correctly.
 		
 		redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['select_redirect']);
 	} //End if.
@@ -285,7 +286,23 @@ generate_profile_menu('characters');
 			$now = time();
 			$offset = date('Z');
 			$now = $offset > 0 ? $now - $offset : $now + offset;
-			$end_stamp = convert_to_stamp($skills['endTime'], true);
+			$end_stamp = convert_to_stamp($skills['endtime'], true);
+			
+			$skill_color = '';
+			$skill_width = intval(($end_stamp - $now) / (60 * 60));
+			
+			if ($skill_width >= 24) {
+				$skill_width = 100;
+				$skill_color = 'green';
+			} else {
+				$skill_width = intval($skill_width / (0.24));
+				$skill_color = 'orange';
+			} //End if - else.
+			
+			if ($skill_width < 6) {
+				$skill_color = 'red';
+			} //End if.
+			
 		} else {
 			$skills = array();
 		} //End if - else.
@@ -344,8 +361,11 @@ generate_profile_menu('characters');
 							<tr>
 								<td><strong><?php echo $lang_profile_characters['skill_queue']; ?></strong></td>
 								<td>
-									<strong><?php echo (isset($skills['typeName']) ? $skills['typeName'].' '.$level[$skills['level']] : $lang_profile_characters['unknown']); ?></strong><br/>
-									<?php  echo (isset($skills['typeName']) ? sprintf($lang_profile_characters['skill_queue_remaining'], format_time_diff($now, $end_stamp)) : $lang_profile_characters['next_update']); ?>
+									<strong><?php echo (isset($skills['typename']) ? $skills['typename'].' '.$level[$skills['level']] : $lang_profile_characters['unknown']); ?></strong><br/>
+									<div class="box" style="width: 100%; border-style: solid; border-width: 1px; padding:0;">
+										<div class="infldset" style="border-style: solid; border-width: 1px; background-color: <?php echo $skill_color; ?>; padding: 2px; width: <?php echo $skill_width; ?>%; height: 20px; display:block;"></div>
+									</div>
+									<?php  echo (isset($skills['typename']) ? sprintf($lang_profile_characters['skill_queue_remaining'], format_time_diff($now, $end_stamp)) : $lang_profile_characters['next_update']); ?>
 								</td>
 							</tr>
 							

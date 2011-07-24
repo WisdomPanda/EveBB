@@ -197,7 +197,7 @@ class DBLayer
 
 	function fetch_assoc($query_id = 0)
 	{
-		return ($query_id) ? @mysqli_fetch_assoc($query_id) : false;
+		return ($query_id) ? array_change_key_case(@mysqli_fetch_assoc($query_id), CASE_LOWER) : false;
 	}
 
 

@@ -29,8 +29,9 @@ if ($action == 'refresh_alliance_list') {
 		add_alliance($row['allianceID']);
 	} //End while loop.
 
+	$log = '';
 	task_check_auth();
-	apply_rules();
+	apply_rules($log);
 	
 	redirect('admin_eve_alliance.php', $lang_admin_eve_online['alliance_list_refresh_redirect']);
 	
@@ -42,8 +43,9 @@ if ($action == 'add_allowed_alliance') {
 			if (!add_alliance(intval($_POST['allowed_alliance']))) {
 				message("Unable to add alliance.");
 			} else {
+				$log = '';
 				task_check_auth();
-				apply_rules();
+				apply_rules($log);
 				redirect('admin_eve_alliance.php', $lang_admin_eve_online['allowed_alliance_redirect']);
 			} //End if - else.
 		} else {
@@ -61,8 +63,9 @@ if ($action == 'del_alliance') {
 		message("Unable to purge alliance.");
 	} //End if.
 	
+	$log = '';
 	task_check_auth();
-	apply_rules();
+	apply_rules($log);
 	redirect('admin_eve_alliance.php', $lang_admin_eve_online['removed_alliance_redirect']);
 	
 } //End if.
@@ -96,7 +99,7 @@ generate_admin_menu('eve_ally');
 $result = $db->query("SELECT * FROM ".$db->prefix."api_alliance_list ORDER BY name") or error('Unable to fetch alliance list', __FILE__, __LINE__, $db->error());
 
 while ($row = $db->fetch_assoc($result)) {
-	echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$row['allianceID'].'">'.pun_htmlspecialchars($row['name']).'</option>'."\n";
+	echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$row['allianceid'].'">'.pun_htmlspecialchars($row['name']).'</option>'."\n";
 } //End while loop.
 
 ?>
@@ -118,20 +121,20 @@ while ($row = $db->fetch_assoc($result)) {
 							<table class="aligntop" cellspacing="0">
 <?php
 
-$sql = 'SELECT a.* FROM '.$db->prefix.'api_allowed_alliance AS a WHERE a.allowed=1 ORDER BY allianceName';
+$sql = 'SELECT a.* FROM '.$db->prefix.'api_allowed_alliance AS a WHERE a.allowed=1 ORDER BY alliancename';
 
 $result = $db->query($sql) or error('Unable to fetch alliance list', __FILE__, __LINE__, $db->error());
 
 while ($row = $db->fetch_assoc($result)) {
-	echo "\t\t\t\t\t\t\t\t".'<tr><th scope="row"><a href="admin_eve_alliance.php?action=del_alliance&amp;allianceID='.$row['allianceID'].'">'.$lang_admin_eve_online['delete'].'</a></th><td><strong>'.pun_htmlspecialchars($row['allianceName']).'</strong><br />';
+	echo "\t\t\t\t\t\t\t\t".'<tr><th scope="row"><a href="admin_eve_alliance.php?action=del_alliance&amp;allianceID='.$row['allianceid'].'">'.$lang_admin_eve_online['delete'].'</a></th><td><strong>'.pun_htmlspecialchars($row['alliancename']).'</strong><br />';
 	
 	
-	$sql = "SELECT c.corporationName, c.corporationID, c.allianceID FROM ".$db->prefix."api_allowed_corps AS c WHERE c.allowed=1 AND c.allianceID=".$row['allianceID']." ORDER BY c.corporationName;";
+	$sql = "SELECT c.corporationname, c.corporationid, c.allianceid FROM ".$db->prefix."api_allowed_corps AS c WHERE c.allowed=1 AND c.allianceid=".$row['allianceid']." ORDER BY c.corporationname;";
 	
 	$corp_result = $db->query($sql) or error('Unable to fetch corp list', __FILE__, __LINE__, $db->error());
 	echo '<ul class="bblist">';
 	while ($corp = $db->fetch_assoc($corp_result)) {
-		echo '<li>'.pun_htmlspecialchars($corp['corporationName']).'</li>';
+		echo '<li>'.pun_htmlspecialchars($corp['corporationname']).'</li>';
 		echo "\n";
 	} //End while loop.
 	

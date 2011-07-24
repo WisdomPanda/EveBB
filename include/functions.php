@@ -7,7 +7,7 @@
  */
 
 //Comment this out after.
-//define('PUN_DEBUG', 1);
+define('PUN_DEBUG', 1);
 
 //
 // Return current timestamp (with microseconds) as a float
@@ -1482,7 +1482,7 @@ function error($message, $file = null, $line = null, $db_error = false)
 	global $pun_config, $lang_common;
 
 	// Set some default settings if the script failed before $pun_config could be populated
-	if (empty($pun_config))
+	if (empty($pun_config) || !isset($pun_config['o_gzip']) || !isset($pun_config['o_board_title']))
 	{
 		$pun_config = array(
 			'o_board_title'	=> 'FluxBB',

@@ -21,6 +21,13 @@ define('MIN_PGSQL_VERSION', '7.0.0');
 define('PUN_SEARCH_MIN_WORD', 3);
 define('PUN_SEARCH_MAX_WORD', 20);
 
+// Define a few commonly used constants
+define('PUN_UNVERIFIED', 0);
+define('PUN_ADMIN', 1);
+define('PUN_MOD', 2);
+define('PUN_GUEST', 3);
+define('PUN_MEMBER', 4);
+
 //Functions for EvE-BB
 define('EVE_ENABLED', 1);
 
@@ -269,7 +276,7 @@ else
 	
 		// Create the database object (and connect/select db)
 		$db = new DBLayer($db_host, $db_username, $db_password, $db_name, $db_prefix, false);
-	
+		$username = 'EveBB-User';
 		// Do some DB type specific checks
 		switch ($db_type)
 		{
@@ -2261,6 +2268,8 @@ else
 	require PUN_ROOT.'include/search_idx.php';
 	$pun_config['o_default_lang'] = $default_lang;
 	update_search_index('post', 1, $message, $subject);
+
+	$db->end_transaction();
 	
 	//Install our now-included mods - Private Messagin, Sub Forums, Attachments, RSS Feed and Poll Support.
 	install_npms();
@@ -2268,8 +2277,6 @@ else
 	install_attach(rtrim(dirname(__FILE__), '/\\') . DIRECTORY_SEPARATOR.'attachments/');
 	install_feed();
 	install_poll();
-
-	$db->end_transaction();
 
 
 	$alerts = array();
@@ -2781,7 +2788,7 @@ function attach_create_subfolder($newfolder='',$basepath){
 	// check to see if that folder is there already, then just update the config ...
 	if(!is_dir($basepath.$newfolder)){
 		// if the folder doesn't exist, try to create it
-		if(!mkdir($basepath.$newfolder,0755))
+		if(!mkdir($basepath.$newfolder,0775))
 			error('Unable to create new subfolder with name \''.$basepath.$newfolder.'\' with mode 0755',__FILE__,__LINE__);
 		// create a .htaccess and index.html file in the new subfolder
 		if(!copy($basepath.'.htaccess', $basepath.$newfolder.'/.htaccess'))
@@ -2820,6 +2827,7 @@ function attach_generate_filename($storagepath, $messagelenght=0, $filesize=0){
  * Installs the table for RSS feed support.
  */
 function install_feed() {
+	global $db;
 	$db->query('CREATE TABLE '.$db->prefix.'feeds ( url varchar(255) NOT NULL default \'\', max int(11) NOT NULL default 0, closed tinyint(1) NOT NULL default 0, forum_id int(11) NOT NULL default 0, last_post INT(10) NOT NULL default 0, num_posts INT(10) NOT NULL default 0, PRIMARY KEY  (url) )' );
 } //End install_feed().
 

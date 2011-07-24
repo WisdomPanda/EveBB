@@ -85,24 +85,24 @@ function task_update_alliance() {
 	
 	//Now lets loop through and check them.
 	while ($row = $db->fetch_assoc($result)) {
-		$new_ids[] = $row['corporationID']; //For the next cross check...
+		$new_ids[] = $row['corporationid']; //For the next cross check...
 		
-		if (!in_array($row['corporationID'], $ids)) {
+		if (!in_array($row['corporationid'], $ids)) {
 			//This is a new corp, add it to DB.
-			$corp = add_corp($row['corporationID']);
-			$log[] = "[".$corp['corporationID']."] ".$corp['corporationName']." from [".$corp['allianceID']."] ".$corp['allianceName']." has been freshly added!";
+			$corp = add_corp($row['corporationid']);
+			$log[] = "[".$corp['corporationid']."] ".$corp['corporationname']." from [".$corp['allianceid']."] ".$corp['alliancename']." has been freshly added!";
 		} //End if.
 	} //End while loop.
 	
 	foreach ($ids as $id) {
 		if (in_array($id, $new_ids)) {
-			$log[] = "[".$row['corporationID']."] ".$row['corporationName']." is still up to date..";
+			$log[] = "[".$row['corporationid']."] ".$row['corporationname']." is still up to date..";
 			continue; //Nothing to see here.
 		} //End if.
 		
 		//They are not in the alliance anymore, purge them.
 		purge_corp($row['corporationID']);
-		$log[] = "[".$row['corporationID']."] ".$row['corporationName']." is no longer in [".$row['allianceID']."] ".$row['allianceName'].".";
+		$log[] = "[".$row['corporationID']."] ".$row['corporationname']." is no longer in [".$row['allianceid']."] ".$row['alliancename'].".";
 	} //End foreach().
 	
 	return $log;
@@ -162,11 +162,11 @@ function purge_alliance($id, $skip_corp, $remove_group = true) {
 	
 	while ($row = $db->fetch_assoc($result)) {
 		
-		if ($skip_corp == $row['corporationID']) {
+		if ($skip_corp == $row['corporationid']) {
 			continue; //We don't touch the corp specified as it is used as the "failsafe" corp. This makes sure we always have 1 corp left, minimum.
 		} //End if.
 		
-		if (!purge_corp($row['corporationID'], $remove_group)) {
+		if (!purge_corp($row['corporationid'], $remove_group)) {
 			$passed = false; //We want to get as many of them out as possible, so this lets the loop continue.
 		} //End if.
 	} //End while loop.
@@ -181,7 +181,7 @@ function purge_alliance($id, $skip_corp, $remove_group = true) {
 function add_alliance($allianceID) {
 	global $db;
 	
-	$sql = "SELECT * FROM ".$db->prefix."api_alliance_list WHERE allianceID=".$allianceID.";";
+	$sql = "SELECT allianceid, name, shortname, executorcorpid, membercount, startdate FROM ".$db->prefix."api_alliance_list WHERE allianceID=".$allianceID.";";
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
 			error("Unable to fetch alliance.", __FILE__, __LINE__, $db->error());
@@ -198,7 +198,7 @@ function add_alliance($allianceID) {
 	
 	$alliance = $db->fetch_assoc($result);
 	
-	$sql = "SELECT * FROM ".$db->prefix."api_alliance_corps WHERE allianceID=".$allianceID.";";
+	$sql = "SELECT corporationid FROM ".$db->prefix."api_alliance_corps WHERE allianceID=".$allianceID.";";
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
 			error("Unable to fetch corps.", __FILE__, __LINE__, $db->error());
@@ -216,10 +216,10 @@ function add_alliance($allianceID) {
 	$fields = array(
 			'allianceID' => $allianceID,
 			'allianceName' => addslashes($alliance['name']),
-			'ticker' => $alliance['shortName'],
-			'startDate' => $alliance['startDate'],
-			'executorCorpID' => $alliance['executorCorpID'],
-			'memberCount' => $alliance['memberCount'],
+			'ticker' => $alliance['shortname'],
+			'startDate' => $alliance['startdate'],
+			'executorCorpID' => $alliance['executorcorpid'],
+			'memberCount' => $alliance['membercount'],
 			'allowed' => 1
 		);
 	
@@ -233,7 +233,7 @@ function add_alliance($allianceID) {
 	$win = true;
 	
 	while ($corp = $db->fetch_assoc($result)) {
-		if (!add_corp($corp['corporationID'])) {
+		if (!add_corp($corp['corporationid'])) {
 			if (defined('PUN_DEBUG')) {
 				error("Unable to insert corp.", __FILE__, __LINE__, $db->error());
 			} //End if.

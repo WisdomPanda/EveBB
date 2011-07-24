@@ -25,9 +25,9 @@ if ($action == 'add_allowed_corp') {
 		if (!add_corp(intval($_POST['api_corp_id']))) {
 			message("Unable to add corp.");
 		} //End if.
-
+		$log = '';
 		task_check_auth();
-		apply_rules();
+		apply_rules($log);
 		redirect('admin_eve_corps.php', $lang_admin_eve_online['allowed_corp_add_redirect']);
 		
 	} //End if.
@@ -51,8 +51,9 @@ if ($action == 'del_corp') {
 		message("Unable to purge corp.<br/>Please insure that there are no administrators in this corp.");
 	} //End if.
 	
+	$log = '';
 	task_check_auth();
-	apply_rules();
+	apply_rules($log);
 	redirect('admin_eve_corps.php', $lang_admin_eve_online['removed_corp_redirect']);
 	
 } //End if.
@@ -103,16 +104,18 @@ generate_admin_menu('eve_corp');
 							<table class="aligntop" cellspacing="0">
 <?php
 
-$sql = "SELECT c.corporationName, c.corporationID, c.allianceID FROM ".$db->prefix."api_allowed_corps AS c WHERE allowed=1 ORDER BY c.allianceID, c.corporationID;";
+$sql = "SELECT c.corporationname, c.corporationid, c.allianceid FROM ".$db->prefix."api_allowed_corps AS c WHERE c.allowed=1 ORDER BY c.allianceid, c.corporationid;";
 
 $result = $db->query($sql) or error('Unable to fetch corp list', __FILE__, __LINE__, $db->error());
 if ($db->num_rows($result) > 1) {
 	while ($row = $db->fetch_assoc($result)) {
-		echo "\t\t\t\t\t\t\t\t".'<tr><th scope="row"><a href="admin_eve_corps.php?action=del_corp&amp;corpID='.$row['corporationID'].'">'.$lang_admin_eve_online['delete'].'</a></th><td>'.pun_htmlspecialchars($row['corporationName']).'</td></tr>'."\n";
+		echo "\t\t\t\t\t\t\t\t".'<tr><th scope="row"><a href="admin_eve_corps.php?action=del_corp&amp;corpID='.$row['corporationid'].'">'.$lang_admin_eve_online['delete'].'</a></th><td>'.$row['corporationname'].'</td></tr>'."\n";
 	} //End while loop.
-} else {
+} else if ($db->num_rows($result) > 0) {
 	$row = $db->fetch_assoc($result);
-	echo "\t\t\t\t\t\t\t\t".'<tr><th scope="row">'.$lang_admin_eve_online['delete'].'</th><td>'.pun_htmlspecialchars($row['corporationName']).'</td></tr>'."\n";
+	echo "\t\t\t\t\t\t\t\t".'<tr><th scope="row">'.$lang_admin_eve_online['delete'].'</th><td>'.pun_htmlspecialchars($row['corporationname']).'</td></tr>'."\n";
+} else {
+	echo "\t\t\t\t\t\t\t\t".'<tr><th scope="row">&nbsp;</th><td>No corps to display.</td></tr>'."\n";
 } //End if - else.
 ?>
 							</table>

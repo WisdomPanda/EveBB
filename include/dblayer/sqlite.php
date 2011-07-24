@@ -247,7 +247,7 @@ class DBLayer
 				}
 			}
 
-			return $cur_row;
+			return array_change_key_case($cur_row, CASE_LOWER);
 		}
 		else
 			return false;
