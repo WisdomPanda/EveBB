@@ -186,7 +186,11 @@ class DBLayer
 
 	function fetch_assoc($query_id = 0)
 	{
-		return ($query_id) ? array_change_key_case(@mysql_fetch_assoc($query_id), CASE_LOWER) : false;
+		$result = ($query_id) ? array_change_key_case(@mysql_fetch_assoc($query_id), CASE_LOWER) : false;
+		if (is_array($result)) {
+			return array_change_key_case(@mysqli_fetch_assoc($query_id), CASE_LOWER);
+		} //End if.
+		return $result;
 	}
 
 
