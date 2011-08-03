@@ -272,10 +272,10 @@ $result = $db->query($sql) or error('Unable to fetch user group list', __FILE__,
 
 while ($row = $db->fetch_assoc($result)) {
 	$name = 'Any';
-	if (!empty($row['corporationID'])) {
-		$name = $row['corporationName'];
-	} else if (!empty($row['allianceID'])) {
-		$name = $row['allianceName'];
+	if (!empty($row['corporationid'])) {
+		$name = $row['corporationname'];
+	} else if (!empty($row['allianceid'])) {
+		$name = $row['alliancename'];
 	} //End if - else if.
 	
 	echo "\t\t\t\t\t\t\t\t".'
