@@ -71,8 +71,9 @@ class Character {
 			if ($err >= 200 && $err < 300) {
 				if ($err == 211) {
 					$_LAST_ERROR = API_ACCOUNT_STATUS;
-				} //End if.
-				$_LAST_ERROR = API_BAD_AUTH;
+				} else {
+					$_LAST_ERROR = API_BAD_AUTH;
+				} //End if - else.
 			} else {
 				$_LAST_ERROR = API_SERVER_ERROR;
 			} //End if - else.
