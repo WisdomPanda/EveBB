@@ -179,6 +179,9 @@ function task_update_skills($cron = false, $character = 0) {
 		$char = new Character();
 		
 		if ($char->load_skill_queue(array('apiKey' => $row['api_key'],'userID' => $row['api_user_id'],'characterID' => $row['api_character_id']))) {
+			
+			//Purge old skills
+			$db->query("DELTE FROM ".$db->prefix."api_skill_queue WHERE character_id=".$row['api_character_id']);
 
 			
 			foreach($char->skillQueue as $skill) {
@@ -236,9 +239,7 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 		$sql .= " AND c.last_update<".(time()-($pun_config['o_eve_cache_char_sheet_interval']*60*60)); //(update_time - (time-x hours)) x being set in config.
 	} //End if.
 	
-	if (!$force && !$full_force) {
-		$sql .= " LIMIT 0, ".$limit.";";
-	} //End if.
+	$log = array();
 	
 	if (!$result = $db->query($sql)) {
 		$err = $db->error();
@@ -246,7 +247,8 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 		return $log;
 	} //End if.
 	
-	$log = array();
+	
+	$log[] = "Starting the character update on [".$db->num_rows($result)."] characters.<br/><br/>";
 	
 	$_LAST_ERROR = 0;
 	
@@ -547,7 +549,7 @@ function apply_rules(&$log) {
 	LEFT JOIN
 		".$db->prefix."api_alliance_list AS ally
 	ON
-		corp.allianceID=ally.allianceID;
+		corp.allianceID=ally.allianceID
 	";
 	
 	if (!$result = $db->query($sql)) {
@@ -568,13 +570,14 @@ function apply_rules(&$log) {
 	
 	$log = '';
 	$no_auth = true;
+	$old_group = 0;
 	//Primary loop, does all the work.
 	while ($row = $db->fetch_assoc($result)) {
-		
+		$old_group = $row['g_id'];
 		$auth = true;
 		
 		//Get the group rules that apply to this character.
-		$sql = "SELECT * FROM ".$db->prefix."api_groups WHERE id=".$row['corp_id']." OR id=".$row['ally_id']." OR id=0 ORDER BY priority ASC;";
+		$sql = "SELECT * FROM ".$db->prefix."api_groups WHERE id=".$row['corp_id']." OR id=".$row['ally_id']." OR id=0 ORDER BY priority DESC;";
 		if (!$rules_result = $db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
 				error("Unable to get rule listing.<br/>".$sql, __FILE__, __LINE__, $db->error());
@@ -615,7 +618,8 @@ function apply_rules(&$log) {
 		//Remove old groups...
 		while ($group = $db->fetch_assoc($groups_result)) {
 			//There isn't a huge amount we need to do past this.
-			$db->query("DELETE FROM ".$db->prefix."groups_users WHERE group_id=".$group['g_id'].";");
+			$log .= "[".$row['username']."]: Removing from group [".$group['g_id']."]\n";
+			$db->query("DELETE FROM ".$db->prefix."groups_users WHERE group_id=".$group['g_id']." AND user_id=".$row['id'].";");
 		} //End while loop.
 		
 		//Now we actually assign them groups
@@ -634,6 +638,24 @@ function apply_rules(&$log) {
 					//return false;
 				} //End if.
 				$log .= "[".$row['username']."]: Updated main group to [".$rule['group_id']."].\n";
+				
+				if ($old_group != $row['g_id']) {
+					$fields = array(
+						'user_id' => $row['id'],
+						'group_id' => $old_group
+						);
+					if (!$db->insert_or_update($fields, array('user_id', 'group_id'), $db->prefix.'groups_users')) {
+						if (defined('PUN_DEBUG')) {
+							error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
+						} //End if.
+						$log .= "[".$row['username']."]: Unable to add user to group [".$old_group."].\n";
+						continue;
+					} //End if.
+					$log .= "[".$row['username']."]: Added to group [".$old_group."].\n";
+				} //End if.
+				
+				$old_group = $rule['group_id'];
+				
 			} else {
 				$fields = array(
 					'user_id' => $row['id'],

@@ -170,6 +170,8 @@ function check_cookie(&$pun_user)
 			$sql = "SELECT group_id FROM ".$db->prefix."groups_users WHERE user_id=".$pun_user['id'];
 			$result = $db->query($sql) or error('Unable to fetch group list', __FILE__, __LINE__, $db->error());
 			
+			$pun_user['group_ids'] = array();
+			
 			while ($row = $db->fetch_assoc($result)) {
 				$pun_user['group_ids'][] = $row['group_id'];
 				if ($row['group_id'] == PUN_ADMIN) {

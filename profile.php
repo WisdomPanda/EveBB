@@ -1065,7 +1065,9 @@ if (!$db->num_rows($result))
 	message($lang_common['Bad request']);
 
 $user = $db->fetch_assoc($result);
+
 /* EVE-BB Multi-group support.*/
+$user['group_ids'] = array();
 //We only look at their other groups if they aren't set as the purge group as primary.
 if ($pun_user['g_id'] != $pun_config['o_eve_restricted_group']) {
 	$sql = "SELECT group_id FROM ".$db->prefix."groups_users WHERE user_id=".$pun_user['id'];

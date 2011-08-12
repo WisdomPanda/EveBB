@@ -47,7 +47,7 @@ function task_update_alliance() {
 	//When we refresh the alliance list, we'll repeat the proccess.
 	//If there are any errors, we'll remove the offending corp.
 	while ($row = $db->fetch_assoc($result)) {
-		$ids[] = $row['corporationID'];
+		$ids[] = $row['corporationid'];
 	} //End while loop.
 	
 	//$ids now contains a list of the old allowed corps.
@@ -96,13 +96,13 @@ function task_update_alliance() {
 	
 	foreach ($ids as $id) {
 		if (in_array($id, $new_ids)) {
-			$log[] = "[".$row['corporationid']."] ".$row['corporationname']." is still up to date..";
+			$log[] = "[".$id."] is still up to date..";
 			continue; //Nothing to see here.
 		} //End if.
 		
 		//They are not in the alliance anymore, purge them.
-		purge_corp($row['corporationID']);
-		$log[] = "[".$row['corporationID']."] ".$row['corporationname']." is no longer in [".$row['allianceid']."] ".$row['alliancename'].".";
+		purge_corp($id);
+		$log[] = "[".$id."] is no longer in [".$row['allianceid']."] ".$row['alliancename'].".";
 	} //End foreach().
 	
 	return $log;

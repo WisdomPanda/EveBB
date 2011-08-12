@@ -90,55 +90,93 @@ if (poll_post('poll_submit') != null)
 $group_list = '';
 if (!empty($pun_user['group_ids'])) {
 	foreach ($pun_user['group_ids'] as $g) {
-		$group_list .= ' AND fp.group_id='.$g;
+		$group_list .= ' OR fp.group_id='.$g;
 	} //End foreach().
 } //End if.
 
 //(fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
 // Fetch some info about the topic
 if (!$pun_user['is_guest']) {
-	$sql = '
-	SELECT
-		pf.forum_name AS parent_forum,
-		f.parent_forum_id,
-		t.subject,
-		t.closed,
-		t.num_replies,
-		t.sticky,
-		t.first_post_id,
-		t.poll_type,
-		t.poll_time,
-		t.poll_term,
-		t.poll_kol,
-		f.id AS forum_id,
-		f.forum_name,
-		f.moderators,
-		fp.post_replies,
-		s.user_id AS is_subscribed
-	FROM
-		'.$db->prefix.'topics AS t
-	INNER JOIN
-		'.$db->prefix.'forums AS f
-	ON
-		f.id=t.forum_id
-	LEFT JOIN
-		'.$db->prefix.'topic_subscriptions AS s
-	ON
-		(t.id=s.topic_id AND s.user_id='.$pun_user['id'].')
-	LEFT JOIN
-		'.$db->prefix.'forum_perms AS fp
-	ON
-		(fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
-	LEFT JOIN
-		'.$db->prefix.'forums AS pf
-	ON
-		f.parent_forum_id=pf.id
-	WHERE
-		(fp.read_forum IS NULL OR fp.read_forum=1)
-	AND
-		t.id='.$id.'
-	AND
-		t.moved_to IS NULL';
+	if ($pun_user['g_id'] != PUN_ADMIN) {
+		$sql = '
+		SELECT
+			pf.forum_name AS parent_forum,
+			f.parent_forum_id,
+			t.subject,
+			t.closed,
+			t.num_replies,
+			t.sticky,
+			t.first_post_id,
+			t.poll_type,
+			t.poll_time,
+			t.poll_term,
+			t.poll_kol,
+			f.id AS forum_id,
+			f.forum_name,
+			f.moderators,
+			fp.post_replies,
+			s.user_id AS is_subscribed
+		FROM
+			'.$db->prefix.'topics AS t
+		INNER JOIN
+			'.$db->prefix.'forums AS f
+		ON
+			f.id=t.forum_id
+		LEFT JOIN
+			'.$db->prefix.'topic_subscriptions AS s
+		ON
+			(t.id=s.topic_id AND s.user_id='.$pun_user['id'].')
+		INNER JOIN
+			'.$db->prefix.'forum_perms AS fp
+		ON
+			(fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
+		LEFT JOIN
+			'.$db->prefix.'forums AS pf
+		ON
+			f.parent_forum_id=pf.id
+		WHERE
+			(fp.read_forum IS NULL OR fp.read_forum=1)
+		AND
+			t.id='.$id.'
+		AND
+			t.moved_to IS NULL';
+	} else {
+		$sql = '
+		SELECT
+			pf.forum_name AS parent_forum,
+			f.parent_forum_id,
+			t.subject,
+			t.closed,
+			t.num_replies,
+			t.sticky,
+			t.first_post_id,
+			t.poll_type,
+			t.poll_time,
+			t.poll_term,
+			t.poll_kol,
+			f.id AS forum_id,
+			f.forum_name,
+			f.moderators,
+			s.user_id AS is_subscribed
+		FROM
+			'.$db->prefix.'topics AS t
+		INNER JOIN
+			'.$db->prefix.'forums AS f
+		ON
+			f.id=t.forum_id
+		LEFT JOIN
+			'.$db->prefix.'topic_subscriptions AS s
+		ON
+			(t.id=s.topic_id AND s.user_id='.$pun_user['id'].')
+		LEFT JOIN
+			'.$db->prefix.'forums AS pf
+		ON
+			f.parent_forum_id=pf.id
+		WHERE
+			t.id='.$id.'
+		AND
+			t.moved_to IS NULL';
+	} //End if - else.
 	$result = $db->query($sql) or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
 } else {
 	$result = $db->query('SELECT t.subject, t.closed, t.num_replies, t.sticky, t.first_post_id, t.poll_type, t.poll_time, t.poll_term, t.poll_kol, f.id AS forum_id, f.forum_name, f.moderators, fp.post_replies, 0 AS is_subscribed FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forums AS f ON f.id=t.forum_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND t.id='.$id.' AND t.moved_to IS NULL') or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());

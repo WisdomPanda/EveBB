@@ -182,9 +182,25 @@ else if (isset($_GET['edit_forum']))
 				$read_forum_new = ($cur_group['g_read_board'] == '1') ? isset($_POST['read_forum_new'][$cur_group['g_id']]) ? '1' : '0' : intval($_POST['read_forum_old'][$cur_group['g_id']]);
 				$post_replies_new = isset($_POST['post_replies_new'][$cur_group['g_id']]) ? '1' : '0';
 				$post_topics_new = isset($_POST['post_topics_new'][$cur_group['g_id']]) ? '1' : '0';
+				
+				$fields = array(
+						'forum_id' => $forum_id,
+						'group_id' => $cur_group['g_id'],
+						'read_forum' => $read_forum_new,
+						'post_replies' => $post_replies_new,
+						'post_topics' => $post_topics_new
+						);
+						
+				if (!$db->insert_or_update($fields, array('forum_id', 'group_id'), $db->prefix.'forum_perms')) {
+						if (defined('PUN_DEBUG')) {
+							error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
+						} //End if.
+						$log .= "[".$cur_group['g_id']."]: Unable to add permissions [".$old_group."].\n";
+						continue;
+				} //End if.
 
 				// Check if the new settings differ from the old
-				if ($read_forum_new != $_POST['read_forum_old'][$cur_group['g_id']] || $post_replies_new != $_POST['post_replies_old'][$cur_group['g_id']] || $post_topics_new != $_POST['post_topics_old'][$cur_group['g_id']])
+				/*if ($read_forum_new != $_POST['read_forum_old'][$cur_group['g_id']] || $post_replies_new != $_POST['post_replies_old'][$cur_group['g_id']] || $post_topics_new != $_POST['post_topics_old'][$cur_group['g_id']])
 				{
 					// If the new settings are identical to the default settings for this group, delete it's row in forum_perms
 					if ($read_forum_new == '1' && $post_replies_new == $cur_group['g_post_replies'] && $post_topics_new == $cur_group['g_post_topics'])
@@ -196,7 +212,7 @@ else if (isset($_GET['edit_forum']))
 						if (!$db->affected_rows())
 							$db->query('INSERT INTO '.$db->prefix.'forum_perms (group_id, forum_id, read_forum, post_replies, post_topics) VALUES('.$cur_group['g_id'].', '.$forum_id.', '.$read_forum_new.', '.$post_replies_new.', '.$post_topics_new.')') or error('Unable to insert group forum permissions', __FILE__, __LINE__, $db->error());
 					}
-				}
+				}*/
 			}
 		}
 
@@ -206,7 +222,10 @@ else if (isset($_GET['edit_forum']))
 
 		generate_quickjump_cache();
 
-		redirect('admin_forums.php', $lang_admin_forums['Forum updated redirect']);
+		message($lang_admin_forums['Forum updated redirect'].'<br/>
+		<br/>
+		<div class="codebox"><pre class="vscroll"><code>'.$log.'</code></pre></div>');
+		//redirect('admin_forums.php', $lang_admin_forums['Forum updated redirect']);
 	}
 	else if (isset($_POST['revert_perms']))
 	{

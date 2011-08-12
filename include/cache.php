@@ -100,11 +100,18 @@ function generate_quickjump_cache($group_id = false)
 {
 	global $db, $lang_common, $pun_user;
 
+	$file = $group_id;
 	$groups = array();
+	$temp = array();
+	$is_admin = false;
 
 	// If a group_id was supplied, we generate the quick jump cache for that group only
 	if ($group_id !== false)
 	{
+		$temp = explode('-', $group_id);
+		if (count($temp) > 1) {
+			$group_id = $temp[0]; //Use their primary group, if they can't read the board, ignore them.
+		} //End if.
 		// Is this group even allowed to read forums?
 		$result = $db->query('SELECT g_read_board FROM '.$db->prefix.'groups WHERE g_id='.$group_id) or error('Unable to fetch user group read permission', __FILE__, __LINE__, $db->error());
 		$read_board = $db->result($result);
@@ -120,6 +127,70 @@ function generate_quickjump_cache($group_id = false)
 		while ($row = $db->fetch_row($result))
 			$groups[$row[0]] = $row[1];
 	}
+	
+	if (count($temp) > 1 && $groups[$group_id] == '1') {
+		//EveBB Muli-group support for quick-jump.
+		
+		if ($temp[0] == PUN_ADMIN) {
+			$is_admin = true;
+		} //End if.
+		
+		$group_ids = 'fp.group_id='.$temp[0];
+		for ($i = 1; $i < count($temp); $i++) {
+			if ($temp[$i] == PUN_ADMIN) {
+				$is_admin = true;
+			} //End if.
+			$group_ids .= ' OR fp.group_id='.$temp[$i];
+		} //End foreach.
+		
+		// Output quick jump as PHP code
+		$fh = @fopen(FORUM_CACHE_DIR.'cache_quickjump_'.$file.'.php', 'wb');
+		if (!$fh)
+			error('Unable to write quick jump cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+
+		$output = '<?php'."\n\n".'if (!defined(\'PUN\')) exit;'."\n".'define(\'PUN_QJ_LOADED\', 1);'."\n".'$forum_id = isset($forum_id) ? $forum_id : 0;'."\n\n".'?>';
+
+		if ($groups[$group_id] == '1')
+		{
+			if (!$is_admin) {
+				$result = $db->query('SELECT DISTINCT c.id AS cid, c.cat_name, c.disp_position, c.id, f.disp_position, f.id AS fid, f.forum_name, f.redirect_url, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id INNER JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND ('.$group_ids.') ) WHERE fp.read_forum=1 ORDER BY c.disp_position, c.id, f.disp_position') or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
+			} else {
+				$result = $db->query('SELECT DISTINCT c.id AS cid, c.cat_name, c.disp_position, c.id, f.disp_position, f.id AS fid, f.forum_name, f.redirect_url, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id ORDER BY c.disp_position, c.id, f.disp_position') or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
+			} //End if - else.
+			if ($db->num_rows($result))
+			{
+				$output .= "\t\t\t\t".'<form id="qjump" method="get" action="viewforum.php">'."\n\t\t\t\t\t".'<div><label><span><?php echo $lang_common[\'Jump to\'] ?>'.'<br /></span>'."\n\t\t\t\t\t".'<select name="id" onchange="window.location=(\'viewforum.php?id=\'+this.options[this.selectedIndex].value)">'."\n";
+
+				$cur_category = 0;
+				while ($cur_forum = $db->fetch_assoc($result))
+				{
+					if ($cur_forum['cid'] != $cur_category) // A new category since last iteration?
+					{
+						if ($cur_category)
+							$output .= "\t\t\t\t\t\t".'</optgroup>'."\n";
+
+						$output .= "\t\t\t\t\t\t".'<optgroup label="'.pun_htmlspecialchars($cur_forum['cat_name']).'">'."\n";
+						$cur_category = $cur_forum['cid'];
+					}
+
+					$redirect_tag = ($cur_forum['redirect_url'] != '') ? ' &gt;&gt;&gt;' : '';
+					$output .= "\t\t\t\t\t\t\t".'<option value="'.$cur_forum['fid'].'"<?php echo ($forum_id == '.$cur_forum['fid'].') ? \' selected="selected"\' : \'\' ?>>'.($cur_forum['parent_forum_id'] == 0 ? '' : '&nbsp;&nbsp;&nbsp;').pun_htmlspecialchars($cur_forum['forum_name']).$redirect_tag.'</option>'."\n";
+				}
+
+				$output .= "\t\t\t\t\t\t".'</optgroup>'."\n\t\t\t\t\t".'</select>'."\n\t\t\t\t\t".'<input type="submit" value="<?php echo $lang_common[\'Go\'] ?>" accesskey="g" />'."\n\t\t\t\t\t".'</label></div>'."\n\t\t\t\t".'</form>'."\n";
+			}
+		}
+
+		fwrite($fh, $output);
+
+		fclose($fh);
+
+		if (function_exists('apc_delete_file'))
+			@apc_delete_file(FORUM_CACHE_DIR.'cache_quickjump_'.$group_id.'.php');
+			
+		return;
+		
+	} //End if.
 
 	// Loop through the groups in $groups and output the cache for each of them
 	foreach ($groups as $group_id => $read_board)

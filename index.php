@@ -67,12 +67,12 @@ while ($current = $db->fetch_assoc($forums_info))
 $group_list = '';
 if (!empty($pun_user['group_ids'])) {
 	foreach ($pun_user['group_ids'] as $g) {
-		$group_list .= ' AND fp.group_id='.$g;
+		$group_list .= ' OR fp.group_id='.$g;
 	} //End foreach().
 } //End if.
 
 // Print the categories and forums
-$result = $db->query('
+/*$sql = '
 	SELECT
 		c.id AS cid,
 		c.cat_name,
@@ -105,7 +105,14 @@ $result = $db->query('
 		c.disp_position,
 		c.id,
 		f.disp_position
-	', true) or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
+	';*/
+if ($pun_user['g_id'] != PUN_ADMIN) {
+	$sql = 'SELECT DISTINCT f.id AS fid, c.disp_position, c.id AS cid, c.cat_name, f.forum_name, f.forum_desc, f.redirect_url, f.moderators, f.num_topics, f.num_posts, f.last_post, f.last_post_id, f.last_poster, f.parent_forum_id, f.disp_position FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id INNER JOIN evebb_forum_perms AS fp ON (fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.') AND fp.read_forum=1) WHERE f.parent_forum_id IS NULL OR f.parent_forum_id=0 ORDER BY c.disp_position, c.id, f.disp_position;';
+} else {
+ 	$sql = 'SELECT c.id AS cid, c.cat_name, f.id AS fid, f.forum_name, f.forum_desc, f.redirect_url, f.moderators, f.num_topics, f.num_posts, f.last_post, f.last_post_id, f.last_poster, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id WHERE f.parent_forum_id IS NULL OR f.parent_forum_id=0 ORDER BY c.disp_position, c.id, f.disp_position;';
+ } //End if - else.
+ 
+$result = $db->query($sql, true) or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
 
 $cur_category = 0;
 $cat_count = 0;
