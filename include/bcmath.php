@@ -14,11 +14,17 @@ if ($int == 9223372036854775807) {
 	define('64BIT');
 } //End if.
 
+if (!defined('64BIT') && !function_exists('bcscale')) {
+	die('You are trying to run EveBB on a 32-bit environment without BCMath.<br/>
+	<br/>
+	Please click <a href="http://www.php.net/manual/en/book.bc.php">here</a> to learn about how to configure BCMath.');
+} //End if.
+
 function bscale($x) {
-	if (defined('64BIT')) {
-		bcscale($x);
+	if (!defined('64BIT')) {
+		return bcscale($x);
 	} //End if.
-	return; //Ignore for 64bit.
+	return true; //Ignore for 64bit.
 } //End function ().
 
 function badd($x, $y) {

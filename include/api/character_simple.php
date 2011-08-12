@@ -86,16 +86,17 @@ class Character {
 		} //End if.
 		
 		$this->corporationRoles = '0';
-		bscale(0);
 		
-		foreach ($char_sheet->result->rowset as $rowset) {
-			if ($rowset['name'] == 'corporationRoles') {
-			
-				foreach($rowset->row as $row) {
-					$this->corporationRoles = badd($this->corporationRoles, $row['roleID']);
-				} //End foreach().
-			} //End if.
-		} //End foreach().
+		if (bscale(0)) {
+			foreach ($char_sheet->result->rowset as $rowset) {
+				if ($rowset['name'] == 'corporationRoles') {
+				
+					foreach($rowset->row as $row) {
+						$this->corporationRoles = badd($this->corporationRoles, $row['roleID']);
+					} //End foreach().
+				} //End if.
+			} //End foreach().
+		} //End if.
 		
 		$this->characterID = (int)$char_sheet->result->characterID;
 		$this->name = $db->escape((string)$char_sheet->result->name);

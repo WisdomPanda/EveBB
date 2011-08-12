@@ -58,7 +58,7 @@ class Character {
 		} //End if.
 		
 		$this->corporationRoles = '0';
-		bscale(0);
+		$use_roles = @bscale(0);
 
 		$xml_parser = xml_parser_create();
 		xml_set_object($xml_parser, $this);
@@ -87,6 +87,11 @@ class Character {
 		$this->cloneSkillPoints = $this->CLONESKILLPOINTS;
 		$this->balance = $this->BALANCE;
 		$_LAST_ERROR = 0;
+		
+		if (!$use_roles) {
+			$this->corporationRoles = '0';
+		} //End if.
+		
 		return $this->characterID;
 	} //End load_character().
 	
