@@ -967,6 +967,15 @@ function paginate($num_pages, $cur_page, $link)
 function message($message, $no_back_link = false)
 {
 	global $db, $lang_common, $pun_config, $pun_start, $tpl_main, $pun_user;
+	
+	if (defined('EVEBB_AUTO_DEBUG')) {
+		$xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
+		$xml .= '<msg>'."\n";
+		$xml .= '<text><![CDATA['.$message.']]></text>'."\n";
+		$xml .= '</msg>'."\n";
+		echo $xml;
+		exit;
+	} //End if.
 
 	if (!defined('PUN_HEADER'))
 	{
@@ -1348,6 +1357,16 @@ function maintenance_message()
 function redirect($destination_url, $message, $link_back = true)
 {
 	global $db, $pun_config, $lang_common, $pun_user;
+	
+	if (defined('EVEBB_AUTO_DEBUG')) {
+		$xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
+		$xml .= '<redirect>'."\n";
+		$xml .= '<text><![CDATA['.$message.']]></text>'."\n";
+		$xml .= '<url><![CDATA['.$destination_url.']]></url>'."\n";
+		$xml .= '</redirect>'."\n";
+		echo $xml;
+		exit;
+	} //End if.
 
 	// Prefix with base_url (unless there's already a valid URI)
 	if (strpos($destination_url, 'http://') !== 0 && strpos($destination_url, 'https://') !== 0 && strpos($destination_url, '/') !== 0)
@@ -1480,6 +1499,24 @@ function redirect($destination_url, $message, $link_back = true)
 function error($message, $file = null, $line = null, $db_error = false)
 {
 	global $pun_config, $lang_common;
+	
+	if (defined('EVEBB_AUTO_DEBUG')) {
+		$xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
+		$xml .= '<error>'."\n";
+		$xml .= '<text><![CDATA['.$message.']]></text>'."\n";
+		$xml .= '<file><![CDATA['.$file.']]></file>'."\n";
+		$xml .= '<line>'.$line.'</line>'."\n";
+		if ($db_error) {
+			$xml .= '<db>'."\n";
+			$xml .= '<msg><![CDATA['.$db_error['error_msg'].']]></msg>'."\n";
+			$xml .= '<sql><![CDATA['.$db_error['error_sql'].']]></sql>'."\n";
+			$xml .= '<num>'.$db_error['error_no'].'</num>'."\n";
+			$xml .= '</db>'."\n";
+		} //End if.
+		$xml .= '</error>'."\n";
+		echo $xml;
+		exit;
+	} //End if.
 
 	// Set some default settings if the script failed before $pun_config could be populated
 	if (empty($pun_config) || !isset($pun_config['o_gzip']) || !isset($pun_config['o_board_title']))

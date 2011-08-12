@@ -32,7 +32,7 @@ if (isset($_SERVER['HTTP_X_MOZ']) && $_SERVER['HTTP_X_MOZ'] == 'prefetch')
 	header('Pragma: no-cache'); // For HTTP/1.0 compatibility
 
 	exit;
-}
+} //End if.
 
 // Attempt to load the configuration file config.php
 if (file_exists(PUN_ROOT.'config.php'))
@@ -200,6 +200,9 @@ if (!defined('PUN_SEARCH_MAX_WORD'))
  	define('FORUM_MAX_COOKIE_SIZE', 4048);
 	
 /*********** EVE-BB ***********/
+ 	
+//Define this ONLY if you want automated testing to be allowed on your server.
+define('EVEBB_AUTO_DEBUG', 1);
  	
 //See if they are allowed to have their own style.
 
