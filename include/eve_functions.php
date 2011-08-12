@@ -257,14 +257,14 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 		} else {
 			
 			if ($_LAST_ERROR == API_ACCOUNT_STATUS) {
-				$log [] = sprintf("API account is inactive, purging.", $row['character_id'], $row['character_name']);
-				purge_unclean(array($row['user_id']), $pun_config['o_eve_restricted_group']);
-				remove_api_keys($row['user_id']);
+				$log [] = sprintf("[%s] %s - API account is inactive, purging.", $row['character_id'], $row['character_name']);
+				//purge_unclean(array($row['user_id']), $pun_config['o_eve_restricted_group']);
+				//remove_api_keys($row['user_id']);
 			} else if ($_LAST_ERROR == API_BAD_AUTH) {
 				$log [] = sprintf($lang_eve_bb['char_sheet_failed'], $row['character_id'], $row['character_name']);
 			} else if ($_LAST_ERROR == API_BAD_FETCH || $_LAST_ERROR == API_SERVER_ERROR) {
 				if (defined('PUN_DEBUG')) {
-					$log [] = sprintf("Unable to fetch API data.", $row['character_id'], $row['character_name']);
+					$log [] = sprintf("[%s] %s - Unable to fetch API data.", $row['character_id'], $row['character_name']);
 				} //End if.
 			} else if ($_LAST_ERROR == API_SERVER_DOWN) {
 				if (defined('PUN_DEBUG')) {
@@ -351,16 +351,20 @@ function purge_unclean($users, $group_id) {
 	global $db, $lang_common;
 	
 	$log = array();
+	$hook = (count($_HOOKS['rules']) > 0) ? true : false;
 	
 	foreach ($users as $row) {
 		
 		$pass = false;
-		foreach ($_HOOKS['rules'] as $hook) {
-			$pass = $hook->restrict_user($row);
-		} //End foreach().
+		
+		if ($hook) {
+			foreach ($_HOOKS['rules'] as $hook) {
+				$pass = $hook->restrict_user($row);
+			} //End foreach().
+		} //End if.
 		
 		if ($pass !== true) {
-			$sql = "UPDATE ".$db->prefix."users SET group_id=".$group_id." WHERE id=".$row['user_id'].";";
+			$sql = "UPDATE ".$db->prefix."users SET group_id=".$group_id." WHERE id=".$row['user_id']." AND group_id!=".PUN_ADMIN.";";
 			if (!$result = $db->query($sql)) {
 				$log[] = sprintf($lang_common['eve_purge_user_failed'], $row['character_name']);
 				continue;

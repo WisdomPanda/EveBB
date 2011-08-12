@@ -202,7 +202,7 @@ if (!defined('PUN_SEARCH_MAX_WORD'))
 /*********** EVE-BB ***********/
  	
 //Define this ONLY if you want automated testing to be allowed on your server.
-define('EVEBB_AUTO_DEBUG', 1);
+//define('EVEBB_AUTO_DEBUG', 1);
  	
 //See if they are allowed to have their own style.
 
