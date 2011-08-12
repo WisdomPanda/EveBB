@@ -109,9 +109,8 @@ function generate_quickjump_cache($group_id = false)
 	if ($group_id !== false)
 	{
 		$temp = explode('-', $group_id);
-		if (count($temp) > 1) {
-			$group_id = $temp[0]; //Use their primary group, if they can't read the board, ignore them.
-		} //End if.
+		$group_id = (int)$temp[0];
+		
 		// Is this group even allowed to read forums?
 		$result = $db->query('SELECT g_read_board FROM '.$db->prefix.'groups WHERE g_id='.$group_id) or error('Unable to fetch user group read permission', __FILE__, __LINE__, $db->error());
 		$read_board = $db->result($result);

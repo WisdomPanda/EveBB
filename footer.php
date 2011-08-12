@@ -68,7 +68,7 @@ echo "\t\t\t".'<div class="conl">'."\n";
 // Display the "Jump to" drop list
 if ($pun_config['o_quickjump'] == '1')
 {
-	
+	$groups = '';
 	$pun_user['group_ids'][] = $pun_user['g_id'];
 	
 	sort($pun_user['group_ids']);
