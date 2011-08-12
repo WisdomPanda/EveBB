@@ -155,7 +155,9 @@ foreach( $feeds as $feed ) {
 								<td><? print $feed['num_posts'] ?></td>
 								<td><a href="?plugin=<? print $plugin ?>&url=<? print urlencode( $feed['url'] ) ?>&delete=1">Delete</a></td>
 							</tr>
-<? } ?>
+<?
+}
+?>
 						</tbody>
 						</table>
 
@@ -169,5 +171,4 @@ foreach( $feeds as $feed ) {
 <?
 
 }
-
-
+?>

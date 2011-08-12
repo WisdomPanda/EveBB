@@ -10,7 +10,7 @@
 //Lets do our 64bit/32bit check.
 $bc_test = "9223372036854775807";
 $bc_test = intval($bc_test);
-if ($int == 9223372036854775807) {
+if ($bc_test == 9223372036854775807) {
 	define('64BIT');
 } //End if.
 
