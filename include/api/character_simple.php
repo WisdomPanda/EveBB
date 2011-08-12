@@ -53,6 +53,8 @@ class Character {
 			$_LAST_ERROR = API_BAD_REQUEST;
 			return false;
 		} //End if.
+		
+		echo $xml;
 			
 		if (!$char_sheet = simplexml_load_string($xml)) {
 			if (defined('PUN_DEBUG')) {
@@ -88,7 +90,6 @@ class Character {
 		if (bscale(0)) {
 			foreach ($char_sheet->result->rowset as $rowset) {
 				if ($rowset['name'] == 'corporationRoles') {
-				
 					foreach($rowset->row as $row) {
 						$this->corporationRoles = badd($this->corporationRoles, $row['roleID']);
 					} //End foreach().

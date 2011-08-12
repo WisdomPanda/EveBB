@@ -210,12 +210,26 @@
 ----------------------------------------------------------------*/
 
 .pun {
-	margin: 12px 20px
-	}
+	margin: 1em auto;
+    width: 1038px;
+}
 
-#punredirect, #punmaint, #puninstall, #pundb_update {
-	margin: 50px 20% 12px 20%
-	}
+#punredirect, #punmaint {
+	margin: 1em auto;
+	margin-top: 100px;
+    width: 800px;
+}
+
+#puninstall, #pundb_update {
+	margin: 1em auto;
+	margin-top: 100px;
+    width: 800px;
+}
+
+.pun .punwrap {
+	border: 1px solid;
+	padding: 18px;
+}
 
 
 /* Vertical Element Spacing
@@ -1094,6 +1108,15 @@ body {
 .pun .inew .icon {
 	border-color: #8bb453 #7a9e48 #709142 #799c47
 	}
+	
+/* Thankyou mod
+----------------------------------------------------------------*/
+.pun .thanks {
+	border: 1px dotted;
+	padding: 10px 20px 10px 20px;
+	margin: 10px 0 10px 0;
+	border-color:#000;
+}
 	
 /* Poll
 ----------------------------------------------------------------*/

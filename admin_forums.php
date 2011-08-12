@@ -222,10 +222,10 @@ else if (isset($_GET['edit_forum']))
 
 		generate_quickjump_cache();
 
-		message($lang_admin_forums['Forum updated redirect'].'<br/>
-		<br/>
-		<div class="codebox"><pre class="vscroll"><code>'.$log.'</code></pre></div>');
-		//redirect('admin_forums.php', $lang_admin_forums['Forum updated redirect']);
+		//message($lang_admin_forums['Forum updated redirect'].'<br/>
+		//<br/>
+		//<div class="codebox"><pre class="vscroll"><code>'.$log.'</code></pre></div>');
+		redirect('admin_forums.php', $lang_admin_forums['Forum updated redirect']);
 	}
 	else if (isset($_POST['revert_perms']))
 	{

@@ -159,15 +159,20 @@ html, body, .pun table, .pun div, .pun form, .pun p, .pun h1, .pun h2, .pun h3, 
 ----------------------------------------------------------------*/
 
 .pun {
-	padding: 30px 40px;
+	margin: 1em auto;
+    width: 1038px;
 }
 
 #punredirect, #punmaint {
-	padding: 60px 20% 12px 20%;
+	margin: 1em auto;
+	margin-top: 100px;
+    width: 800px;
 }
 
 #puninstall, #pundb_update {
-	padding: 20px 10%;
+	margin: 1em auto;
+	margin-top: 100px;
+    width: 800px;
 }
 
 .pun .punwrap {
@@ -1624,6 +1629,15 @@ html, body, .pun {
 
 .pun .inew .icon {
 	border-color: #ca0000 #ab0000 #bb0000 #d30000;
+}
+
+/* Thankyou mod
+----------------------------------------------------------------*/
+.pun .thanks {
+	border: 1px dotted;
+	padding: 10px 20px 10px 20px;
+	margin: 10px 0 10px 0;
+	border-color:#000;
 }
 
 /* Poll

@@ -136,6 +136,9 @@ generate_admin_menu('eve_groups');
 <?php
 
 foreach ($api_roles as $key => $value) {
+		if ($key == '') {
+			continue;
+		} //End if.
 		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$value.'">'.$key.'</option>'."\n";
 } //End 'i' for loop.
 
