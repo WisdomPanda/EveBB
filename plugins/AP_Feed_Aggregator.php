@@ -40,7 +40,7 @@ generate_admin_menu( $plugin );
 					<legend>Installation</legend>
 					<div class="infldset">
 
-					<p>Run the <a href="<? print $pun_config['o_base_url'] ?>/plugins/feed/sp_compatibility_test.php" target="_blank">Compatibility Test</a></p>
+					<p>Run the <a href="<?php print $pun_config['o_base_url'] ?>/plugins/feed/sp_compatibility_test.php" target="_blank">Compatibility Test</a></p>
 
 					<p class="submitend"><input type="submit" name="install" value="Install" /></p>
 					</div>
@@ -50,7 +50,7 @@ generate_admin_menu( $plugin );
 		</div>
 	</div>
 
-<?
+<?php
 
 } else {
 
@@ -85,9 +85,9 @@ generate_admin_menu( $plugin );
 					<legend>Installation</legend>
 					<div class="infldset">
 
-						<p>Test the <a href="<? print $pun_config['o_base_url'] ?>/plugins/feed/fa_cron.php?<? print rand() ?>" target="_blank">cron script</a> and install crontab (crontab -e)
+						<p>Test the <a href="<?php print $pun_config['o_base_url'] ?>/plugins/feed/fa_cron.php?<?php print rand() ?>" target="_blank">cron script</a> and install crontab (crontab -e)
 <div class="codebox"><div class="incqbox"><div class="scrollbox" style="height: "><pre>
-*/30 * * * * /usr/bin/wget -O - -q <? print $pun_config['o_base_url'] ?>/plugins/feed/fa_cron.php
+*/30 * * * * /usr/bin/wget -O - -q <?php print $pun_config['o_base_url'] ?>/plugins/feed/fa_cron.php
 </pre></div></div></div>
 						</p>
 
@@ -143,19 +143,19 @@ while( $cur_forum = $db->fetch_assoc( $result ) ) {
 								<td><input type="checkbox" value="1" name="closed" /></td>
 								<td colspan="3"><input type="submit" name="add" value="Add" /></td>
 							</tr>
-<?
+<?php
 foreach( $feeds as $feed ) {
 ?>
 							<tr>
-								<td><? print $feed['url'] ?></td>
-								<td><? print $feed['forum_name'] ? pun_htmlspecialchars( $feed['forum_name'] ) : '<strong>DELETED</strong>' ?></td>
-								<td><? print $feed['max'] ? $feed['max'] : 'Unlimited' ?></td>
-								<td><? print $feed['closed'] ? 'Yes' : 'No' ?></td>
-								<td><? print $feed['last_post'] == 0 ? 'Never' : format_time( $feed['last_post'] ) ?></td>
-								<td><? print $feed['num_posts'] ?></td>
-								<td><a href="?plugin=<? print $plugin ?>&url=<? print urlencode( $feed['url'] ) ?>&delete=1">Delete</a></td>
+								<td><?php print $feed['url'] ?></td>
+								<td><?php print $feed['forum_name'] ? pun_htmlspecialchars( $feed['forum_name'] ) : '<strong>DELETED</strong>' ?></td>
+								<td><?php print $feed['max'] ? $feed['max'] : 'Unlimited' ?></td>
+								<td><?php print $feed['closed'] ? 'Yes' : 'No' ?></td>
+								<td><?php print $feed['last_post'] == 0 ? 'Never' : format_time( $feed['last_post'] ) ?></td>
+								<td><?php print $feed['num_posts'] ?></td>
+								<td><a href="?plugin=<?php print $plugin ?>&url=<?php print urlencode( $feed['url'] ) ?>&delete=1">Delete</a></td>
 							</tr>
-<?
+<?php
 }
 ?>
 						</tbody>
@@ -168,7 +168,7 @@ foreach( $feeds as $feed ) {
 		</div>
 	</div>
 
-<?
+<?php
 
 }
 ?>
