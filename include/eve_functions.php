@@ -622,10 +622,21 @@ function apply_rules(&$log) {
 			$db->query("DELETE FROM ".$db->prefix."groups_users WHERE group_id=".$group['g_id']." AND user_id=".$row['id'].";");
 		} //End while loop.
 		
+		//Collect post purges...
+		$post_purge = array();
+		
 		//Now we actually assign them groups
 		$primary_restricted = ($row['g_locked'] == '1' || $row['group_id'] == PUN_ADMIN || $row['group_id'] == PUN_MOD);
 		
+		$roles = convert_roles($row['roles']);
+		
 		while ($rule = $db->fetch_assoc($rules_result)) {
+			
+			if (!$roles[$rule['role']]) {
+				$post_purge[] = $rule['group_id'];
+				continue; //Denied based on roles.
+			} //End if.
+			
 			if (!$primary_restricted) {
 				//Update their primary group.
 				$sql = "UPDATE ".$db->prefix."users SET group_id=".$rule['group_id']." WHERE id=".$row['id'];
@@ -671,6 +682,15 @@ function apply_rules(&$log) {
 				$log .= "[".$row['username']."]: Added to group [".$rule['group_id']."].\n";
 			} //End if - else.
 		} //End while loop().
+		
+		if (count($post_purges) > 0) {
+		//Remove old groups...
+		foreach ($post_purge as $p) {
+			//There isn't a huge amount we need to do past this.
+			$log .= "[".$row['username']."]: Removing from group [".$p."]\n";
+			$db->query("DELETE FROM ".$db->prefix."groups_users WHERE group_id=".$p." AND user_id=".$row['id'].";");
+		} //End while loop.
+		} //End if.
 		
 		//Finally, call the hooks, assuming they have auth.
 		if ($auth) {
