@@ -62,9 +62,6 @@ class Character {
 		} //End if.
 		
 		if (isset($char_sheet->error)) {
-			if (defined('PUN_DEBUG')) {
-				error("API error while fetching character data.".$char_sheet->error, __FILE__, __LINE__, $db->error());
-			} //End if.
 			
 			$err = (int)$char_sheet->error['code'];
 			
