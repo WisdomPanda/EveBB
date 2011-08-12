@@ -260,8 +260,8 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 			
 			if ($_LAST_ERROR == API_ACCOUNT_STATUS) {
 				$log [] = sprintf("[%s] %s - API account is inactive, purging.", $row['character_id'], $row['character_name']);
-				//purge_unclean(array($row['user_id']), $pun_config['o_eve_restricted_group']);
-				//remove_api_keys($row['user_id']);
+				purge_unclean(array($row['user_id']), $pun_config['o_eve_restricted_group']);
+				remove_api_keys($row['user_id']);
 			} else if ($_LAST_ERROR == API_BAD_AUTH) {
 				$log [] = sprintf($lang_eve_bb['char_sheet_failed'], $row['character_id'], $row['character_name']);
 			} else if ($_LAST_ERROR == API_BAD_FETCH || $_LAST_ERROR == API_SERVER_ERROR) {
@@ -685,11 +685,11 @@ function apply_rules(&$log) {
 		
 		if (count($post_purges) > 0) {
 		//Remove old groups...
-		foreach ($post_purge as $p) {
-			//There isn't a huge amount we need to do past this.
-			$log .= "[".$row['username']."]: Removing from group [".$p."]\n";
-			$db->query("DELETE FROM ".$db->prefix."groups_users WHERE group_id=".$p." AND user_id=".$row['id'].";");
-		} //End while loop.
+			foreach ($post_purge as $p) {
+				//There isn't a huge amount we need to do past this.
+				$log .= "[".$row['username']."]: Removing from group [".$p."]\n";
+				$db->query("DELETE FROM ".$db->prefix."groups_users WHERE group_id=".$p." AND user_id=".$row['id'].";");
+			} //End foreach loop.
 		} //End if.
 		
 		//Finally, call the hooks, assuming they have auth.
