@@ -136,6 +136,9 @@ function generate_quickjump_cache($group_id = false)
 		
 		$group_ids = 'fp.group_id='.$temp[0];
 		for ($i = 1; $i < count($temp); $i++) {
+			if (strlen($temp[$i]) == 0) {
+				continue;
+			} //End if.
 			if ($temp[$i] == PUN_ADMIN) {
 				$is_admin = true;
 			} //End if.
@@ -152,7 +155,8 @@ function generate_quickjump_cache($group_id = false)
 		if ($groups[$group_id] == '1')
 		{
 			if (!$is_admin) {
-				$result = $db->query('SELECT DISTINCT c.id AS cid, c.cat_name, c.disp_position, c.id, f.disp_position, f.id AS fid, f.forum_name, f.redirect_url, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id INNER JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND ('.$group_ids.') ) WHERE fp.read_forum=1 ORDER BY c.disp_position, c.id, f.disp_position') or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
+				$sql = 'SELECT DISTINCT c.id AS cid, c.cat_name, c.disp_position, c.id, f.disp_position, f.id AS fid, f.forum_name, f.redirect_url, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id INNER JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND ('.$group_ids.')) WHERE fp.read_forum=1 ORDER BY c.disp_position, c.id, f.disp_position';
+				$result = $db->query($sql) or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
 			} else {
 				$result = $db->query('SELECT DISTINCT c.id AS cid, c.cat_name, c.disp_position, c.id, f.disp_position, f.id AS fid, f.forum_name, f.redirect_url, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id ORDER BY c.disp_position, c.id, f.disp_position') or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
 			} //End if - else.

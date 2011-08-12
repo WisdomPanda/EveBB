@@ -11,7 +11,7 @@
 $bc_test = "9223372036854775807";
 $bc_test = intval($bc_test);
 if ($bc_test == 9223372036854775807) {
-	define('64BIT');
+	define('64BIT', 1);
 } //End if.
 
 if (!defined('64BIT') && !function_exists('bcscale')) {
