@@ -8,6 +8,7 @@
 
 // The FluxBB version this script updates to
 define('UPDATE_TO', '1.4.5');
+define('UPDATE_TO_EVEBB', '1.1.0');
 
 define('UPDATE_TO_DB_REVISION', 11);
 define('UPDATE_TO_SI_REVISION', 2);
@@ -131,19 +132,9 @@ if (!file_exists(PUN_ROOT.'lang/'.$default_lang.'/update.php'))
 
 require PUN_ROOT.'lang/'.$default_lang.'/update.php';
 
-//Debugging.
-if (isset($_GET['attach'])) {
-	install_attach(rtrim(dirname(__FILE__), '/\\') . DIRECTORY_SEPARATOR.'attachments/');
-	exit;
-} //End if.
-
-if (isset($_GET['poll'])) {
-	install_poll();
-	exit;
-} //End if.
-
 // Check current version
 $cur_version = $pun_config['o_cur_version'];
+$cur_eve_version = isset($pun_config['o_cur_eve_version']) ? $pun_config['o_cur_eve_version'] : '1.0.0';
 
 if (version_compare($cur_version, '1.2', '<'))
 	error(sprintf($lang_update['Version mismatch error'], $db_name));
@@ -936,6 +927,47 @@ function attach_generate_filename($storagepath, $messagelenght=0, $filesize=0){
 	}
 }
 
+function update_forum_perm($forum_id) {
+	
+	//This 'fills in' blank permissions, used for multi-group joins.
+	//I personally prefer to work on *some* data than assume something based on a lack of data.
+	
+	$result = $db->query('SELECT g_id, g_read_board, g_post_replies, g_post_topics FROM '.$db->prefix.'groups WHERE g_id!='.PUN_ADMIN) or error('Unable to fetch user group list', __FILE__, __LINE__, $db->error());
+	while ($cur_group = $db->fetch_assoc($result)) {
+		
+		$sql = "SELECT * FROM ".$db->prefix."forum_perms WHERE group_id=".$cur_group['g_id']." AND forum_id=".$forum_id;
+		if (!$perms = $db->query($sql)) {
+			continue;
+		} //End if.
+		
+		
+		if ($db->num_rows($perms) == 0) {
+			$read_forum_new = '0';
+			$post_replies_new = '0';
+			$post_topics_new = '0';
+		} else {
+			//Already perms set for this forum/group.
+			continue;
+		} //End if - else.
+		
+		$fields = array(
+				'forum_id' => $forum_id,
+				'group_id' => $cur_group['g_id'],
+				'read_forum' => $read_forum_new,
+				'post_replies' => $post_replies_new,
+				'post_topics' => $post_topics_new
+				);
+				
+		if (!$db->insert_or_update($fields, array('forum_id', 'group_id'), $db->prefix.'forum_perms')) {
+				if (defined('PUN_DEBUG')) {
+					error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
+				} //End if.
+				$log .= "[".$cur_group['g_id']."]: Unable to add permissions [".$old_group."].\n";
+				continue;
+		} //End if.
+	}
+} //End update_forum_perm().
+
 /* EVEBB Updates*/
 
 
@@ -983,8 +1015,8 @@ if (empty($stage))
 	<h2><span><?php echo $lang_update['Update'] ?></span></h2>
 	<div class="box">
 		<form method="post" action="db_update.php">
-			<input type="hidden" name="stage" value="start" />
 			<div class="inform">
+				<input type="hidden" name="stage" value="evebb" />
 				<fieldset>
 				<legend><?php echo $lang_update['Administrator only'] ?></legend>
 					<div class="infldset">
@@ -1113,6 +1145,100 @@ if ($lock_error)
 
 switch ($stage)
 {
+	
+	case 'evebb':
+		$query_str = '?stage=start';
+		
+		/*EveBB runs first*/
+		
+		//Updates for mods.
+		
+		// If we don't have the teamspeak3 table, create it
+		if (!$db->table_exists('teamspeak3')) {
+			$schema = array(
+				'FIELDS'		=> array(
+					'user_id'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false,
+						'default'		=> '0'
+					),
+					'username'		=> array(
+						'datatype'		=> 'VARCHAR(100)',
+						'allow_null'	=> false
+					),
+					'token'		=> array(
+						'datatype'		=> 'VARCHAR(100)',
+						'allow_null'	=> false
+					)
+				),
+				'PRIMARY KEY'	=> array('user_id')
+			);
+
+			$db->create_table('teamspeak3', $schema) or error('Unable to create teamspeak3 table', __FILE__, __LINE__, $db->error());
+		} //End if.
+		
+		//Only install the mods if they aren't already installed.
+		if (!$db->table_exists('pms_new_block')) {
+			install_npms();
+		} //End if.
+		
+		if ($db->field_exists('forums', 'parent_forum_id')) {
+			install_subforum();
+		} //End if.
+		
+		if (!$db->table_exists('attach_2_files')) {
+			install_attach(rtrim(dirname(__FILE__), '/\\') . DIRECTORY_SEPARATOR.'attachments/');
+		} //End if,
+		
+		if (!$db->table_exists('feeds')) {
+			install_feed();
+		} //End if.
+		if (!$db->table_exists('poll')) {
+			install_poll();
+		} //End if.
+		
+		if (version_compare($cur_eve_version, '1.0.0')) {
+			//Update/insert new configs.
+			$db->insert_or_update(
+				array('conf_name' => 'o_hide_stats', 'conf_value' => '0'), //Fields
+				'conf_name', //Primary Key
+				$db->prefix.'config' //Table
+			);
+			
+			$db->insert_or_update(
+				array('conf_name' => 'o_default_style', 'conf_value' => 'evebbgray'), //Fields
+				'conf_name', //Primary Key
+				$db->prefix.'config' //Table
+			);
+			
+			$db->insert_or_update(
+				array('conf_name' => 'o_allow_style', 'conf_value' => '1'), //Fields
+				'conf_name', //Primary Key
+				$db->prefix.'config' //Table
+			);
+			
+			generate_config_cache();
+			
+			//Update permissions, this is not a -terrible- thing to have fail, so we'll let it.
+			//You can manually do this via the forum page.
+			$sql = "SELECT id FROM ".$db->prefix."forums";
+			if ($result = $db->query($sql)) {
+				while ($row = $db->fetch_row($result)) {
+					update_forum_perm($row[0]);
+				} //End while loop().
+			} //End if.
+			
+		} //End if.
+		
+		//The version we want to update to.
+		$db->insert_or_update(
+			array('conf_name' => 'o_cur_eve_version', 'conf_value' => UPDATE_TO_EVEBB), //Fields
+			'conf_name', //Primary Key
+			$db->prefix.'config' //Table
+		);
+		
+		
+		break;
 	// Start by updating the database structure
 	case 'start':
 		$query_str = '?stage=preparse_posts';
@@ -1583,59 +1709,6 @@ switch ($stage)
 		// Should we do charset conversion or not?
 		if (strpos($cur_version, '1.2') === 0 && isset($_POST['convert_charset']))
 			$query_str = '?stage=conv_bans&req_old_charset='.$old_charset;
-			
-		//Updates for mods.
-		
-		// If we don't have the teamspeak3 table, create it
-		if (!$db->table_exists('teamspeak3')) {
-			$schema = array(
-				'FIELDS'		=> array(
-					'user_id'		=> array(
-						'datatype'		=> 'INT(10) UNSIGNED',
-						'allow_null'	=> false,
-						'default'		=> '0'
-					),
-					'username'		=> array(
-						'datatype'		=> 'VARCHAR(100)',
-						'allow_null'	=> false
-					),
-					'token'		=> array(
-						'datatype'		=> 'VARCHAR(100)',
-						'allow_null'	=> false
-					)
-				),
-				'PRIMARY KEY'	=> array('user_id')
-			);
-
-			$db->create_table('teamspeak3', $schema) or error('Unable to create teamspeak3 table', __FILE__, __LINE__, $db->error());
-		} //End if.
-			
-		install_npms();
-		install_subforum();
-		install_attach(rtrim(dirname(__FILE__), '/\\') . DIRECTORY_SEPARATOR.'attachments/');
-		install_feed();
-		install_poll();
-		
-		//Update/insert new configs.
-		$db->insert_or_update(
-			array('conf_name' => 'o_hide_stats', 'conf_value' => '0'), //Fields
-			'conf_name', //Primary Key
-			$db->prefix.'config' //Table
-		);
-		
-		$db->insert_or_update(
-			array('conf_name' => 'o_default_style', 'conf_value' => 'evebbgray'), //Fields
-			'conf_name', //Primary Key
-			$db->prefix.'config' //Table
-		);
-		
-		$db->insert_or_update(
-			array('conf_name' => 'o_allow_style', 'conf_value' => '1'), //Fields
-			'conf_name', //Primary Key
-			$db->prefix.'config' //Table
-		);
-		
-		generate_config_cache();
 
 		break;
 

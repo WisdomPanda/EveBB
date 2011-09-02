@@ -673,10 +673,15 @@ function handle_img_tag($url, $is_signature = false, $alt = null)
 
 	$img_tag = '<a href="'.$url.'">&lt;'.$lang_common['Image link'].' - '.$alt.'&gt;</a>';
 
-	if ($is_signature && $pun_user['show_img_sig'] != '0')
+	if ($is_signature && $pun_user['show_img_sig'] != '0') {
+		
 		$img_tag = '<img class="sigimage" src="'.$url.'" alt="'.$alt.'" />';
-	else if (!$is_signature && $pun_user['show_img'] != '0')
+		
+	} else if (!$is_signature && $pun_user['show_img'] != '0') {
+		
 		$img_tag = '<span class="postimg"><img src="'.$url.'" alt="'.$alt.'" /></span>';
+		
+	} //End if - else.
 
 	return $img_tag;
 }
