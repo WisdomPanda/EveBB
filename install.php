@@ -1,7 +1,5 @@
 <?php
 
-ini_set("display_errors", "on");
-
 /**
  * Copyright (C) 2008-2010 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
