@@ -1182,7 +1182,7 @@ switch ($stage)
 			install_npms();
 		} //End if.
 		
-		if ($db->field_exists('forums', 'parent_forum_id')) {
+		if (!$db->field_exists('forums', 'parent_forum_id')) {
 			install_subforum();
 		} //End if.
 		
@@ -1197,7 +1197,7 @@ switch ($stage)
 			install_poll();
 		} //End if.
 		
-		if (version_compare($cur_eve_version, '1.0.0')) {
+		if (version_compare($cur_eve_version, '1.0.0', '<=')) {
 			//Update/insert new configs.
 			$db->insert_or_update(
 				array('conf_name' => 'o_hide_stats', 'conf_value' => '0'), //Fields
