@@ -367,7 +367,8 @@ function purge_unclean($users, $group_id) {
 		
 		if ($pass !== true) {
 			$sql = "UPDATE ".$db->prefix."users SET group_id=".$group_id." WHERE id=".$row['user_id']." AND group_id!=".PUN_ADMIN.";";
-			if (!$result = $db->query($sql)) {
+			$sql1 = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$row['user_id'];
+			if (!$db->query($sql) || !$db->query($sql1)) {
 				$log[] = sprintf($lang_common['eve_purge_user_failed'], $row['character_name']);
 				continue;
 			} //End if.
@@ -516,8 +517,6 @@ function apply_rules(&$log) {
 	$characters = array();
 	$purge = array();
 	
-	//We are fetching a lot of character data here, this is now passed to the new $_HOOKS classes for any handling they want to do.
-	
 	//We need to get the characters we'll be working with first.
 	
 	$sql = "
@@ -534,6 +533,10 @@ function apply_rules(&$log) {
 		".$db->prefix."api_characters AS c
 	ON
 		sc.character_id=c.character_id
+	INNER JOIN
+		".$db->prefix."api_auth AS auth
+	ON
+		auth.api_character_id=c.character_id
 	INNER JOIN
 		".$db->prefix."users AS u
 	ON
