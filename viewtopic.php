@@ -129,14 +129,12 @@ if (!$pun_user['is_guest']) {
 		INNER JOIN
 			'.$db->prefix.'forum_perms AS fp
 		ON
-			(fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
+			(fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.') AND fp.read_forum=1)
 		LEFT JOIN
 			'.$db->prefix.'forums AS pf
 		ON
 			f.parent_forum_id=pf.id
 		WHERE
-			(fp.read_forum IS NULL OR fp.read_forum=1)
-		AND
 			t.id='.$id.'
 		AND
 			t.moved_to IS NULL';
@@ -179,7 +177,7 @@ if (!$pun_user['is_guest']) {
 	} //End if - else.
 	$result = $db->query($sql) or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
 } else {
-	$result = $db->query('SELECT t.subject, t.closed, t.num_replies, t.sticky, t.first_post_id, t.poll_type, t.poll_time, t.poll_term, t.poll_kol, f.id AS forum_id, f.forum_name, f.moderators, fp.post_replies, 0 AS is_subscribed FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forums AS f ON f.id=t.forum_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND t.id='.$id.' AND t.moved_to IS NULL') or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT t.subject, t.closed, t.num_replies, t.sticky, t.first_post_id, t.poll_type, t.poll_time, t.poll_term, t.poll_kol, f.id AS forum_id, f.forum_name, f.moderators, fp.post_replies, 0 AS is_subscribed FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forums AS f ON f.id=t.forum_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE fp.read_forum=1 AND t.id='.$id.' AND t.moved_to IS NULL') or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
 } //End if.
 
 if (!$db->num_rows($result)) {
