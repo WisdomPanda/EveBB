@@ -11,7 +11,7 @@ if (!defined('PUN_ROOT'))
 
 // Define the version and database revision that this code was written for
 define('FORUM_VERSION', '1.4.5');
-define('EVE_BB_VERSION', '1.1.0');
+define('EVE_BB_VERSION', '1.1.1');
 //Functions for EvE-BB
 define('EVE_ENABLED', 1);
 require(PUN_ROOT.'include/eve_functions.php');
