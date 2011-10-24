@@ -17,12 +17,12 @@ class Alliance {
 	 */
 	function update_list() {
 		
-		global $db, $_LAST_ERROR;
+		global $db, $pun_request, $_LAST_ERROR;
 		$_LAST_ERROR = 0;
 		
 		$url = 'http://api.eve-online.com/eve/AllianceList.xml.aspx';
 		
-		if (!$xml = post_request($url)) {
+		if (!$xml = $pun_request->post($url)) {
 			$_LAST_ERROR = API_BAD_REQUEST;
 			return false;
 		} //End if.

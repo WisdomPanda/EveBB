@@ -139,7 +139,6 @@ function fetchCharacters() {
 	newContent += "<img src=\"img/ajax-loader.gif\" width=\"16\" height=\"16\">";
 
 	//Now lets get the ball rolling in regards to the XML data.
-	//url = "api.php?action=char_list&userID="+userID+"&apiKey="+key;
 	url = "api.php?char_list="+userID+"-"+key;
 	
 	document.getElementById("api_holder").innerHTML = newContent;
@@ -197,8 +196,8 @@ function characterCallback() {
 			newContent += '<tr>';
 			newContent += '	<th scope="row"  style="width: 64px;"><img src="http://image.eveonline.com/Character/'+row[i].getAttribute("characterID")+'_64.jpg" width="64px" height="64px" alt="" /></th>';
 			newContent += '	<td>';
-			newContent += '		<strong>'+row[i].getAttribute("name")+'</strong><br/>';
-			newContent += '		<em>'+row[i].getAttribute("corporationName")+'</em><br/>';
+			newContent += '		&nbsp;&nbsp;<strong>'+row[i].getAttribute("name")+'</strong><br/>';
+			newContent += '		&nbsp;&nbsp;<em>'+row[i].getAttribute("corporationName")+'</em><br/>';
 			newContent += '	</td>';
 			newContent += '	<td style="text-align: center;"><input id="char_radio_'+i+'" type="radio" name="api_character_id" value="'+row[i].getAttribute("characterID")+'" autocomplete="off"/>&#160;<strong></strong></td>';
 			newContent += '</tr>';

@@ -31,6 +31,13 @@ define('EVE_ENABLED', 1);
 
 define('PUN_ROOT', dirname(__FILE__).'/');
 
+//Determine if we can/should use cURL where possible.
+if (extension_loaded('curl') && $pun_config['o_use_fopen'] != '1') {
+	define('EVEBB_CURL', 1);
+} //End if.
+require(PUN_ROOT.'include/request.php');
+$pun_request = new Request();
+
 // If we've been passed a default language, use it
 $install_lang = isset($_REQUEST['install_lang']) ? trim($_REQUEST['install_lang']) : 'English';
 
@@ -188,12 +195,12 @@ else
 		
 	/*---------- EVE-BB DATA CHECKS ---------*/
 	//return;
-	if (strlen($api_key) != 64) {
-		$alerts[] = 'Incorrect API Key format. Found ('.strlen($api_key).') expected (64)';
+	if (strlen($api_key) > 64 && strlen($api_key) < 20) {
+		$alerts[] = 'Incorrect API Verification Code Lengt. Found '.strlen($api_key).', but expected between 20 and 64 inclusive.';
 	} //End if.
 	
 	if (!is_numeric($api_user_id)) {
-		$alerts[] = 'Incorrect API User ID format.';
+		$alerts[] = 'Incorrect API Key ID format.';
 	} //End if.
 	
 	if (!is_numeric($api_character_id)) {
@@ -301,13 +308,53 @@ else
 			default:
 				error(sprintf($lang_install['DB type not valid'], pun_htmlspecialchars($db_type)));
 		}
+		//Lets validate the API info first.
+		$cak = new CAK($api_user_id, $api_key, $api_character_id);
+		
+		if (($cak_err = $cak->validate(true)) != CAK_OK) {
+			switch ($cak_err) {
+				case(CAK_NOT_INIT):
+					$alerts[] = "[$cak_err]: An internal error has occured while dealing with the API information. Well damn.";
+					break;
+				case(CAK_VCODE_LEN):
+					$alerts[] = "[$cak_err]: Your API Verification Code does not meet security requirements.<br/> Please generate a vcode between 20 and 64 characters in length.";
+					break;
+				case(CAK_ID_NOT_NUM):
+					$alerts[] = "[$cak_err]: Your API Key ID is not a valid ID.";
+					break;
+				case(CAK_BAD_VCODE):
+					$alerts[] = "[$cak_err]: Your API Verification Code is not valid.";
+					break;
+			} //End switch().
+		} else if (($cak_err = $cak->validate_mask()) != CAK_OK) {
+			switch ($cak_err) {
+				case(CAK_BAD_FETCH):
+					$alerts[] = "[$cak_err]: Unable to fetch information from the API server. Please ensure the API server is currently operational.";
+					break;
+				case(CAK_BAD_KEY):
+					$alerts[] = "[$cak_err]: Your API Detials are not correct, please ensure they are correct and try again.";
+					break;
+				case(CAK_BAD_MASK):
+					$alerts[] = "[$cak_err]: Unable to locate a non-zero access mask for your CAK.";
+					break;
+				case(CAK_EXPIRE_SET):
+					$alerts[] = "[$cak_err]: Your CAK is set to expire; EveBB does not support this option. (By choice)";
+					break;
+				case(CAK_BAD_TYPE):
+					$alerts[] = "[$cak_err]: Your CAK type is not allowed by the administrators of this forum. If you are using character based CAK's, please try account based instead.";
+					break;
+			} //End switch().
+		} //End if - else if.
+		
 		// Create the database object (and connect/select db)
 		$db = new DBLayer($db_host, $db_username, $db_password, $db_name, $db_prefix, false);
-		if (!$char_sheet = fetch_character_api(array('userID' => $api_user_id,'characterID' => $api_character_id,'apiKey' => $api_key))) {
-			$alerts[] = "Unable to fetch character API information. Please insure that the API server is functioning.";
-		} else {
-			$username = substr(strip_special($char_sheet->name), 0, 25);
-		} //End if - else.
+		if (empty($alerts)){
+			if (!$char_sheet = fetch_character_api($cak)) {
+				$alerts[] = "Unable to fetch character API information. Please insure that the API server is functioning.";
+			} else {
+				$username = substr(strip_special($char_sheet->name), 0, 25);
+			} //End if - else.
+		} //End if.
 	} //End if.
 	/*---------- EVE-BB DATA CHECKS ---------*/
 	// Validate username and passwords
@@ -680,7 +727,7 @@ foreach ($alerts as $cur_alert)
 else
 {
 
-	//We create the DB earlier, so the checks move to there.
+	//We created the DB earlier, so the checks move to there.
 
 
 	// Make sure FluxBB isn't already installed
@@ -1654,6 +1701,10 @@ else
 			'api_key'		=> array(
 				'datatype'		=> 'VARCHAR(64)',
 				'allow_null'	=> false
+			),
+			'cak_type' => array(
+				'datatype' => 'INT(10) UNSIGNED',
+				'default' => '0'
 			)
 		),
 		'PRIMARY KEY'	=> array('api_character_id')
@@ -2092,7 +2143,7 @@ else
 		or error('Unable to add administrator user api data. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 	
 	$char;
-	if (!$char = update_character_sheet(2, array(), $char_sheet)) {
+	if (!$char = update_character_sheet(2, null, $char_sheet)) {
 		error("Unable to fetch character data from the API server. Please verify it is currently online and try again.", __FILE__, __LINE__, $db->error());
 	} //End if.
 	$corp;
@@ -2101,7 +2152,7 @@ else
 	} //End if.
 	
 	//We try, but don't care past this point.
-	update_characters(2, array('userID' => $api_user_id, 'apiKey' => $api_key));
+	update_characters(2, $cak);
 	
 	select_character(2, $char);
 	
@@ -2211,7 +2262,7 @@ else
 		'o_eve_cache_char_sheet_interval'		=> "'4'", //4 hours
 		'o_eve_rules_interval'		=> "'4'", //4 hours
 		'o_eve_auth_interval'		=> "'4'", //4 hours
-		'o_eve_use_cron'		=> "'0'",
+		'o_eve_use_cron'		=> "'1'", //Default to yes as of 1.1.2
 		'o_eve_use_banner'		=> "'1'",
 		'o_eve_restrict_reg_corp'		=> "'1'",
 		'o_eve_restricted_group'		=> "'4'",
@@ -2223,7 +2274,13 @@ else
 		'o_eve_banner_height'	=> "'150'",
 		'o_eve_banner_text_enable' => "'1'",
 		'o_eve_max_groups' => "'100'",
-		'o_hide_stats' => "'0'"
+		'o_hide_stats' => "'0'",
+		//New since 1.1.2+
+		'o_eve_cak_mask' => "'33947656'",
+		'o_eve_cak_type' => "'1'",
+		'o_eve_use_image_server' => "'0'",
+		'o_eve_char_pic_size' => "'128'",
+		'o_use_fopen' => (defined('EVEBB_CURL')) ? "'0'" : "'1'"
 		/*---------- EvE-BB INSTALL Options ---------*/
 	);
 
@@ -2257,9 +2314,14 @@ else
 		or error('Unable to insert into table '.$db_prefix.'posts. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 		
 	/*---------- EvE-BB INSTALL TABLE INPUT ---------*/
+	$db->query('INSERT INTO '.$db->prefix.'forum_perms(	group_id, forum_id, read_forum, post_replies, post_topics) VALUES(2,1,1,1,1)')
+		or error('Unable to insert into table '.$db_prefix.'forum_perms. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 		
-	
+	$db->query('INSERT INTO '.$db->prefix.'forum_perms(	group_id, forum_id, read_forum, post_replies, post_topics) VALUES(3,1,1,0,0)')
+		or error('Unable to insert into table '.$db_prefix.'forum_perms. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 		
+	$db->query('INSERT INTO '.$db->prefix.'forum_perms(	group_id, forum_id, read_forum, post_replies, post_topics) VALUES(4,1,1,1,1)')
+		or error('Unable to insert into table '.$db_prefix.'forum_perms. Please check your configuration and try again', __FILE__, __LINE__, $db->error());
 	/*---------- EvE-BB INSTALL TABLE INPUT ---------*/
 
 	// Index the test post so searching for it works
@@ -2406,9 +2468,8 @@ else
 				<div class="forminfo">
 					<p><?php echo $lang_install['FluxBB fully installed'] ?></p>
 					<p><?php echo $lang_install['Evebb_details'] ?></p>
-					<br/>
 					<p>
-					<?php echo $lang_install['Evebb_username'] ?> <?php echo $username; ?>
+					<?php echo $lang_install['Evebb_username'] ?> <?php echo $username; ?><br/>
 					<?php echo $lang_install['Evebb_password'] ?> <?php echo $password1; ?>
 					</p>
 				</div>

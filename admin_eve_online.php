@@ -180,9 +180,30 @@ if ($action == "update_settings") {
 		'o_eve_banner_text_enable',
 		'o_eve_use_cron',
 		'o_eve_max_groups',
-		'o_hide_stats');
+		'o_hide_stats',
+		//New since 1.1.2+
+		'o_eve_use_image_server', // => "'0'",
+		'o_eve_char_pic_size', // => "'128'",
+		'o_use_fopen', // => (defined('EVEBB_CURL')) ? "'0'" : "'1'"
+		'o_eve_cak_mask',
+		'o_eve_cak_type',
+		);
 		
 		$log = '';
+		
+		//We need to make a special exception for this.
+		if (isset($_POST['o_eve_cak_mask']) && $_POST['o_eve_cak_mask'] != $pun_config['o_eve_cak_mask']) {
+			//Lets validate the mask.
+			//Watch some fancy use of the CAK class!
+			$cak = new CAK();
+			$cak->validated = true; //Bypass the key settings.
+			$cak->mask = $_POST['o_eve_cak_mask']; //Set the mask to bypass the API fetch.
+			
+			if (!$cak->validate_mask()) {
+				message($lang_admin_eve_online['bad_cak_mask']); //Bail.
+			} //End if.
+			
+		} //End if.
 		
 		foreach ($settings as $key) {
 			//Lets check if it's set in both $_POST and $pun_config...
@@ -195,7 +216,7 @@ if ($action == "update_settings") {
 				} //End if.
 				
 				$db->insert_or_update(
-					array('conf_name' => $key, 'conf_value' => $_POST[$key]),
+					array('conf_name' => $key, 'conf_value' => $db->escape($_POST[$key])),
 					'conf_name',
 					$db->prefix.'config'
 				) or error("Unable to update '".$key."' to '".$_POST[''.$key.'']."'.", __FILE__, __LINE__, $db->error());
@@ -257,6 +278,24 @@ generate_admin_menu('eve_online');
 									</td>
 								</tr>
 								<tr>
+									<th scope="row"><?php echo $lang_admin_eve_online['o_eve_char_pic_size'] ?></th>
+									<td>
+										<input type="hidden" name="form_sent" value="1" />
+										<select id="o_eve_char_pic_size" name="o_eve_char_pic_size" tabindex="1">
+											<option value="64" <?php echo (intval($pun_config['o_eve_char_pic_size']) == 64) ? 'selected="selected"' : '';?>>64 x 64px</option>
+											<option value="128" <?php echo (intval($pun_config['o_eve_char_pic_size']) == 128) ? 'selected="selected"' : '';?>>128 x 128px</option>
+										</select>
+										<span><?php echo $lang_admin_eve_online['o_eve_char_pic_size_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_eve_online['o_eve_use_image_server'] ?></th>
+									<td>
+										<input type="radio" name="o_eve_use_image_server" value="1"<?php if ($pun_config['o_eve_use_image_server'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="o_eve_use_image_server" value="0"<?php if ($pun_config['o_eve_use_image_server'] == '0') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_eve_online['o_eve_use_image_server_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
 									<th scope="row"><?php echo $lang_admin_eve_online['o_eve_use_banner'] ?></th>
 									<td>
 										<input type="radio" name="o_eve_use_banner" value="1"<?php if ($pun_config['o_eve_use_banner'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="o_eve_use_banner" value="0"<?php if ($pun_config['o_eve_use_banner'] == '0') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
@@ -306,6 +345,39 @@ generate_admin_menu('eve_online');
 									</td>
 								</tr>
 								<tr>
+									<th scope="row"><?php echo $lang_admin_eve_online['o_use_fopen'] ?></th>
+									<td>
+										<input type="radio" name="o_use_fopen" value="1"<?php if ($pun_config['o_use_fopen'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="o_use_fopen" value="0"<?php if ($pun_config['o_use_fopen'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_eve_online['o_use_fopen_info'] ?></span>
+									</td>
+								</tr>
+							</table>
+						</div>
+					</fieldset>
+					<br />
+					<fieldset>
+						<legend><?php echo $lang_admin_eve_online['api_legend_text'] ?></legend>
+						<div class="infldset">
+							<table class="aligntop" cellspacing="0">
+								<tr>
+									<th scope="row"><?php echo $lang_admin_eve_online['o_eve_cak_mask'] ?><br/></th>
+									<td>
+										<input type="text" name="o_eve_cak_mask" size="25" tabindex="1" value="<?php echo $pun_config['o_eve_cak_mask']; ?>"/>
+										<span><?php echo $lang_admin_eve_online['o_eve_cak_mask_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_eve_online['o_eve_cak_type'] ?></th>
+									<td>
+										<input type="hidden" name="form_sent" value="1" />
+										<select id="o_eve_cak_type" name="o_eve_cak_type" tabindex="1">
+											<option value="<?php echo CAK_CHARACTER;?> <?php echo (intval($pun_config['o_eve_cak_type']) == CAK_CHARACTER) ? 'selected="selected"' : '';?>"><?php echo $lang_admin_eve_online['cak_type_char']; ?></option>
+											<option value="<?php echo CAK_ACCOUNT;?>" <?php echo (intval($pun_config['o_eve_cak_type']) == CAK_ACCOUNT) ? 'selected="selected"' : '';?>><?php echo $lang_admin_eve_online['cak_type_acc']; ?></option>
+										</select>
+										<span><?php echo $lang_admin_eve_online['o_eve_cak_type_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
 									<th scope="row"><?php echo $lang_admin_eve_online['o_eve_rules_interval'] ?><br/><span>In Hours</span></th>
 									<td>
 										<input type="text" name="o_eve_rules_interval" size="25" tabindex="1" value="<?php echo $pun_config['o_eve_rules_interval']; ?>"/>
@@ -336,7 +408,7 @@ generate_admin_menu('eve_online');
 							</table>
 						</div>
 					</fieldset>
-					<br />
+					<br/>
 					<fieldset>
 						<legend><?php echo $lang_admin_eve_online['corp_legend_text'] ?></legend>
 						<div class="infldset">
@@ -407,8 +479,7 @@ while ($row = $db->fetch_assoc($result))
 				<p class="submitend"><input type="submit" name="save" value="<?php echo $lang_admin_common['Save changes'] ?>" /></p>
 			</form>
 		</div>
-		
-
+		<br/>
 		<h2 class="block2"><span><?php echo $lang_admin_eve_online['banner form'] ?></span></h2>
 		<div class="box">
 			<form id="banner_upload" method="post" action="admin_eve_online.php?action=upload_banner" enctype="multipart/form-data">

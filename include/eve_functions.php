@@ -177,8 +177,8 @@ function task_update_skills($cron = false, $character = 0) {
 	while ($row = $db->fetch_assoc($result)) {
 		$now = time();
 		$char = new Character();
-		
-		if ($char->load_skill_queue(array('apiKey' => $row['api_key'],'userID' => $row['api_user_id'],'characterID' => $row['api_character_id']))) {
+		$cak = new CAK($row['api_user_id'],$row['api_key'],$row['api_character_id']);
+		if ($char->load_skill_queue($cak)) {
 			
 			//Purge old skills
 			$db->query("DELTE FROM ".$db->prefix."api_skill_queue WHERE character_id=".$row['api_character_id']);
@@ -254,7 +254,8 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 	
 	
 	while ($row = $db->fetch_assoc($result)) {
-		if (update_character_sheet($row['user_id'], array('apiKey' => $row['api_key'],'userID' => $row['api_user_id'],'characterID' => $row['api_character_id']), false)) {
+		$cak = new CAK($row['api_user_id'],$row['api_key'],$row['api_character_id']);
+		if (update_character_sheet($row['user_id'], $cak, false)) {
 			$log [] = sprintf($lang_eve_bb['char_sheet_updated'], $row['character_id'], $row['character_name']);
 		} else {
 			
@@ -757,22 +758,22 @@ function is_allowed_corp($corpID) {
 
 /**
  * Fetches character information from the API about the character.
- * Takes an auth array (userID, apiKey, characterID)
+ * Takes an CAK object.
  * Used for internal stuff, api.php is purefly for javascript.
  * Returns a SimpleXML Object. Don't try and use it like an array...
  */
 
-function fetch_character_api($auth) {
+function fetch_character_api(&$cak) {
 	global $_LAST_ERROR;
 	$_LAST_ERROR = 0;
-	if (!isset($auth['apiKey']) || !isset($auth['userID']) || !isset($auth['characterID'])) {
+	if ($cak->validate(true) != CAK_OK) {
 		$_LAST_ERROR = API_BAD_AUTH;
 		return false;
 	} //End if.
 	
 	$char_sheet = new Character();
 	
-	if (!$char_sheet->load_character($auth)) {
+	if (!$char_sheet->load_character($cak)) {
 		if (defined('PUN_DEBUG')) {
 			error("[".$_LAST_ERROR."] Unable to load character.", __FILE__, __LINE__, $db->error());
 		} //End if.
@@ -926,14 +927,15 @@ function add_corp($corpID, $allowed = true) {
 /**
  * Adds a set of API keys to the database, updating where needed.
  */
-function add_api_keys($user_id, $api_user_id, $api_character_id, $api_key) {
+function add_api_keys($user_id, $cak) {
 	global $db;
 	
 	$fields = array(
 			'user_id' => $user_id,
-			'api_character_id' => (int)$api_character_id,
-			'api_user_id' => (int)$api_user_id,
-			'api_key' => $db->escape($api_key)
+			'api_character_id' => $cak->char_id,
+			'api_user_id' => $cak->id,
+			'api_key' => $db->escape($cak->vcode),
+			'cak_type' => $cak->type
 		);
 	
 	if (!$db->insert_or_update($fields, 'api_character_id', $db->prefix.'api_auth')) {
@@ -990,12 +992,12 @@ function remove_api_keys($user_id = 0, $character_id = 0) {
  *
  * Returns the character object used to get the list.
  */
-function update_characters($user_id, $auth, $update = true) {
+function update_characters($user_id, &$cak, $update = true) {
 	global $db;
 	global $_LAST_ERROR;
 	$_LAST_ERROR = 0;
 	
-	if ((!isset($auth['apiKey']) || !isset($auth['userID']))) {
+	if ($cak->validate() != CAK_OK) {
 		$_LAST_ERROR = API_BAD_AUTH;
 		return false;
 	} //End if.
@@ -1003,7 +1005,7 @@ function update_characters($user_id, $auth, $update = true) {
 	//First stop, we need to make sure the auth is correct.
 	$characters = new Character(); //Despite it's singular name, the character class handles fetching the list.
 	
-	if (!$characters->get_list($auth)) {
+	if (!$characters->get_list($cak)) {
 		if (defined('PUN_DEBUG')) {
 				error("[".$_LAST_ERROR."] Could not load character list.", __FILE__, __LINE__, $db->error());
 		} //End if.
@@ -1025,7 +1027,7 @@ function update_characters($user_id, $auth, $update = true) {
 			FROM
 				".$db->prefix."api_auth AS a
 			WHERE
-				a.api_user_id=".$auth['userID'];
+				a.api_user_id=".$cak->id;
 		if (!$result = $db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
 					error("Unable to fetch existing characters.", __FILE__, __LINE__, $db->error());
@@ -1042,19 +1044,19 @@ function update_characters($user_id, $auth, $update = true) {
 		$log = array();
 		//Getting the list was successful and we want to update, huzzah!
 		foreach($characters->characterList as $char) {
-			$auth['characterID'] = $char['characterID'];
+			$cak->char_id = $char['characterID'];
 			
 			//We unset this value in the current_characters array since it's confirmed to exist.
 			unset($current_characters[$char['characterID']]);
 			
 			//Now lets try and update it...
-			if (!update_character_sheet($user_id, $auth)) {
+			if (!update_character_sheet($user_id, $cak)) {
 				//Since we are loading multiple characters, lets try and continue.
 				//Debugging will stop the loading in update_character_sheet.
 				$log[] = "[".$_LAST_ERROR."] Could not load character.";
 			} else {
 				//Lets add the keys to the db.
-				add_api_keys($user_id, $auth['userID'], $auth['characterID'], $auth['apiKey']);
+				add_api_keys($user_id, $cak);
 			} //End if - else.
 			
 		} //End foreach().
@@ -1084,7 +1086,7 @@ function update_characters($user_id, $auth, $update = true) {
 } //End update_characters().
 
 /**
- * Requires that you pass it $user_id (the forum user ID) and an $api assoc array with apiKey,characterID and userID all set.
+ * Requires that you pass it $user_id (the forum user ID) and an $api assoc array with a full CAK object.
  * If you want to use an already existing Character object, pass it after the auth array (the auth array need not be full)
  * You may also pass it a 4th value, $error, which will be given the error number of any errors, should it encounter one.
  *
@@ -1092,13 +1094,13 @@ function update_characters($user_id, $auth, $update = true) {
  *
  * This function handles both inserts and updating.
  */
-function update_character_sheet($user_id, $api = array(), $sheet = false) {
+function update_character_sheet($user_id, $cak = null, $sheet = false) {
 	global $db;
 	global $_LAST_ERROR;
 	$_LAST_ERROR = 0;
 	
 	//If any of them are not set and if sheet is false...
-	if ((!isset($api['apiKey']) || !isset($api['userID']) || !isset($api['characterID'])) && !$sheet) {
+	if ($cak == null && !$sheet) {
 		$_LAST_ERROR = API_BAD_AUTH;
 		return false;
 	} //End if.
@@ -1109,7 +1111,7 @@ function update_character_sheet($user_id, $api = array(), $sheet = false) {
 		
 		$char_sheet = new Character();
 		
-		if (!$char_sheet->load_character($api)) {
+		if (!$char_sheet->load_character($cak)) {
 			if (defined('PUN_DEBUG')) {
 				error("[".$_LAST_ERROR."] Could not load character.", __FILE__, __LINE__, $db->error());
 			} //End if.
@@ -1407,9 +1409,6 @@ function fetch_selected_character($id, $limited = false) {
 	
 	if ($db->num_rows($result) == 0) {
 		//Not an error, just means the persons corp has been deleted.
-		/*if (defined('PUN_DEBUG')) {
-			error("Unable to find character data.<br/>".$sql, __FILE__, __LINE__, $db->error());
-		} //End if.*/
 		return false;
 	} //End if.
 	
@@ -1508,114 +1507,44 @@ function convert_roles($roles) {
  * For now this will be restricted to the cache folder. You can always manually move it from there.
  */
 function fetch_file($url, $cache_name) {
-	if (!$file = fopen($url, 'r')) {
+	
+	global $pun_request;
+	
+	if (!$pun_request->fetch_file($url, FORUM_CACHE_DIR.$cache_name)) {
 		return false;
 	} //End if.
-	
-	if (!$fout = fopen(FORUM_CACHE_DIR.$cache_name, 'w')) {
-		return false;
-	} //End if.
-	
-	while(!feof($file)) {
-		$buffer = fread($file, 1024);
-		fwrite($fout, $buffer);
-	} //End if.
-	
-	fflush($fout);
-	fclose($fout);
-	fclose($file);
+
 	return true;
 } //End fetch_file().
 
 /**
- * Tries to sliently cache the pic of a character.
- * Will be updating this later to add the cache status to database as checking the filesystem isn't ideal.
+ * Pulls down the characters avatar from the CCP image server.
+ * You can now disable this and whore on CCP's bandwidth if you are tight for disk space.
  */
 function cache_char_pic($id, $force = false) {
 	
+	global $pun_request, $pun_config;
+	
 	//This has been over hauled as file_get/put_contents is not PHP4.
-	if (!is_writable('img/chars')) {
+	if (!is_writable('img/chars') || $pun_config['o_eve_use_image_server'] == '1') {
 		return false;
 	} //End if.
 	
 	$img = 'img/chars/'.$id.'_64.jpg';
 	if (!file_exists($img) || $force) {
 		
-		if (!$file = fopen('http://image.eveonline.com/Character/'.$id.'_64.jpg', 'r')) {
-			return false;
-		} //End if.
-		
-		if (!$fout = fopen($img, 'w')) {
-			return false;
-		} //End if.
-		
-		while(!feof($file)) {
-			$buffer = fread($file, 1024);
-			fwrite($fout, $buffer);
-		} //End if.
-		
-		fflush($fout);
-		fclose($fout);
-		fclose($file);
+		$pun_request->fetch_file('http://image.eveonline.com/Character/'.$id.'_64.jpg', $img);
 		
 	} //End if.
 	
 	$img = 'img/chars/'.$id.'_128.jpg';
 	if (!file_exists($img) || $force) {
-		if (!$file = fopen('http://image.eveonline.com/Character/'.$id.'_128.jpg', 'r')) {
-			return false;
-		} //End if.
 		
-		if (!$fout = fopen($img, 'w')) {
-			return false;
-		} //End if.
-		
-		while(!feof($file)) {
-			$buffer = fread($file, 1024);
-			fwrite($fout, $buffer);
-		} //End if.
-		
-		fflush($fout);
-		fclose($fout);
-		fclose($file);
+		$pun_request->fetch_file('http://image.eveonline.com/Character/'.$id.'_128.jpg', $img);
 		
 	} //End if.
 	return true;
 } //End cache_char_pic().
-
-/**
- * Main work horse for all the API functions, POST's a request and returns the result.
- * Why POST? Well, why not?
- */
-function post_request($url, $data = array(), $optional_headers = array()) {
-	
-	$context;
-	
-	if (count($data) == 0) {
-		$context = stream_context_create();
-		$file = fopen($url, 'r', false, $context);
-	} else {
-		$params = array('http' =>
-				array(
-					'method' => 'POST',
-					'content' => http_build_query($data)
-				)
-		);
-		$context = stream_context_create($params);
-	}  //End if - else.
-	
-	$file = @fopen($url, 'r', false, $context);
-	
-	if (!$file) {
-		return false;
-	} //End if.
-	
-	$response = stream_get_contents($file);
-	fclose($file);
-	
-	return $response;
-	
-} //End post_request().
 
 /**
  * Checks if the passed value is numeric and has a length > 0.

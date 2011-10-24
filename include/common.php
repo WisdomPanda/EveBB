@@ -11,7 +11,7 @@ if (!defined('PUN_ROOT'))
 
 // Define the version and database revision that this code was written for
 define('FORUM_VERSION', '1.4.5');
-define('EVE_BB_VERSION', '1.1.1');
+define('EVE_BB_VERSION', '1.1.2');
 //Functions for EvE-BB
 define('EVE_ENABLED', 1);
 require(PUN_ROOT.'include/eve_functions.php');
@@ -203,6 +203,13 @@ if (!defined('PUN_SEARCH_MAX_WORD'))
  	
 //Define this ONLY if you want automated testing to be allowed on your server.
 //define('EVEBB_AUTO_DEBUG', 1);
+
+//Determine if we can/should use cURL where possible.
+if (extension_loaded('curl') && $pun_config['o_use_fopen'] != '1') {
+	define('EVEBB_CURL', 1);
+} //End if.
+require(PUN_ROOT.'include/request.php');
+$pun_request = new Request();
  	
 //See if they are allowed to have their own style.
 

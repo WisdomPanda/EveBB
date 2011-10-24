@@ -8,7 +8,7 @@
 
 // The FluxBB version this script updates to
 define('UPDATE_TO', '1.4.5');
-define('UPDATE_TO_EVEBB', '1.1.0');
+define('UPDATE_TO_EVEBB', '1.1.2');
 
 define('UPDATE_TO_DB_REVISION', 11);
 define('UPDATE_TO_SI_REVISION', 2);
@@ -1182,6 +1182,11 @@ switch ($stage)
 			install_npms();
 		} //End if.
 		
+		if (!$db->field_exists('api_auth', 'cak_type')) {
+			$db->add_field('api_auth', 'cak_type', 'INT(10) UNSIGNED', false, '0', null)
+				or error('Unable to add CAK Type field.', __FILE__, __LINE__, $db->error());
+		} //End if.
+		
 		if (!$db->field_exists('forums', 'parent_forum_id')) {
 			install_subforum();
 		} //End if.
@@ -1197,8 +1202,37 @@ switch ($stage)
 			install_poll();
 		} //End if.
 		
-		if (version_compare($cur_eve_version, '1.0.0', '<=')) {
+		if (version_compare($cur_eve_version, '1.1.1', '<=')) {
 			//Update/insert new configs.
+			
+			$db->insert_or_update(
+				array('conf_name' => 'o_eve_cak_mask', 'conf_value' => '33947656'), //Fields
+				'conf_name', //Primary Key
+				$db->prefix.'config' //Table
+			);
+			
+			$db->insert_or_update(
+				array('conf_name' => 'o_eve_cak_type', 'conf_value' => '1'), //Fields
+				'conf_name', //Primary Key
+				$db->prefix.'config' //Table
+			);
+			
+			$db->insert_or_update(
+				array('conf_name' => 'o_eve_use_image_server', 'conf_value' => '0'), //Fields
+				'conf_name', //Primary Key
+				$db->prefix.'config' //Table
+			);
+			
+			$db->insert_or_update(
+				array('conf_name' => 'o_eve_char_pic_size', 'conf_value' => '128'), //Fields
+				'conf_name', //Primary Key
+				$db->prefix.'config' //Table
+			);
+			
+		} //End if.
+		
+		if (version_compare($cur_eve_version, '1.0.0', '<=')) {
+
 			$db->insert_or_update(
 				array('conf_name' => 'o_hide_stats', 'conf_value' => '0'), //Fields
 				'conf_name', //Primary Key

@@ -27,7 +27,7 @@ $lang_profile_characters = array(
 'dob'								=> 'Date of Birth:',
 'clone'							=> 'Clone:',
 'wallet'							=> 'Wallet:',
-'api_link'							=> 'You can find your EVE-Online API Key <a href="http://www.eve-online.com/api">here.</a>',
+'api_link'							=> 'You can find your EVE-Online API Key <a href="http://support.eveonline.com/api/Key/CreatePredefined/33947656">here.</a>',
 'skill_queue' 					=> 'Skill Queue',
 'reload_avatars' 				=> 'Reload Avatars',
 'skill_queue_remaining' 		=> '<em>%s</em> remaing...',
@@ -41,7 +41,8 @@ $lang_profile_characters = array(
 'regen_redirect' 				=> 'TS3 token successfully regenerated! Redirecting...',
 'auth_corp' 						=> '(Add corp to allowed list)',
 'add_corp_redirect' 			=> 'Corporation allowed successfully! Redirecting...',
-
+'api_id'							=> 'API Key ID',
+'api_vcode'						=> 'API Verification Code',
 
 );
 

@@ -61,6 +61,12 @@ function encode_mail_text($str)
 function pun_mail($to, $subject, $message, $reply_to_email = '', $reply_to_name = '')
 {
 	global $pun_config, $lang_common;
+	
+	if (!isset($pun_config['o_board_title'])) {
+		$pun_config['o_board_title'] = (isset($_POST['req_title'])) ? $_POST['req_title'] : "New EveBB Forum";
+		$pun_config['o_webmaster_email'] = (isset($_POST['req_email'])) ? pun_trim($_POST['req_email']) : "";
+		$pun_config['o_smtp_ssl'] = false;
+	} //End if.
 
 	// Default sender/return address
 	$from_name = str_replace('"', '', $pun_config['o_board_title'].' '.$lang_common['Mailer']);

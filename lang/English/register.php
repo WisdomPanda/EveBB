@@ -36,9 +36,9 @@ $lang_register = array(
 
 // API Stuff
 'api_legend' 				=> 'EvE Online API',
-'api_info' 					=> 'You can find your EVE-Online API Key <a href="http://www.eve-online.com/api">here.</a>',
-'api_user_id' 				=> 'API User ID',
-'api_key' 					=> 'Api Key',
+'api_info' 					=> 'You can find your EVE-Online API details <a href="http://support.eveonline.com/api/Key/CreatePredefined/33947656">here.</a>',
+'api_user_id' 				=> 'API Key ID',
+'api_key' 					=> 'API Verification Code',
 'api_character_id' 		=> 'Character',
 'char_fetch_text' 			=> 'Fetch Characters',
 'api_register_success'	=> 'Congratulations, you are now registered!<br/><br/>Your details are: <br/><strong>Username:</strong> %1$s<br/><strong>Password: </strong> %2$s<br/><br/>You may login <a href="login.php">here</a>.',

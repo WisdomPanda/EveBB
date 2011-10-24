@@ -354,6 +354,7 @@ while ($cur_post = $db->fetch_assoc($result))
 	$signature = '';
 	
 	$char_name = pun_htmlspecialchars($cur_post['username']);
+	$char_avatar = '';
 	$char_tag = '';
 	$char;
 	if ($pun_config['o_eve_use_iga'] == '1') {
@@ -363,9 +364,26 @@ while ($cur_post = $db->fetch_assoc($result))
 			$char = $characters[$cur_post['poster_id']];
 		} //End if - else.
 		
-		$char_name = (!empty($char['character_name'])) ? $char['character_name'] : pun_htmlspecialchars($cur_post['username']);
-		
-		$char_avatar = '<img src="img/chars/'.$char['character_id'].'_64.jpg" width="64px" height="64px" alt="" />';
+		if ($pun_config['o_eve_use_image_server'] == '1') {
+			$char_avatar = '<img src="http://image.eveonline.com/Character/1_'.$pun_config['o_eve_char_pic_size'].'.jpg"
+				width="'.$pun_config['o_eve_char_pic_size'].'px" height="'.$pun_config['o_eve_char_pic_size'].'px" alt="" />';
+			
+			if (is_array($char)) {
+				$char_name = (isset($char['character_name'])) ? $char['character_name'] : pun_htmlspecialchars($cur_post['username']);
+				$char_avatar = (isset($char['character_id'])) ?
+					'<img src="http://image.eveonline.com/Character/'.$char['character_id'].'_'.$pun_config['o_eve_char_pic_size'].'.jpg"
+						width="'.$pun_config['o_eve_char_pic_size'].'px" height="'.$pun_config['o_eve_char_pic_size'].'px" alt="" />' : $char_avatar;
+			} //End if.
+		} else {
+			$char_avatar = '<img src="img/chars/1_'.$pun_config['o_eve_char_pic_size'].'.jpg" width="'.$pun_config['o_eve_char_pic_size'].'px" height="'.$pun_config['o_eve_char_pic_size'].'px" alt="" />';
+			
+			if (is_array($char)) {
+				$char_name = (isset($char['character_name'])) ? $char['character_name'] : pun_htmlspecialchars($cur_post['username']);
+				$char_avatar = (isset($char['character_id']) && file_exists('img/chars/'.$char['character_id'].'_64.jpg')) ?
+					'<img src="img/chars/'.$char['character_id'].'_'.$pun_config['o_eve_char_pic_size'].'.jpg"
+						width="'.$pun_config['o_eve_char_pic_size'].'px" height="'.$pun_config['o_eve_char_pic_size'].'px" alt="" />' : $char_avatar;
+			} //End if.
+		} //End if - else.
 		
 	} //End if.
 	

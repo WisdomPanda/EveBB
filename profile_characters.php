@@ -132,8 +132,8 @@ if ($action == 'refresh_keys') {
 	
 	$result = $db->fetch_assoc($result);
 	
-	$auth = array('userID' => $result['api_user_id'],'apiKey' => $result['api_key']);
-	$result = update_characters($id, $auth);
+	$cak($result['api_user_id'],$result['api_key']);
+	$result = update_characters($id, $cak);
 	
 	if ($result === false) {
 		message('['.$_LAST_ERROR.'] Unable to update your api details.');
@@ -158,8 +158,8 @@ if ($action == 'add_character') {
 			message("Malformed Vars.");
 		} //End if.
 		
-		$auth = array('userID' => $api_user_id,'apiKey' => $api_key);
-		$result = update_characters($id, $auth);
+		$cak($api_user_id, $api_key);
+		$result = update_characters($id, $cak);
 		
 		if ($result === false) {
 			message('['.$_LAST_ERROR.'] Unable to update your api details.');
@@ -316,52 +316,50 @@ generate_profile_menu('characters');
 			<div class="inform">
 				<fieldset>
 					<legend><?php echo $lang_profile_characters['selected_char'] ?></legend>
-					<div class="infldset">
+					<div class="infldset" id="selected_char_info">
 						<table class="aligntop" cellspacing="0">
 							<tr>
-								<th scope="row" rowspan="6" style="width: 128px;">
-									<img src="img/chars/<?php echo $selected_char['character_id']; ?>_128.jpg" width="128px" height="128px" alt="" />
-								</th>
-								<td><strong><?php echo $lang_profile_characters['name']; ?></strong></td>
+								<th scope="row" rowspan="6" style="width: 128px;">	<img src="img/chars/<?php echo $selected_char['character_id']; ?>_128.jpg" width="128px" height="128px" alt="" /></th>
+								<td>&nbsp;<strong><?php echo $lang_profile_characters['name']; ?></strong></td>
 								<td><?php echo $selected_char['character_name']; ?></td>
 							</tr>
 							<tr>
-								<td><strong><?php echo $lang_profile_characters['corp']; ?></strong></td>
+								<td>&nbsp;<strong><?php echo $lang_profile_characters['corp']; ?></strong></td>
 								<td><?php echo $selected_char['corp_name']; ?> <?php if ($pun_user['g_id'] == PUN_ADMIN && $selected_char['allowed'] == 0) { ?><a href="profile.php?section=characters&amp;id=<?php echo $id ?>&amp;action=add_corp"><?php echo $lang_profile_characters['auth_corp']?></a><?php }?></td>
 							</tr>
 							<tr>
-								<td><strong><?php echo $lang_profile_characters['ally']; ?></strong></td>
+								<td>&nbsp;<strong><?php echo $lang_profile_characters['ally']; ?></strong></td>
 								<td><?php echo $selected_char['ally_name']; ?></td>
 							</tr>
 							<tr>
-								<td><strong><?php echo $lang_profile_characters['race']; ?></strong></td>
+								<td>&nbsp;<strong><?php echo $lang_profile_characters['race']; ?></strong></td>
 								<td><?php echo $selected_char['race']; ?></td>
 							</tr>
 							<tr>
-								<td><strong><?php echo $lang_profile_characters['blood_line']; ?></strong></td>
+								<td>&nbsp;<strong><?php echo $lang_profile_characters['blood_line']; ?></strong></td>
 								<td><?php echo $selected_char['blood_line']; ?></td>
 							</tr>
 							<tr>
-								<td><strong><?php echo $lang_profile_characters['ancestry']; ?></strong></td>
+								<td>&nbsp;<strong><?php echo $lang_profile_characters['ancestry']; ?></strong></td>
 								<td><?php echo $selected_char['ancestry']; ?></td>
 							</tr>
 							<tr>
 								<td rowspan="4">&nbsp;</td>
-								<td><strong><?php echo $lang_profile_characters['dob']; ?></strong></td>
+								<td>&nbsp;<strong><?php echo $lang_profile_characters['dob']; ?></strong></td>
 								<td><?php echo $selected_char['dob']; ?></td>
 							</tr>
 							<tr>
-								<td><strong><?php echo $lang_profile_characters['clone']; ?></strong></td>
+								<td>&nbsp;<strong><?php echo $lang_profile_characters['clone']; ?></strong></td>
 								<td><?php echo $selected_char['clone_name']; ?> (<?php echo number_format($selected_char['clone_sp']); ?> SP)</td>
 							</tr>
 							<tr>
-								<td><strong><?php echo $lang_profile_characters['wallet']; ?></strong></td>
+								<td>&nbsp;<strong><?php echo $lang_profile_characters['wallet']; ?></strong></td>
 								<td><?php echo number_format($selected_char['balance']); ?> Isk</td>
 							</tr>
 							<tr>
-								<td><strong><?php echo $lang_profile_characters['skill_queue']; ?></strong></td>
+								<td>&nbsp;<strong><?php echo $lang_profile_characters['skill_queue']; ?></strong></td>
 								<td>
-									<strong><?php echo (isset($skills['typename']) ? $skills['typename'].' '.$level[$skills['level']] : $lang_profile_characters['unknown']); ?></strong><br/>
+									&nbsp;<strong><?php echo (isset($skills['typename']) ? $skills['typename'].' '.$level[$skills['level']] : $lang_profile_characters['unknown']); ?></strong><br/>
 									<div class="box" style="width: 100%; border-style: solid; border-width: 1px; padding:0;">
 										<div class="infldset" style="border-style: solid; border-width: 1px; background-color: <?php echo $skill_color; ?>; padding: 2px; width: <?php echo $skill_width; ?>%; height: 20px; display:block;"></div>
 									</div>
@@ -373,8 +371,12 @@ generate_profile_menu('characters');
 					</div>
 				</fieldset>
 				<br/>
+				<?php
+					if ($pun_config['o_eve_use_image_server'] != '1') {
+				?>
 				<a class="api_reload_avatars" href="profile.php?section=characters&amp;id=<?php echo $id ?>&amp;action=reload_pics"><?php echo $lang_profile_characters['reload_avatars']; ?></a><br/><br/>
 				<?php
+					} //End if.
 					if (strlen($selected_char['token']) > 0 && $pun_config['ts3_enabled'] == '1') {
 				?>
 				<a href="ts3server://<?php
@@ -481,8 +483,8 @@ while ($row = $db->fetch_assoc($result)) {
 					<legend><?php echo $lang_profile_characters['add_char'] ?></legend>
 					<div class="infldset">
 						<p><?php echo $lang_profile_characters['add_char_info'] ?></p>
-						<label class="required"><strong>API UserID <span>(Required)</span></strong><br /><input id="api_user_id" type="text" name="api_user_id" value="<?php echo pun_htmlspecialchars($api_user_id) ?>" size="50" maxlength="80" /><br /></label>
-						<label class="required"><strong>API Key <span>(Required)</span></strong><br /><input id="api_key" type="text" name="api_key" value="<?php echo pun_htmlspecialchars($api_key) ?>" size="50" maxlength="80" /><br /></label><br/>
+						<label class="required"><strong><?php echo $lang_profile_characters['api_id'] ?><span><?php echo $lang_common['Required'] ?></span></strong><br /><input id="api_user_id" type="text" name="api_user_id" value="<?php echo pun_htmlspecialchars($api_user_id) ?>" size="50" maxlength="80" /><br /></label>
+						<label class="required"><strong><?php echo $lang_profile_characters['api_vcode']?><span><?php echo $lang_common['Required'] ?></span></strong><br /><input id="api_key" type="text" name="api_key" value="<?php echo pun_htmlspecialchars($api_key) ?>" size="50" maxlength="80" /><br /></label><br/>
 						<p><?php echo $lang_profile_characters['api_link']; ?></p>
 						<div class="clearer"></div>
 					</div>

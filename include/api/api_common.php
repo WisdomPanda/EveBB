@@ -21,10 +21,25 @@ if (function_exists('simplexml_load_string')) {
 	
 } //End if - else.
 
+require(PUN_ROOT.'include/api/cak.php');
+
+define('CAK_UNKNOWN', 0); //Used for inital setup.
+define('CAK_CHARACTER', 1);
+define('CAK_ACCOUNT', 2);
+define('CAK_CORPORATION', 3); //Can't be set as required, used for types.
+
+if (!isset($pun_config['o_eve_cak_mask'])) {
+	$pun_config['o_eve_cak_mask'] = CAK_MASK;
+} //End if.
+
+if (!isset($pun_config['o_eve_cak_type'])) {
+	$pun_config['o_eve_cak_type'] = CAK_CHARACTER;
+} //End if.
+
 /**
  * Now we define some bitmask values for roles.
  * We put this in an array since then we can key => value it for output.
- * Also on a side note: We keep them in string format for use with the 'gmp_and' function, so we're cross-machine OK.
+ * Also on a side note: We keep them in string format so we're cross-machine OK.
  * (AKA: These values are 64-bit, not all servers that run EveBB are 64-bit, some are older home servers.)
  */
 $api_roles = array(

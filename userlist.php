@@ -21,6 +21,9 @@ require PUN_ROOT.'lang/'.$pun_user['language'].'/userlist.php';
 // Load the search.php language file
 require PUN_ROOT.'lang/'.$pun_user['language'].'/search.php';
 
+if ($pun_user['is_guest'] && $pun_config['o_hide_stats'] == '1') {
+	message($lang_common['No permission']);
+} //End if.
 
 // Determine if we are allowed to view post counts
 $show_post_count = ($pun_config['o_show_post_count'] == '1' || $pun_user['is_admmod']) ? true : false;

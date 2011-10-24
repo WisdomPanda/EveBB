@@ -23,10 +23,7 @@ require PUN_ROOT.'lang/'.$admin_language.'/admin_index.php';
 $action = isset($_GET['action']) ? $_GET['action'] : null;
 
 // Check for upgrade
-if ($action == 'check_upgrade')
-{
-	if (!ini_get('allow_url_fopen'))
-		message($lang_admin_index['fopen disabled message']);
+if ($action == 'check_upgrade') {
 
 	$latest_version = trim(@file_get_contents('http://www.eve-bb.com/latest_version'));
 	if (empty($latest_version))

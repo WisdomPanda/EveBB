@@ -391,7 +391,7 @@ class DBLayer
 			$field_data['datatype'] = preg_replace(array_keys($this->datatype_transformations), array_values($this->datatype_transformations), $field_data['datatype']);
 
 			$query .= $field_name.' '.$field_data['datatype'];
-
+			(!isset($field_data['allow_null'])) ? $field_data['allow_null'] = false : '';
 			// The SERIAL datatype is a special case where we don't need to say not null
 			if (!$field_data['allow_null'] && $field_data['datatype'] != 'SERIAL')
 				$query .= ' NOT NULL';

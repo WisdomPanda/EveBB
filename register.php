@@ -97,13 +97,48 @@ if (isset($_POST['form_sent']))
 		} //End if.
 	} //End if.
 	
+	$cak = new CAK($api_user_id, $api_key, $api_character_id);
 	
-	$auth = array('userID' => $api_user_id,'characterID' => $api_character_id,'apiKey' => $api_key);
+	if (($cak_err = $cak->validate(true)) != CAK_OK) {
+		switch ($cak_err) {
+			case(CAK_NOT_INIT):
+				$errors[] = "An internal error has occured while dealing with the API information. Well damn.";
+				break;
+			case(CAK_VCODE_LEN):
+				$errors[] = "Your API Verification Code does not meet security requirements.<br/> Please generate a vcode between 20 and 64 characters in length.";
+				break;
+			case(CAK_ID_NOT_NUM):
+				$errors[] = "Your API Key ID is not a valid ID.";
+				break;
+			case(CAK_BAD_VCODE):
+				$errors[] = "Your API Verification Code is not valid.";
+				break;
+		} //End switch().
+	} else if (($cak_err = $cak->validate_mask()) != CAK_OK) {
+		switch ($cak_err) {
+			case(CAK_BAD_FETCH):
+				$errors[] = "Unable to fetch information from the API server. Please ensure the API server is currently operational.";
+				break;
+			case(CAK_BAD_KEY):
+				$errors[] = "Your API Detials are not correct, please ensure they are correct and try again.";
+				break;
+			case(CAK_BAD_MASK):
+				$errors[] = "Unable to locate a non-zero access mask for your CAK.";
+				break;
+			case(CAK_EXPIRE_SET):
+				$errors[] = "Your CAK is set to expire; EveBB does not support this option. (By choice)";
+				break;
+			case(CAK_BAD_TYPE):
+				$errors[] = "Your CAK type is not allowed by the administrators of this forum. If you are using character based CAK's, please try account based instead.";
+				break;
+		} //End switch().
+	} //End if - else if.
+	
 	$username = "EveUser"; //Default name.
 	$char;
 	//Why not put this off the API in use check? Readability mostly.
 	if (empty($errors)) {
-		if (!$char = fetch_character_api($auth)) {
+		if (!$char = fetch_character_api($cak)) {
 			$errors[] = $lang_prof_reg['Bad Api Request'];
 		} else {
 			if ($pun_config['o_eve_restrict_reg_corp'] == '1') {
@@ -206,12 +241,9 @@ if (isset($_POST['form_sent']))
 		$new_uid = $db->insert_id();
 		
 		/*********** EvE-BB Inserts ***********/
-			//$db->query('INSERT INTO '.$db->prefix.'api_auth(user_id, api_user_id, api_character_id, api_key) VALUES('.$new_uid.', '.$api_user_id.', '.$api_character_id.', \''.$api_key.'\')') or error('Unable to create api details', __FILE__, __LINE__, $db->error());
-			//This shouldn't fail unless we have a database issue, which is a problem anyways.
-			//update_character_sheet($new_uid, array(), $char);
 			
 			//We now add all their characters at once!
-			update_characters($new_uid, $auth);
+			update_characters($new_uid, $cak);
 			select_character($new_uid, $api_character_id);
 			add_corp_from_character($api_character_id, ($pun_config['o_eve_restrict_reg_corp'] == '1' ? true : false));
 			$log = '';

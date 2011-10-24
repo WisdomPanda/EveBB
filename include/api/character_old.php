@@ -41,18 +41,20 @@ class Character {
 	var $in_roles = false;
 	var $in_characters = false;
 		
-	function load_character($auth) {
-		global $db, $_LAST_ERROR;
+	function load_character(&$cak) {
+		global $db, $pun_request, $_LAST_ERROR;
+		$_LAST_ERROR = 0;
 		
-		//If any of them are not set and if sheet is false...
-		if (!isset($auth['apiKey']) || !isset($auth['userID']) || !isset($auth['characterID'])) {
+		//Is our CAK valid?
+		if ($cak->validate(true) != CAK_OK) {
 			$_LAST_ERROR = API_BAD_AUTH;
 			return false;
 		} //End if.
 		
 		$url = "http://api.eve-online.com/char/CharacterSheet.xml.aspx";
+		$char_sheet;
 		
-		if (!$xml = post_request($url, $auth)) {
+		if (!$xml = $pun_request->post($url, $cak->get_auth())) {
 			$_LAST_ERROR = API_BAD_REQUEST;
 			return false;
 		} //End if.
@@ -95,18 +97,20 @@ class Character {
 		return $this->characterID;
 	} //End load_character().
 	
-	function load_skill_queue($auth) {
-		global $db, $_LAST_ERROR;
+	function load_skill_queue(&$cak) {
+		global $db, $pun_request, $_LAST_ERROR;
+		$_LAST_ERROR = 0;
 		
 		//If any of them are not set and if sheet is false...
-		if (!isset($auth['apiKey']) || !isset($auth['userID']) || !isset($auth['characterID'])) {
+		if ($cak->validate(true) != CAK_OK) {
 			$_LAST_ERROR = API_BAD_AUTH;
 			return false;
 		} //End if.
 		
 		$url = "http://api.eve-online.com/char/SkillQueue.xml.aspx";
-		
-		if (!$xml = post_request($url, $auth)) {
+		$queue;
+			
+		if (!$xml = $pun_request->post($url, $cak->get_auth())) {
 			$_LAST_ERROR = API_BAD_REQUEST;
 			return false;
 		} //End if.
@@ -129,18 +133,20 @@ class Character {
 		return true;
 	} //End load_skill_queue().
 	
-	function get_list($auth) {
-		global $db, $_LAST_ERROR;
+	function get_list(&$cak) {
+		global $db, $pun_request, $_LAST_ERROR;
+		$_LAST_ERROR = 0;
 		
 		//If any of them are not set and if sheet is false...
-		if (!isset($auth['apiKey']) || !isset($auth['userID'])) {
+		if ($cak->validate() != CAK_OK) {
 			$_LAST_ERROR = API_BAD_AUTH;
 			return false;
 		} //End if.
 		
 		$url = "http://api.eve-online.com/account/Characters.xml.aspx";
-		
-		if (!$xml = post_request($url, $auth)) {
+		$characters;
+			
+		if (!$xml = $pun_request->post($url, $cak->get_auth())) {
 			$_LAST_ERROR = API_BAD_REQUEST;
 			return false;
 		} //End if.

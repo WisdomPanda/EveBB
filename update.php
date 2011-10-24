@@ -146,33 +146,6 @@ function redirect_no_back($destination_url, $message, $link_back = true)
 	exit($tpl_redir);
 }
 
-if (!function_exists('fetch_file')) {
-	/**
-	 * Gets a file from a remote place and puts it where you specify, in the cache folder.
-	 * For now this will be restricted to the cache folder. You can always manually move it from there.
-	 * Specified here as a just-in-caser. Included with 1.0.0 onwards.
-	 */
-	function fetch_file($url, $cache_name) {
-		if (!$file = fopen($url, 'r')) {
-			return false;
-		} //End if.
-		
-		if (!$fout = fopen(FORUM_CACHE_DIR.$cache_name, 'w')) {
-			return false;
-		} //End if.
-		
-		while(!feof($file)) {
-			$buffer = fread($file, 1024);
-			fwrite($fout, $buffer);
-		} //End if.
-		
-		fflush($fout);
-		fclose($fout);
-		fclose($file);
-		return true;
-	} //End fetch_file().
-} //End if.
-
 if (isset($_GET['patch'])) {
 	//The patch file needed a breather, most likely from large SQL queries, we pass it strait back.
 	include(FORUM_CACHE_DIR.'patch.php');
@@ -181,11 +154,7 @@ if (isset($_GET['patch'])) {
 	//Not in patch, lets run the check.
 
 	//Lets see if they need to update, using the existing code from admin_index.php, but not using short if format. (Messy IMO.)
-	if (!ini_get('allow_url_fopen')) {
-		message('fopen is not enabled. Please fix this before trying again.');
-	} //End if.
-	
-	$latest_version = trim(@file_get_contents('http://www.eve-bb.com/latest_version'));
+	$latest_version = trim(@$pun_request->get('http://www.eve-bb.com/latest_version'));
 	
 	if (empty($latest_version)) {
 		message('Update check failed.');

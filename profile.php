@@ -14,6 +14,10 @@ require PUN_ROOT.'include/utf8/substr_replace.php';
 require PUN_ROOT.'include/utf8/ucwords.php'; // utf8_ucwords needs utf8_substr_replace
 require PUN_ROOT.'include/utf8/strcasecmp.php';
 
+if ($pun_user['is_guest'] && $pun_config['o_hide_stats'] == '1') {
+	message($lang_common['No permission']);
+} //End if.
+
 $action = isset($_GET['action']) ? $_GET['action'] : null;
 $section = isset($_GET['section']) ? $_GET['section'] : null;
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -1056,7 +1060,6 @@ else if (isset($_POST['form_sent']))
 	redirect('profile.php?section='.$section.'&amp;id='.$id, $lang_profile['Profile redirect']);
 }
 
-
 //$result = $db->query('SELECT u.username, u.email, u.title, u.realname, u.url, u.jabber, u.icq, u.msn, u.aim, u.yahoo, u.location, u.signature, u.disp_topics, u.disp_posts, u.email_setting, u.notify_with_post, u.auto_notify, u.show_smilies, u.show_img, u.show_img_sig, u.show_avatars, u.show_sig, u.timezone, u.dst, u.language, u.style, u.num_posts, u.last_post, u.registered, u.registration_ip, u.admin_note, u.date_format, u.time_format, g.g_id, g.g_user_title, g.g_moderator FROM '.$db->prefix.'users AS u LEFT JOIN '.$db->prefix.'groups AS g ON g.g_id=u.group_id WHERE u.id='.$id) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 
 // add "g.g_pm, u.messages_enable," - New PMS
@@ -1096,6 +1099,7 @@ if ($pun_user['id'] != $id &&                                                   
     $user['g_id'] == PUN_ADMIN ||                                                                // or the user is an admin
     $user['g_moderator'] == '1'))))
 {
+	
 	$user_personal = array();
 	
 	$char = fetch_selected_character($id);

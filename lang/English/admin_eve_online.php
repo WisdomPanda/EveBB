@@ -18,6 +18,7 @@ $lang_admin_eve_online = array(
 'corp_name'				=> 'Corporation ID',
 'corp_fetch'				=> 'Fetch Corporation',
 'corp_input_content'	=> 'Put in the Corporation ID you wish to use for this forum.',
+'api_legend_text'		=> 'API Settings',
 
 'general_legend_text' => 'General Board Settings',
 
@@ -114,8 +115,9 @@ You may update a rules priority by simply creating it again with a different pri
 'o_eve_cache_char_sheet_info' => 'How long between scheduled character sheet checking. (To check corp status, roles, etc.)',
 'o_eve_cache_char_sheet_interval' => 'Char Sheet Interval',
 'o_eve_cache_char_sheet_interval_info' => 'This determines how long each character sheet is considered valid.<br/>
-The server will update one character sheet at a time, meaning you will need to adjust<br/> this depending on how active your forum is.
-Setting this below 4 Hours is not reccommended as<br/> each time this is called it adds ~2s to each page load time.',
+The server will update one character sheet at a time, meaning you will need to adjust this depending on how active your forum is.<br/>
+<br/>
+Setting this below 4 Hours is not reccommended as each time this is called it adds ~2s to each page load time.',
 'o_eve_rules_interval' => 'Group Rule Interval',
 'o_eve_rules_interval_info' => 'This determines how long the server waits before re-checking the group rules you\'ve setup.',
 'o_eve_auth_interval' => 'Char Auth Interval',
@@ -137,10 +139,22 @@ Low load added, may be set to happen fairly often to catch the updates done by [
 'o_eve_banner_height_info' => 'Set the maximum height for the forums banner. Forum will adjust to the height, so go nuts.',
 'o_eve_banner_dir' => 'Banner Directory',
 'o_eve_banner_dir_info' => 'Set the base directory to store/look in for banners. Omit the trailing slash.<br /> (Example: img/banners)',
-'o_hide_stats' => 'Hide Forum Statistics',
-'o_hide_stats' => 'Hide the forum statistics to guests.',
-
-
+'o_hide_stats' => 'Hide Forum Details',
+'o_hide_stats_info' => 'Hide detials about the forum from guest members.',
+//New since 1.1.2+
+'o_eve_use_image_server' => 'Use CCP Image Server',
+'o_eve_use_image_server_info' => 'Use the CCP Image Server for user avatars instead of using local copies.',
+'o_use_fopen' => 'Use fopen',
+'o_use_fopen_info' => 'Force the use of fopen as opposed to cURL.<br/>Ideally, you should only enable this is you are having an issue with cURL.',
+'o_eve_char_pic_size' => 'Character Avatar Size',
+'o_eve_char_pic_size_info' => 'Choose between 64 x 64px avatars or the larger 128 x 128px versions.',
+'o_eve_cak_mask' => 'Custom API Key Access Mask',
+'o_eve_cak_mask_info' => 'Define the minimum level of access a CAK needs to be accepted on this forum.<br/>[33947656] is the minimum accepted mask.',
+'o_eve_cak_type' => 'Custom API Key Type',
+'o_eve_cak_type_info' => 'Set the minimum type of CAK you will accept.<br/>To expose all of an accounts characters, use Account type.',
+'cak_type_char' => 'Character',
+'cak_type_acc' => 'Account',
+'bad_cak_mask' => 'The CAK mask you have entered does not meet the minimum requirements.<br/>Please go back and adjust it as required.',
 );
 
 ?>
