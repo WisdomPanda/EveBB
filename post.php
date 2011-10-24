@@ -84,6 +84,31 @@ require PUN_ROOT.'lang/'.$pun_user['language'].'/post.php';
 // Start with a clean slate
 $errors = array();
 
+if (isset($_GET['preview']) && isset($_GET['as_xml'])) {
+	if ($pun_user['is_guest']) {
+		$error = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>
+			<result><error><![CDATA[Unable to access preview.]]></error></result>';
+	} //End if.
+	require_once PUN_ROOT.'include/parser.php';
+	$preview = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>
+		<result><preview><![CDATA[
+	<h2><span>'.$lang_post['Post preview'].'</span></h2>
+	<div class="box">
+		<div class="inbox">
+			<div class="postbody">
+				<div class="postright">
+					<div class="postmsg">
+					%s
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+]]></preview></result>';
+	echo sprintf($preview, parse_message(pun_linebreaks(pun_trim($_GET['req_message'])), $hide_smilies));
+	exit;
+} //End if.
+
 
 // Did someone just hit "Submit" or "Preview"?
 if (isset($_POST['form_sent']))
@@ -487,15 +512,15 @@ if (isset($_POST['form_sent']))
 		}
 
 		redirect('viewtopic.php?pid='.$new_pid.'#p'.$new_pid, $lang_post['Post redirect']);
-	}
-}
+	} //End if.
+} //End if.
 
 
 // If a topic ID was specified in the url (it's a reply)
 if ($tid)
 {
 	$action = $lang_post['Post a reply'];
-	$form = '<form id="post" method="post" enctype="multipart/form-data" action="post.php?action=post&amp;tid='.$tid.'" onsubmit="this.submit.disabled=true;if(process_form(this)){return true;}else{this.submit.disabled=false;return false;}">'; //Attachment Mod has added enctype="multipart/form-data"
+	$form = '<form id="post" method="post" enctype="multipart/form-data" action="post.php?action=post&amp;tid='.$tid.'" onsubmit="this.submit.disabled=true;if (previewPost()){this.submit.disabled=false;return false;} else {if(process_form(this)){return true;}else{this.submit.disabled=false;return false;}}">'; //Attachment Mod has added enctype="multipart/form-data"
 
 	// If a quote ID was specified in the url
 	if (isset($_GET['qid']))
@@ -577,7 +602,7 @@ if ($tid)
 else if ($fid)
 {
 	$action = $lang_post['Post new topic'];
-	$form = '<form id="post" method="post" enctype="multipart/form-data" action="post.php?action=post&amp;fid='.$fid.'" onsubmit="return process_form(this)">';
+	$form = '<form id="post" method="post" enctype="multipart/form-data" action="post.php?action=post&amp;fid='.$fid.'" onsubmit="this.submit.disabled=true;if (previewPost()){this.submit.disabled=false;return false;} else {if(process_form(this)){return true;}else{this.submit.disabled=false;return false;}}">';
 }
 else
 	message($lang_common['Bad request']);
@@ -650,13 +675,15 @@ if (!empty($errors))
 <?php
 
 }
-else if (isset($_POST['preview']))
+?>
+<div id="postpreview" class="blockpost">
+<?php
+if (isset($_POST['preview']) && empty($errors))
 {
 	require_once PUN_ROOT.'include/parser.php';
 	$preview_message = parse_message($message, $hide_smilies);
 
 ?>
-<div id="postpreview" class="blockpost">
 	<h2><span><?php echo $lang_post['Post preview'] ?></span></h2>
 	<div class="box">
 		<div class="inbox">
@@ -670,7 +697,6 @@ else if (isset($_POST['preview']))
 			</div>
 		</div>
 	</div>
-</div>
 
 <?php
 
@@ -680,6 +706,7 @@ else if (isset($_POST['preview']))
 $cur_index = 1;
 
 ?>
+</div>
 <div id="postform" class="blockform">
 	<h2><span><?php echo $action ?></span></h2>
 	<div class="box">
@@ -785,7 +812,7 @@ if (!empty($checkboxes))
 ?>
 			</div>
 			<?php poll_form_post($tid); ?>
-			<p class="buttons"><input type="submit" name="submit" value="<?php echo $lang_common['Submit'] ?>" tabindex="<?php echo $cur_index++ ?>" accesskey="s" /> <input type="submit" name="preview" value="<?php echo $lang_post['Preview'] ?>" tabindex="<?php echo $cur_index++ ?>" accesskey="p" /> <a href="javascript:history.go(-1)"><?php echo $lang_common['Go back'] ?></a></p>
+			<p class="buttons"><input type="submit" name="submit" value="<?php echo $lang_common['Submit'] ?>" tabindex="<?php echo $cur_index++ ?>" accesskey="s" onclick="is_preview(false)" /> <input type="submit" name="preview" value="<?php echo $lang_post['Preview'] ?>" tabindex="<?php echo $cur_index++ ?>" accesskey="p" onclick="is_preview(true)" /> <a href="javascript:history.go(-1)"><?php echo $lang_common['Go back'] ?></a></p>
 		</form>
 	</div>
 </div>

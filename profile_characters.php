@@ -262,6 +262,12 @@ generate_profile_menu('characters');
 <?php
 	
 	if (empty($error)) {
+		$now = time();
+		$offset = date('Z');
+		$now = $offset > 0 ? $now - $offset : $now + offset;
+		$queue = array();
+		$last_skill = null;
+		$total_width = 0;
 		
 		$sql = "
 			SELECT
@@ -276,32 +282,49 @@ generate_profile_menu('characters');
 				s.character_id=".$selected_char['character_id']."
 			ORDER BY
 				s.queuePosition
-			ASC LIMIT 0,1;";
+			ASC";
 		if (!$skills = $db->query($sql)) {
-			$skills = array(); //No point crying over it...
-		} //End if.
-		
-		if ($db->num_rows($skills) > 0) {
-			$skills = $db->fetch_assoc($skills);
-			$now = time();
-			$offset = date('Z');
-			$now = $offset > 0 ? $now - $offset : $now + offset;
-			$end_stamp = convert_to_stamp($skills['endtime'], true);
-			
-			$skill_color = '';
-			$skill_width = intval(($end_stamp - $now) / (60 * 60));
-			
-			if ($skill_width >= 24) {
-				$skill_width = 100;
-				$skill_color = 'green';
-			} else {
-				$skill_width = intval($skill_width / (0.24));
-				$skill_color = 'orange';
-			} //End if - else.
-			
-			if ($skill_width < 6) {
-				$skill_color = 'red';
-			} //End if.
+			$skills = array();
+		} else if ($db->num_rows($skills) > 0) {
+			while ($skill = $db->fetch_assoc($skills)) {
+				$end_stamp = convert_to_stamp($skill['endtime'], true);
+				
+				if ($end_stamp < $now) {
+					echo "skill out of date. $end_stamp vs $now";
+					continue;
+				} //End if.
+				
+				if ($last_skill == null) {
+					$last_skill = $now;
+				} //End if.
+				
+				$skill['color'] = '';
+				$skill['width'] = intval(($end_stamp - $last_skill) / (60 * 60));
+				
+				if ($skill['width'] >= 24) {
+					$skill['width'] = 100;
+					$skill['color'] = 'green';
+				} else {
+					$skill['width'] = intval($skill['width'] / (0.24));
+					$skill['color'] = 'orange';
+				} //End if - else.
+				
+				if ($skill['width'] < 6) {
+					$skill['color'] = 'red';
+					if ($skill['width'] == 0) {
+						$skill['width'] = 1; //Show *something*
+					} //End if.
+				} //End if.
+				
+				if (($skill['width'] + $total_width) >= 100) {
+					$skill['width'] = (100 - $total_width);
+				} //End if.
+				
+				$skill['left_width'] = $total_width;
+				
+				$total_width += $skill['width'];
+				$queue[] = $skill;
+			} //End while loop().
 			
 		} else {
 			$skills = array();
@@ -319,7 +342,7 @@ generate_profile_menu('characters');
 					<div class="infldset" id="selected_char_info">
 						<table class="aligntop" cellspacing="0">
 							<tr>
-								<th scope="row" rowspan="6" style="width: 128px;">	<img src="img/chars/<?php echo $selected_char['character_id']; ?>_128.jpg" width="128px" height="128px" alt="" /></th>
+								<th valign="top" scope="row" rowspan="6" style="width: 128px;">	<img src="img/chars/<?php echo $selected_char['character_id']; ?>_128.jpg" width="128px" height="128px" alt="" /></th>
 								<td>&nbsp;<strong><?php echo $lang_profile_characters['name']; ?></strong></td>
 								<td><?php echo $selected_char['character_name']; ?></td>
 							</tr>
@@ -357,13 +380,25 @@ generate_profile_menu('characters');
 								<td><?php echo number_format($selected_char['balance']); ?> Isk</td>
 							</tr>
 							<tr>
-								<td>&nbsp;<strong><?php echo $lang_profile_characters['skill_queue']; ?></strong></td>
+								<td valign="top">&nbsp;<strong><?php echo $lang_profile_characters['skill_queue']; ?></strong></td>
 								<td>
-									&nbsp;<strong><?php echo (isset($skills['typename']) ? $skills['typename'].' '.$level[$skills['level']] : $lang_profile_characters['unknown']); ?></strong><br/>
+								<?php
+									foreach($queue as $skill) {
+								?>
+									&nbsp;<strong><?php echo (isset($skill['typename']) ? $skill['typename'].' '.$level[$skill['level']] : $lang_profile_characters['unknown']); ?></strong> - <?php  echo (isset($skill['typename']) ? sprintf($lang_profile_characters['skill_queue_remaining'], format_time_diff($now, $end_stamp)) : ''); ?><br/>
 									<div class="box" style="width: 100%; border-style: solid; border-width: 1px; padding:0;">
-										<div class="infldset" style="border-style: solid; border-width: 1px; background-color: <?php echo $skill_color; ?>; padding: 2px; width: <?php echo $skill_width; ?>%; height: 20px; display:block;"></div>
+										
+										<table class="infldset"><tr style="border-style: solid; border-width: 1px;"><td style="width: <?php echo $skill['left_width']?>%;"></td><td style="background-color: <?php echo $skill['color']; ?>; width: <?php echo $skill['width']; ?>%;"></td><td style="width: <?php echo 100-($skill['width']+$skill['left_width']);?>%;"></td></tr></table>
+									
+										<!-- <div class="infldset" style="margin: 0 auto 0 <?php echo $skill['left_width']?>%;border-style: solid; border-width: 1px; background-color: <?php echo $skill['color']; ?>; padding: 1px; width: <?php echo $skill['width']; ?>%; height: 10px; display:block;"></div> -->
 									</div>
-									<?php  echo (isset($skills['typename']) ? sprintf($lang_profile_characters['skill_queue_remaining'], format_time_diff($now, $end_stamp)) : $lang_profile_characters['next_update']); ?>
+									
+								<?php
+								} //End foreach().
+								if (empty($queue)) {
+									echo $lang_profile_characters['next_update'];
+								} //End if.
+								?>
 								</td>
 							</tr>
 							

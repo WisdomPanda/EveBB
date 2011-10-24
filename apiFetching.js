@@ -2,6 +2,7 @@ var xhttp;
 var corpText = new String("");
 var charText = new String("");
 var currentBanner = new String("");
+var preview = false;
 
 function previewImage(img) {
 	//alert("Got value: " + img);
@@ -15,6 +16,95 @@ function previewImage(img) {
 	currentBanner = img;
 	
 } //End previewImage().
+
+function is_preview(value) {
+	preview = value;
+	return true;
+} //End is_preview.
+
+function previewPost() {
+	
+	if (!preview) {
+		return false;
+	} //End if.
+	
+	var previewBox = document.getElementById("postpreview");
+	var content = new String("<img src=\"img/ajax-loader.gif\" width=\"16\" height=\"16\">");
+	
+	var url = document.getElementById("quickpostform");
+	if (url == null) {
+		url = document.getElementById("post");
+		if (url == null) {
+			alert("Can't find a form to check.");
+			return false;
+		} //End if.
+	} //End if.
+	
+	url = url.action;
+	
+	var post = new String(document.getElementById("req_message").value);
+	if (post == null || post.length == 0) {
+		post = "";
+		return false;
+	} //End if.
+	
+	var params = new String("&preview=1&as_xml=1&req_message="+encodeURIComponent(post));
+	
+	if (window.XMLHttpRequest) {
+		xhttp = new XMLHttpRequest();
+	} else {
+		xhttp = new ActiveXObject("Microsoft.XMLHTTP");
+	} //End if - else.
+	
+	xhttp.open("GET", url+params, true);
+	xhttp.onreadystatechange = previewCallback;	
+	xhttp.send(null);
+	
+	previewBox.innerHTML = content;
+	
+	return true;
+	
+} //End previewPost().
+
+function previewCallback() {
+	if(xhttp.readyState == 4 && xhttp.status == 200) {
+		
+		preview = false;
+		
+		var previewBox = document.getElementById("postpreview");
+		var response = xhttp.responseText;
+		var xml;
+		var form = document.getElementById("quickpostform");
+		
+		var url = document.getElementById("quickpostform");
+		if (url == null) {
+			url = document.getElementById("post");
+			if (url == null) {
+				alert("Can't find a form to check.");
+				return false;
+			} //End if.
+		} //End if.
+		
+		url = url.action;
+		
+		if (window.DOMParser) {
+			var parser = new DOMParser();
+			xml = parser.parseFromString(response, "text/xml");
+		} else {
+			var xml = new ActiveXObject("Microsoft.XMLDOM");
+			xml.async = false;
+			xml.loadXML(response);
+		} //End if - else.
+		
+		temp = xml.getElementsByTagName("error");
+		
+		if (temp.length > 0) {
+			form.submit(); //Make the form submit.
+			return false;
+		} //End if.
+		previewBox.innerHTML = xml.getElementsByTagName("preview")[0].firstChild.nodeValue;
+	} //End if.
+} //End previewCallback().
 
 function fetchCorp() {
 	//Get the information, put our little loading image in,then submit the auth to the XML fetcher.

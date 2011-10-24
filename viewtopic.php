@@ -627,10 +627,11 @@ if ($quickpost)
 {
 
 ?>
+<div id="postpreview" class="blockpost"></div>
 <div id="quickpost" class="blockform">
 	<h2><span><?php echo $lang_topic['Quick post'] ?></span></h2>
 	<div class="box">
-		<form id="quickpostform" method="post" action="post.php?tid=<?php echo $id ?>" onsubmit="this.submit.disabled=true;if(process_form(this)){return true;}else{this.submit.disabled=false;return false;}">
+		<form id="quickpostform" method="post" action="post.php?tid=<?php echo $id ?>" onsubmit="this.submit.disabled=true;if (previewPost()){this.submit.disabled=false;return false;} else {if(process_form(this)){return true;}else{this.submit.disabled=false;return false;}}">
 			<div class="inform">
 				<fieldset>
 					<legend><?php echo $lang_common['Write message legend'] ?></legend>
@@ -664,7 +665,7 @@ else
 					</div>
 				</fieldset>
 			</div>
-			<p class="buttons"><input type="submit" name="submit" tabindex="<?php echo $cur_index++ ?>" value="<?php echo $lang_common['Submit'] ?>" accesskey="s" /> <input type="submit" name="preview" value="<?php echo $lang_topic['Preview'] ?>" tabindex="<?php echo $cur_index++ ?>" accesskey="p" /></p>
+			<p class="buttons"><input type="submit" name="submit" tabindex="<?php echo $cur_index++ ?>" value="<?php echo $lang_common['Submit'] ?>" accesskey="s"  onclick="is_preview(false)" /> <input type="submit" name="preview" value="<?php echo $lang_topic['Preview'] ?>" tabindex="<?php echo $cur_index++ ?>" accesskey="p" onclick="is_preview(true)"/></p>
 		</form>
 	</div>
 </div>
