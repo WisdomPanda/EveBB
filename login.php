@@ -91,9 +91,38 @@ if (isset($_POST['form_sent']) && $action == 'in')
 	
 	$now = time();
 	$offset = date('Z');
-	$now = $offset > 0 ? $now - $offset : $now + offset;
+	
+	$new_token = gen_token();
+        
+    //Lets update all our tracking bits.
+    $db->insert_or_update(
+    	array(
+    		'user_id' => $cur_user['id'],
+    		'token' => $new_token,
+    		'stamp' => $now,
+    		'length' => (($save_pass == '1') ? 2629743 : $pun_config['session_length']),
+    		'ip' => $_SERVER['REMOTE_ADDR'],
+    	),
+    	'user_id',
+    	$db->prefix.'session'
+    ) or error('Unable to update session data.');
+    
+    //Have they never logged logged out before?
+    if ($cur_user['last_visit'] == 0) {
+    	$db->query("UPDATE ".$db->prefix."users SET last_visit=".$now." WHERE id=".$cur_user['id']);
+    } //End if.
+
+	// Send a new, updated cookie with a new expiration timestamp
+	if ($save_pass == '1') {
+		forum_setcookie($cookie_name, $cur_user['id'].':'.$new_token.':'.md5($cur_user['id'].$cookie_seed.$new_token), $now+2629743); //Expire the cookie in 1 month.
+	} //End if - else.
+		
+	//Update the PHP Session.
+	$_SESSION[$cookie_name] = $cur_user['id'].':'.$new_token.':'.md5($cur_user['id'].$cookie_seed.$new_token);
+	
+	/*$now = $offset > 0 ? $now - $offset : $now + offset;
 	$expire = ($save_pass == '1') ? $now + 1209600 : $now +$pun_config['o_timeout_visit'];
-	pun_setcookie($cur_user['id'], $form_password_hash, $expire);
+	pun_setcookie($cur_user['id'], $form_password_hash, $expire);*/
 
 	// Reset tracked topics
 	set_tracked_topics(null);
@@ -108,10 +137,16 @@ else if ($action == 'out')
 	{
 		header('Location: index.php');
 		exit;
-	}
+	} //End if.
+	
+	$db->query("DELETE FROM ".$db->prefix."session WHERE user_id=".$pun_user['user_id']); //Get rid of the old session.
+	
+	unset($_SESSION[$cookie_name]);
 
 	// Remove user from "users online" list
 	$db->query('DELETE FROM '.$db->prefix.'online WHERE user_id='.$pun_user['id']) or error('Unable to delete from online list', __FILE__, __LINE__, $db->error());
+	
+	$db->query("DELETE FROM ".$db->prefix."session WHERE user_id=".$pun_user['id']) or error('Unable to delete from session list', __FILE__, __LINE__, $db->error()); //Get rid of the old session.
 
 	// Update last_visit (make sure there's something to update it with)
 	if (isset($pun_user['logged']))

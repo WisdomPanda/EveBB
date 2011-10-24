@@ -345,7 +345,7 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 					message($lang_common['No permission']);
 				
 				if ($pun_user['g_id'] != PUN_ADMIN) {
-					$result = $db->query('SELECT t.id FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.') AND fp.read_forum=1) WHERE t.last_post>'.$pun_user['last_visit'].' AND t.moved_to IS NULL'.(isset($_GET['fid']) ? ' AND t.forum_id='.intval($_GET['fid']) : '').' ORDER BY t.last_post DESC') or error('Unable to fetch topic list', __FILE__, __LINE__, $db->error());
+					$result = $db->query('SELECT t.id FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=t.forum_id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.') AND fp.read_forum=1) WHERE t.last_post>'.$pun_user['last_visit'].' AND t.moved_to IS NULL'.(isset($_GET['fid']) ? ' AND t.forum_id='.intval($_GET['fid']) : '').' ORDER BY t.last_post DESC') or error('Unable to fetch topic list', __FILE__, __LINE__, $db->error());
 				} else {
 					$result = $db->query('SELECT t.id FROM '.$db->prefix.'topics AS t WHERE t.last_post>'.$pun_user['last_visit'].' AND t.moved_to IS NULL'.(isset($_GET['fid']) ? ' AND t.forum_id='.intval($_GET['fid']) : '').' ORDER BY t.last_post DESC') or error('Unable to fetch topic list', __FILE__, __LINE__, $db->error());
 				} //End if - else.
@@ -359,7 +359,7 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 			else if ($action == 'show_recent')
 			{
 				if ($pun_user['g_id'] != PUN_ADMIN) {
-					$result = $db->query('SELECT t.id FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.') AND fp.read_forum=1) WHERE t.last_post>'.(time() - $interval).' AND t.moved_to IS NULL'.(isset($_GET['fid']) ? ' AND t.forum_id='.intval($_GET['fid']) : '').' ORDER BY t.last_post DESC') or error('Unable to fetch topic list', __FILE__, __LINE__, $db->error());
+					$result = $db->query('SELECT t.id FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=t.forum_id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.') AND fp.read_forum=1) WHERE t.last_post>'.(time() - $interval).' AND t.moved_to IS NULL'.(isset($_GET['fid']) ? ' AND t.forum_id='.intval($_GET['fid']) : '').' ORDER BY t.last_post DESC') or error('Unable to fetch topic list', __FILE__, __LINE__, $db->error());
 				} else {
 					$result = $db->query('SELECT t.id FROM '.$db->prefix.'topics AS t WHERE t.last_post>'.(time() - $interval).' AND t.moved_to IS NULL'.(isset($_GET['fid']) ? ' AND t.forum_id='.intval($_GET['fid']) : '').' ORDER BY t.last_post DESC') or error('Unable to fetch topic list', __FILE__, __LINE__, $db->error());
 				} //End if - else.
@@ -372,7 +372,7 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 			else if ($action == 'show_replies')
 			{
 				if ($pun_user['g_id'] != PUN_ADMIN) {
-					$result = $db->query('SELECT t.id FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'posts AS p ON t.id=p.topic_id INNER JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.') AND fp.read_forum=1) WHERE p.poster_id='.$pun_user['id'].' GROUP BY t.id'.($db_type == 'pgsql' ? ', t.last_post' : '').' ORDER BY t.last_post DESC') or error('Unable to fetch topic list', __FILE__, __LINE__, $db->error());
+					$result = $db->query('SELECT t.id FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'posts AS p ON t.id=p.topic_id INNER JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=t.forum_id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.') AND fp.read_forum=1) WHERE p.poster_id='.$pun_user['id'].' GROUP BY t.id'.($db_type == 'pgsql' ? ', t.last_post' : '').' ORDER BY t.last_post DESC') or error('Unable to fetch topic list', __FILE__, __LINE__, $db->error());
 				} else {
 					$result = $db->query('SELECT t.id FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'posts AS p ON t.id=p.topic_id WHERE p.poster_id='.$pun_user['id'].' GROUP BY t.id'.($db_type == 'pgsql' ? ', t.last_post' : '').' ORDER BY t.last_post DESC') or error('Unable to fetch topic list', __FILE__, __LINE__, $db->error());
 				} //End if - else.

@@ -43,6 +43,7 @@ $lang_profile_characters = array(
 'add_corp_redirect' 			=> 'Corporation allowed successfully! Redirecting...',
 'api_id'							=> 'API Key ID',
 'api_vcode'						=> 'API Verification Code',
+'api_heading'					=> 'Characters for API Key [%s]',
 
 );
 

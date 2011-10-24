@@ -8,7 +8,7 @@
 
 // The FluxBB version this script updates to
 define('UPDATE_TO', '1.4.5');
-define('UPDATE_TO_EVEBB', '1.1.2');
+define('UPDATE_TO_EVEBB', '1.1.6');
 
 define('UPDATE_TO_DB_REVISION', 11);
 define('UPDATE_TO_SI_REVISION', 2);
@@ -1201,6 +1201,38 @@ switch ($stage)
 		if (!$db->table_exists('poll')) {
 			install_poll();
 		} //End if.
+		
+		if (!$db->table_exists('session')) {
+			//Session table
+			$schema = array(
+				'FIELDS'		=> array(
+					'user_id'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false,
+						'default'		=> '0'
+					),
+					'token'		=> array(
+						'datatype'		=> 'VARCHAR(32)',
+						'allow_null'	=> false
+					),
+					'stamp'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false
+					),
+					'length'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false
+					),
+					'ip'				=> array(
+						'datatype'		=> 'VARCHAR(15)',
+						'allow_null'	=> false
+					)
+				),
+				'PRIMARY KEY'	=> array('user_id')
+			);
+		
+			$db->create_table('session', $schema) or error('Unable to create session table', __FILE__, __LINE__, $db->error());
+		} //End is.
 		
 		if (version_compare($cur_eve_version, '1.1.1', '<=')) {
 			//Update/insert new configs.

@@ -6,12 +6,14 @@
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
 
+session_start();
+
 if (!defined('PUN_ROOT'))
 	exit('The constant PUN_ROOT must be defined and point to a valid FluxBB installation root directory.');
 
 // Define the version and database revision that this code was written for
 define('FORUM_VERSION', '1.4.5');
-define('EVE_BB_VERSION', '1.1.2');
+define('EVE_BB_VERSION', '1.1.6');
 //Functions for EvE-BB
 define('EVE_ENABLED', 1);
 require(PUN_ROOT.'include/eve_functions.php');
@@ -121,6 +123,11 @@ if (!defined('PUN_CONFIG_LOADED'))
 	generate_config_cache();
 	require FORUM_CACHE_DIR.'cache_config.php';
 }
+
+//Set the session length.
+//This is not something I'd like anyone tampering with unless they are aware of the kind of issues it could bring.
+//Anyone comfortable with editing the session length should be OK with editing this file.
+$pun_config['session_length'] = 4*60*60;
 
 // Verify that we are running the proper database schema revision
 if (!isset($pun_config['o_database_revision']) || $pun_config['o_database_revision'] < FORUM_DB_REVISION ||

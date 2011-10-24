@@ -436,7 +436,6 @@ $sql = "
 		a.api_character_id=c.character_id
 	WHERE c.user_id=".$id.";";
 $result = $db->query($sql) or message("Unable to fetch character list.");
-$hide_key = 'xxxxxxxxxx';
 $current_keys = null;
 while ($row = $db->fetch_assoc($result)) {
 	cache_char_pic($row['character_id'], ($action == 'reload_pics'));
@@ -444,7 +443,7 @@ while ($row = $db->fetch_assoc($result)) {
 		echo '
 							<tr>
 								<th scope="row" colspan="3">
-									Characters for '.$row['api_user_id'].' / '.$hide_key.substr($row['api_key'], -4).'
+									'.sprintf($lang_profile_characters['api_heading'], $row['api_user_id']).'
 									<span id="remove_api_keys">
 									<a href="profile.php?section=characters&amp;action=refresh_keys&amp;keys='.$row['api_user_id'].'&amp;id='.$id.'">'.$lang_profile_characters['refresh_keys'].'</a>
 									</span>
@@ -459,9 +458,9 @@ while ($row = $db->fetch_assoc($result)) {
 							<tr>
 								<th scope="row" style="width: 64px;"><img src="img/chars/'.$row['character_id'].'_64.jpg" width="64px" height="64px" alt="" /></th>
 								<td>
-									<strong>'.$row['character_name'].'</strong><br/>
-									<em>'.$row['corp_name'].'</em><br/>
-									'.$row['ally_name'].'
+									&nbsp;<strong>'.$row['character_name'].'</strong><br/>
+									&nbsp;<em>'.$row['corp_name'].'</em><br/>
+									&nbsp;'.$row['ally_name'].'
 								</td>
 								<td><input type="radio" name="select_character" value="'.$row['character_id'].'" '.(($row['character_id'] == $selected_char['character_id']) ? ' checked="checked"' : '').' />&#160;<strong>'.$lang_profile_characters['select'].'</strong></td>
 							</tr>';

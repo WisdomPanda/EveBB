@@ -2116,6 +2116,36 @@ else
 	);
 
 	$db->create_table('teamspeak3', $schema) or error('Unable to create teamspeak3 table', __FILE__, __LINE__, $db->error());
+	
+	//Session table
+	$schema = array(
+		'FIELDS'		=> array(
+			'user_id'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false,
+				'default'		=> '0'
+			),
+			'token'		=> array(
+				'datatype'		=> 'VARCHAR(32)',
+				'allow_null'	=> false
+			),
+			'stamp'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false
+			),
+			'length'		=> array(
+				'datatype'		=> 'INT(10) UNSIGNED',
+				'allow_null'	=> false
+			),
+			'ip'				=> array(
+				'datatype'		=> 'VARCHAR(15)',
+				'allow_null'	=> false
+			)
+		),
+		'PRIMARY KEY'	=> array('user_id')
+	);
+
+	$db->create_table('session', $schema) or error('Unable to create session table', __FILE__, __LINE__, $db->error());
 		
 	/*---------- EvE-BB INSTALL TABLE CONSTRUCTION ---------*/
 

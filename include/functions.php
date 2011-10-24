@@ -7,7 +7,7 @@
  */
 
 //Comment this out after.
-//define('PUN_DEBUG', 1);
+define('PUN_DEBUG', 1);
 
 //
 // Return current timestamp (with microseconds) as a float
@@ -18,6 +18,19 @@ function get_microtime()
 	return ((float)$usec + (float)$sec);
 }
 
+//pseudo md5 generation.
+function gen_token() {
+	$token = '';
+	$chars = array('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f');
+	
+	for ($i = 0; $i < 32; $i++) {
+		$token .= $chars[rand(0, 15)];
+	} //End 'i' for loop.
+	
+	return $token;
+	
+} //End gen_toekn().
+
 //
 // Cookie stuff!
 //
@@ -26,34 +39,43 @@ function check_cookie(&$pun_user)
 	global $db, $db_type, $pun_config, $cookie_name, $cookie_seed;
 
 	$now = time();
+	$earlier = $now - $pun_config['session_length'];
+	$much_earlier = $now - 2629743;
+	
+	$cookie = array();
+	
+	//There is an easier way to do this, but PostgreSQL complains about it, so here is a messy way.
+	//The general idea is to remove old sessions.
+	$db->query("DELETE FROM ".$db->prefix."session WHERE (stamp<".$earlier." AND length=".$pun_config['session_length'].") OR stamp<".$much_earlier);
 
-    // If the cookie is set and it matches the correct pattern, then read the values from it
-    if (isset($_COOKIE[$cookie_name]) && preg_match('/^(\d+)\|([0-9a-fA-F]+)\|(\d+)\|([0-9a-fA-F]+)$/', $_COOKIE[$cookie_name], $matches))
-    {
-        $cookie = array(
-            'user_id'            => intval($matches[1]),
-            'password_hash'     => $matches[2],
-            'expiration_time'    => intval($matches[3]),
-            'cookie_hash'        => $matches[4],
-        );
-    }
-
-    // If it has a non-guest user, and hasn't expired
-    if (isset($cookie) && $cookie['user_id'] > 1 && $cookie['expiration_time'] > $now)
-	{
-		
-        // If the cookie has been tampered with
-        if (forum_hmac($cookie['user_id'].'|'.$cookie['expiration_time'], $cookie_seed.'_cookie_hash') != $cookie['cookie_hash'])
-        {
-            $expire = $now + 31536000; // The cookie expires after a year
-            pun_setcookie(1, pun_hash(uniqid(rand(), true)), $expire);
-            set_default_user();
-            return;
-        }
-		
-		// Check if there's a user with the user ID and password hash from the cookie
+    //Lets pull our session data out.
+    if (isset($_COOKIE[$cookie_name]) && preg_match('/^(\d+)\:([0-9A-F]{32}):([0-9a-fA-F]{32})$/', $_COOKIE[$cookie_name], $matches)) {
+        $cookie['user_id'] = intval($matches[1]);
+        $cookie['token'] = $matches[2];
+        $cookie['hash'] = $matches[3];
+        $cookie['remember'] = 1;
+    } //End if.
+    
+    //The cookie is more long term, the session is for when they don't select "Remember Me"
+    if (isset($_SESSION[$cookie_name]) && preg_match('/^(\d+)\:([0-9a-fA-F]{32}):([0-9a-fA-F]{32})$/', $_SESSION[$cookie_name], $matches)) {
+    	$cookie['user_id'] = intval($matches[1]);
+        $cookie['token'] = $matches[2];
+        $cookie['hash'] = $matches[3];
+    } //End if.
+    
+    if (!empty($cookie)) {
+    	
+    	if (md5($cookie['user_id'].$cookie_seed.$cookie['token']) != $cookie['hash']) {
+    		if (defined('PUN_DEBUG')) {
+    			error('Hash mismatch.', __FILE__, __LINE__, $db->error());
+    		} //End if.
+        	set_default_user();
+        	return; //The session has been messed with, abort!
+    	} //End if.
+    	
 		$result = $db->query('
 			SELECT
+				sess.*,
 				c.*,
 				sc.*,
 				u.*,
@@ -61,7 +83,11 @@ function check_cookie(&$pun_user)
 				o.logged,
 				o.idle
 			FROM
+				'.$db->prefix.'session AS sess
+			INNER JOIN
 				'.$db->prefix.'users AS u
+			ON
+				sess.user_id=u.id
 			INNER JOIN
 				'.$db->prefix.'groups AS g
 			ON
@@ -79,24 +105,58 @@ function check_cookie(&$pun_user)
 			ON
 				sc.character_id=c.character_id
 			WHERE
-				u.id='.intval($cookie['user_id']).'
-				') or error('Unable to fetch user information', __FILE__, __LINE__, $db->error());
-		
-		$pun_user = $db->fetch_assoc($result);
-
-		// If user authorisation failed
-		if (!isset($pun_user['id']) || forum_hmac($pun_user['password'], $cookie_seed.'_password_hash') !== $cookie['password_hash'])
-		{
-			$expire = $now + 31536000; // The cookie expires after a year
-			pun_setcookie(1, pun_hash(uniqid(rand(), true)), $expire);
-			set_default_user();
-
-			return;
-		}
+				u.id='.intval($cookie['user_id']))
+		or error('Unable to fetch user information', __FILE__, __LINE__, $db->error());
+        
+        if ($db->num_rows($result) != 1) {
+    		if (defined('PUN_DEBUG')) {
+    			error('No user found.', __FILE__, __LINE__, $db->error());
+    		} //End if.
+        	set_default_user();
+        	return; //Chances are they have no active session.
+        } //End if.
+        
+        $pun_user = $db->fetch_assoc($result);
+        
+        if ($pun_user['token'] != $cookie['token']) {
+    		if (defined('PUN_DEBUG')) {
+    			error('Token mismatch: '.$pun_user['token'].', '.$cookie['token'], __FILE__, __LINE__, $db->error());
+    		} //End if.
+        	//Even though this failed, because of the possibility of external tomfoolery, we won't remove the session.
+        	if (isset($cookie['remember'])) {
+        		$expire = $now + 31536000; // The cookie expires after a year
+        		pun_setcookie(1, pun_hash(uniqid(rand(), true)), $expire);
+        	} //End if.
+        	set_default_user();
+        	return; //Trying to access from an old session, or they are evil!
+        } //End if.
+        
+        //Is the stamp old or are they using a session cookie from a different IP?
+        if ($now > ($pun_user['stamp'] + $pun_user['length']) || ($pun_user['ip'] != $_SERVER['REMOTE_ADDR']) && !isset($cookie['remember'])) {
+    		if (defined('PUN_DEBUG')) {
+    			error('IP or stamp mismatch.', __FILE__, __LINE__, $db->error());
+    		} //End if.
+        	$db->query("DELETE FROM ".$db->prefix."session WHERE user_id=".$pun_user['id']); //Get rid of the old session.
+        	if (isset($cookie['remember'])) {
+        		$expire = $now + 31536000; // The cookie expires after a year
+        		pun_setcookie(1, pun_hash(uniqid(rand(), true)), $expire);
+        	} //End if.
+        	set_default_user();
+        	return;
+        } //End if.
+        
+        //If they got this far, they provided a valid token with a valid user_id.
+        
+        //Lets update all our tracking bits.
+        $db->query("UPDATE ".$db->prefix."session SET stamp=".$now.", length=".((isset($cookie['remember'])) ? 2629743 : $pun_config['session_length'])." WHERE user_id=".$pun_user['id']);
 
 		// Send a new, updated cookie with a new expiration timestamp
-		$expire = ($cookie['expiration_time'] > $now + $pun_config['o_timeout_visit']) ? $now + 1209600 : $now + $pun_config['o_timeout_visit'];
-		pun_setcookie($pun_user['id'], $pun_user['password'], $expire);
+		if (isset($cookie['remember'])) {
+			forum_setcookie($cookie_name, $pun_user['id'].':'.$pun_user['token'].':'.md5($pun_user['id'].$cookie_seed.$pun_user['token']), $now+2629743); //Expire the cookie in 1 month.
+		} //End if - else.
+		
+		//Update the PHP Session.
+		$_SESSION[$cookie_name] = $pun_user['id'].':'.$pun_user['token'].':'.md5($pun_user['id'].$cookie_seed.$pun_user['token']);
 
 		// Set a default language if the user selected language no longer exists
 		if (!file_exists(PUN_ROOT.'lang/'.$pun_user['language']))
