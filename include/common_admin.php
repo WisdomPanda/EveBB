@@ -56,8 +56,7 @@ function generate_admin_menu($page = '')
 				<ul>
 					<li<?php if ($page == 'options') echo ' class="isactive"'; ?>><a href="admin_options.php"><?php echo $lang_admin_common['Options'] ?></a></li>
 					<li<?php if ($page == 'eve_online') echo ' class="isactive"'; ?>><a href="admin_eve_online.php"><?php echo $lang_admin_common['Eve Online'] ?></a></li>
-					<li<?php if ($page == 'eve_ally') echo ' class="isactive"'; ?>><a href="admin_eve_alliance.php"><?php echo $lang_admin_common['Eve Alliance'] ?></a></li>
-					<li<?php if ($page == 'eve_corp') echo ' class="isactive"'; ?>><a href="admin_eve_corps.php"><?php echo $lang_admin_common['Eve Corporation'] ?></a></li>
+					<li<?php if ($page == 'eve_auth') echo ' class="isactive"'; ?>><a href="admin_eve_auth.php"><?php echo $lang_admin_common['Eve Auth'] ?></a></li>
 					<li<?php if ($page == 'eve_groups') echo ' class="isactive"'; ?>><a href="admin_eve_groups.php"><?php echo $lang_admin_common['Eve Groups'] ?></a></li>
 					<li<?php if ($page == 'permissions') echo ' class="isactive"'; ?>><a href="admin_permissions.php"><?php echo $lang_admin_common['Permissions'] ?></a></li>
 					<li<?php if ($page == 'categories') echo ' class="isactive"'; ?>><a href="admin_categories.php"><?php echo $lang_admin_common['Categories'] ?></a></li>
