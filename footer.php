@@ -74,7 +74,7 @@ if ($pun_config['o_quickjump'] == '1')
 	sort($pun_user['group_ids']);
 	
 	foreach($pun_user['group_ids'] as $g) {
-		$groups .= $g.'-';
+		$groups .= intval($g).'-';
 	} //End foreach().
 	
 	substr($groups, 0, -1);
@@ -89,7 +89,9 @@ if ($pun_config['o_quickjump'] == '1')
 	 		require PUN_ROOT.'include/cache.php';
 	 		
 	 	generate_quickjump_cache($groups);
-	 	require FORUM_CACHE_DIR.'cache_quickjump_'.$groups.'.php';
+	 	if (file_exists(FORUM_CACHE_DIR.'cache_quickjump_'.$groups.'.php')) {
+	 		include FORUM_CACHE_DIR.'cache_quickjump_'.$groups.'.php';
+	 	} //End if.
 	}
 }
 

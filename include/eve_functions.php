@@ -89,7 +89,7 @@ function task_runner() {
 		} else {
 			$log[] = 'Auth checked!<br/>';
 		} //End if - else.
-		$db->insert_or_update(array('conf_name' => 'o_eve_last_auth_check', 'conf_value' => "'".time()."'"), 'conf_name', $db->prefix.'config');
+		$db->insert_or_update(array('conf_name' => 'o_eve_last_auth_check', 'conf_value' => time()), 'conf_name', $db->prefix.'config');
 	} //End if.
 	
 	if ($run_rules) {
@@ -99,7 +99,7 @@ function task_runner() {
 		} else {
 			$log[] = 'Rule applied!<br/>';
 		} //End if - else.
-		$db->insert_or_update(array('conf_name' => 'o_eve_last_rule_check', 'conf_value' => "'".time()."'"), 'conf_name', $db->prefix.'config');
+		$db->insert_or_update(array('conf_name' => 'o_eve_last_rule_check', 'conf_value' => time()), 'conf_name', $db->prefix.'config');
 	} //End if.
 	
 	if ($run_char) {
