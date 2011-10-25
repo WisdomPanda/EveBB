@@ -2138,7 +2138,7 @@ else
 				'allow_null'	=> false
 			),
 			'ip'				=> array(
-				'datatype'		=> 'VARCHAR(15)',
+				'datatype'		=> 'VARCHAR(32)',
 				'allow_null'	=> false
 			)
 		),

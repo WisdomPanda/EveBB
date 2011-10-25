@@ -928,7 +928,7 @@ function attach_generate_filename($storagepath, $messagelenght=0, $filesize=0){
 }
 
 function update_forum_perm($forum_id) {
-	
+	global $db;
 	//This 'fills in' blank permissions, used for multi-group joins.
 	//I personally prefer to work on *some* data than assume something based on a lack of data.
 	
@@ -1224,7 +1224,7 @@ switch ($stage)
 						'allow_null'	=> false
 					),
 					'ip'				=> array(
-						'datatype'		=> 'VARCHAR(15)',
+						'datatype'		=> 'VARCHAR(32)',
 						'allow_null'	=> false
 					)
 				),
@@ -1261,6 +1261,11 @@ switch ($stage)
 				$db->prefix.'config' //Table
 			);
 			
+			if (!function_exists('generate_config_cache')) {
+				include(PUN_ROOT.'include/cache.php');
+			} //End if.
+			generate_config_cache();
+			
 		} //End if.
 		
 		if (version_compare($cur_eve_version, '1.0.0', '<=')) {
@@ -1283,6 +1288,9 @@ switch ($stage)
 				$db->prefix.'config' //Table
 			);
 			
+			if (!function_exists('generate_config_cache')) {
+				include(PUN_ROOT.'include/cache.php');
+			} //End if.
 			generate_config_cache();
 			
 			//Update permissions, this is not a -terrible- thing to have fail, so we'll let it.

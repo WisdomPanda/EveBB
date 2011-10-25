@@ -105,7 +105,7 @@ if (isset($_POST['form_sent']) && $action == 'in')
     	),
     	'user_id',
     	$db->prefix.'session'
-    ) or error('Unable to update session data.');
+    ) or error('Unable to update session data.', __FILE__, __LINE__, $db->error());
     
     //Have they never logged logged out before?
     if ($cur_user['last_visit'] == 0) {
