@@ -43,13 +43,14 @@ function check_cookie(&$pun_user)
 	$much_earlier = $now - 2629743;
 	
 	$cookie = array();
+	$matches = array();
 	
 	//There is an easier way to do this, but PostgreSQL complains about it, so here is a messy way.
 	//The general idea is to remove old sessions.
 	$db->query("DELETE FROM ".$db->prefix."session WHERE (stamp<".$earlier." AND length=".$pun_config['session_length'].") OR stamp<".$much_earlier);
 
     //Lets pull our session data out.
-    if (isset($_COOKIE[$cookie_name]) && preg_match('/^(\d+)\:([0-9A-F]{32}):([0-9a-fA-F]{32})$/', $_COOKIE[$cookie_name], $matches)) {
+    if (isset($_COOKIE[$cookie_name]) && preg_match('/^(\d+)\:([0-9a-fA-F]{32}):([0-9a-fA-F]{32})$/', $_COOKIE[$cookie_name], $matches)) {
         $cookie['user_id'] = intval($matches[1]);
         $cookie['token'] = $matches[2];
         $cookie['hash'] = $matches[3];
@@ -63,7 +64,7 @@ function check_cookie(&$pun_user)
         $cookie['hash'] = $matches[3];
     } //End if.
     
-    if (!empty($cookie)) {
+    if (!empty($cookie) && isset($cookie['user_id'])) {
     	
     	if (md5($cookie['user_id'].$cookie_seed.$cookie['token']) != $cookie['hash']) {
     		if (defined('PUN_DEBUG')) {
