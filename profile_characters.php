@@ -158,7 +158,7 @@ if ($action == 'add_character') {
 			message("Malformed Vars.");
 		} //End if.
 		
-		$cak($api_user_id, $api_key);
+		$cak = new CAK($api_user_id, $api_key);
 		$result = update_characters($id, $cak);
 		
 		if ($result === false) {
@@ -287,10 +287,9 @@ generate_profile_menu('characters');
 			$skills = array();
 		} else if ($db->num_rows($skills) > 0) {
 			while ($skill = $db->fetch_assoc($skills)) {
-				$end_stamp = convert_to_stamp($skill['endtime'], true);
+				$skill['endtime'] = convert_to_stamp($skill['endtime'], true);
 				
-				if ($end_stamp < $now) {
-					echo "skill out of date. $end_stamp vs $now";
+				if ($skill['endtime'] < $now) {
 					continue;
 				} //End if.
 				
@@ -299,7 +298,7 @@ generate_profile_menu('characters');
 				} //End if.
 				
 				$skill['color'] = '';
-				$skill['width'] = intval(($end_stamp - $last_skill) / (60 * 60));
+				$skill['width'] = intval(($skill['endtime'] - $last_skill) / (60 * 60));
 				
 				if ($skill['width'] >= 24) {
 					$skill['width'] = 100;
@@ -385,7 +384,7 @@ generate_profile_menu('characters');
 								<?php
 									foreach($queue as $skill) {
 								?>
-									&nbsp;<strong><?php echo (isset($skill['typename']) ? $skill['typename'].' '.$level[$skill['level']] : $lang_profile_characters['unknown']); ?></strong> - <?php  echo (isset($skill['typename']) ? sprintf($lang_profile_characters['skill_queue_remaining'], format_time_diff($now, $end_stamp)) : ''); ?><br/>
+									&nbsp;<strong><?php echo (isset($skill['typename']) ? $skill['typename'].' '.$level[$skill['level']] : $lang_profile_characters['unknown']); ?></strong> - <?php  echo (isset($skill['typename']) ? sprintf($lang_profile_characters['skill_queue_remaining'], format_time_diff($now, $skill['endtime'])) : ''); ?><br/>
 									<div class="box" style="width: 100%; border-style: solid; border-width: 1px; padding:0;">
 										
 										<table class="infldset"><tr style="border-style: solid; border-width: 1px;"><td style="width: <?php echo $skill['left_width']?>%;"></td><td style="background-color: <?php echo $skill['color']; ?>; width: <?php echo $skill['width']; ?>%;"></td><td style="width: <?php echo 100-($skill['width']+$skill['left_width']);?>%;"></td></tr></table>
