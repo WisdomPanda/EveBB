@@ -8,9 +8,9 @@
 
 // The FluxBB version this script updates to
 define('UPDATE_TO', '1.4.5');
-define('UPDATE_TO_EVEBB', '1.1.6');
+define('UPDATE_TO_EVEBB', '1.1.7');
 
-define('UPDATE_TO_DB_REVISION', 11);
+define('UPDATE_TO_DB_REVISION', 12);
 define('UPDATE_TO_SI_REVISION', 2);
 define('UPDATE_TO_PARSER_REVISION', 2);
 
@@ -33,7 +33,7 @@ define('FORUM_NO_SET_NAMES', 1);
 
 // Make sure we are running at least MIN_PHP_VERSION
 if (!function_exists('version_compare') || version_compare(PHP_VERSION, MIN_PHP_VERSION, '<'))
-	exit('You are running PHP version '.PHP_VERSION.'. FluxBB '.UPDATE_TO.' requires at least PHP '.MIN_PHP_VERSION.' to run properly. You must upgrade your PHP installation before you can continue.');
+	exit('You are running PHP version '.PHP_VERSION.'. EveBB '.UPDATE_TO.' requires at least PHP '.MIN_PHP_VERSION.' to run properly. You must upgrade your PHP installation before you can continue.');
 
 define('PUN_ROOT', dirname(__FILE__).'/');
 
