@@ -88,8 +88,8 @@ if ($db_type == 'mysql' || $db_type == 'mysqli' || $db_type == 'mysql_innodb' ||
 	$total_records = $total_size = 0;
 	while ($status = $db->fetch_assoc($result))
 	{
-		$total_records += $status['Rows'];
-		$total_size += $status['Data_length'] + $status['Index_length'];
+		$total_records += $status['rows'];
+		$total_size += $status['data_length'] + $status['index_length'];
 	}
 
 	$total_size = file_size($total_size);
