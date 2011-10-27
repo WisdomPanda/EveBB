@@ -67,6 +67,48 @@ if ($action == 'add_corp') {
 	
 } //End if.
 
+if ($action == 'update_skills') {
+		
+	$sql = "
+		SELECT
+			*
+		FROM
+			".$db->prefix."api_skill_queue AS s
+		LEFT JOIN
+			".$db->prefix."api_skill_types AS t
+		ON
+			s.typeID=t.typeID
+		WHERE
+			s.character_id=".$selected_char['character_id']."
+		ORDER BY
+			s.queuePosition
+		ASC";
+	if (!$skills = $db->query($sql)) {
+		if (defined('PUN_DEBUG')) {
+			error('Unable to fetch skill queue information.', __FILE__, __LINE__, $db->error());
+		} //End if.
+		message('Unable to fetch skill queue information.');
+	} //End if.
+	
+	$last_update = 0;
+	
+	if ($db->num_rows($skills) > 0) {
+		$skills = $db->fetch_assoc($skills);
+		$last_update = $skills['last_update'];
+	} //End if - else.
+	
+	//Check if 20minutes has passed.
+	if ($last_update < (time() - (20*60))) {
+		//Let's update some skills!
+		$log = task_update_skills(false, $skills['character_id']);
+		redirect('profile.php?section=characters&amp;id='.$id, $log[0]);
+	} //End if.
+	
+	//If they aren't yet allowed to update the skills, just display as normal.
+	
+	
+} //End if.
+
 if ($action == 'select_character') {
 	if (isset($_POST['form_sent_characters'])) {
 		
@@ -262,12 +304,15 @@ generate_profile_menu('characters');
 <?php
 	
 	if (empty($error)) {
+		
 		$now = time();
+		$last_update = $now;
 		$offset = date('Z');
-		$now = $offset > 0 ? $now - $offset : $now + offset;
+		$now -= $offset;
 		$queue = array();
 		$last_skill = null;
 		$total_width = 0;
+		
 		
 		$sql = "
 			SELECT
@@ -287,7 +332,11 @@ generate_profile_menu('characters');
 			$skills = array();
 		} else if ($db->num_rows($skills) > 0) {
 			while ($skill = $db->fetch_assoc($skills)) {
-				$skill['endtime'] = convert_to_stamp($skill['endtime'], true);
+				if ($skill['queueposition'] == 0) {
+					$last_update = $skill['last_update'];
+				} //End if.
+				
+				$skill['endtime'] = convert_to_stamp($skill['endtime']);
 				
 				if ($skill['endtime'] < $now) {
 					continue;
@@ -341,8 +390,8 @@ generate_profile_menu('characters');
 					<div class="infldset" id="selected_char_info">
 						<table class="aligntop" cellspacing="0">
 							<tr>
-								<th valign="top" scope="row" rowspan="6" style="width: 128px;">	<img src="img/chars/<?php echo $selected_char['character_id']; ?>_128.jpg" width="128px" height="128px" alt="" /></th>
-								<td>&nbsp;<strong><?php echo $lang_profile_characters['name']; ?></strong></td>
+								<th valign="top" scope="row" rowspan="6" style="width: 140px;">	<img class="avatar_image" src="img/chars/<?php echo $selected_char['character_id']; ?>_128.jpg" width="128px" height="128px" alt="" /></th>
+								<td style="width: 120px;">&nbsp;<strong><?php echo $lang_profile_characters['name']; ?></strong></td>
 								<td><?php echo $selected_char['character_name']; ?></td>
 							</tr>
 							<tr>
@@ -379,12 +428,19 @@ generate_profile_menu('characters');
 								<td><?php echo number_format($selected_char['balance']); ?> Isk</td>
 							</tr>
 							<tr>
-								<td valign="top">&nbsp;<strong><?php echo $lang_profile_characters['skill_queue']; ?></strong></td>
+								<td valign="top">&nbsp;<strong><?php $offset = $offset / (60 * 60); echo $lang_profile_characters['skill_queue']; ?></strong><br/>
+								<?php
+								//Has at least 20minutes elapsed since last update?
+								if ($last_update < (time() - (20 * 60))) {
+									echo '&nbsp;<a href="profile.php?section=characters&amp;id='.$id.'&amp;action=update_skills">[Update]</a>';
+								} //End if.
+								?>
+								</td>
 								<td>
 								<?php
 									foreach($queue as $skill) {
 								?>
-									&nbsp;<strong><?php echo (isset($skill['typename']) ? $skill['typename'].' '.$level[$skill['level']] : $lang_profile_characters['unknown']); ?></strong> - <?php  echo (isset($skill['typename']) ? sprintf($lang_profile_characters['skill_queue_remaining'], format_time_diff($now, $skill['endtime'])) : ''); ?><br/>
+									<strong><?php echo (isset($skill['typename']) ? $skill['typename'].' '.$level[$skill['level']] : $lang_profile_characters['unknown']); ?></strong> - <?php  echo (isset($skill['typename']) ? sprintf($lang_profile_characters['skill_queue_remaining'], format_time_diff($now, $skill['endtime'])) : ''); ?><br/>
 									<div class="box" style="width: 100%; border-style: solid; border-width: 1px; padding:0;">
 										
 										<table class="infldset"><tr style="border-style: solid; border-width: 1px;"><td style="width: <?php echo $skill['left_width']?>%;"></td><td style="background-color: <?php echo $skill['color']; ?>; width: <?php echo $skill['width']; ?>%;"></td><td style="width: <?php echo 100-($skill['width']+$skill['left_width']);?>%;"></td></tr></table>
@@ -490,7 +546,7 @@ while ($row = $db->fetch_assoc($result)) {
 	} //End if.
 	echo '
 							<tr>
-								<th scope="row" style="width: 64px;"><img src="img/chars/'.$row['character_id'].'_64.jpg" width="64px" height="64px" alt="" /></th>
+								<th scope="row" style="width: 64px;"><img class="avatar_image" src="img/chars/'.$row['character_id'].'_64.jpg" width="64px" height="64px" alt="" /></th>
 								<td>
 									&nbsp;<strong>'.$row['character_name'].'</strong><br/>
 									&nbsp;<em>'.$row['corp_name'].'</em><br/>

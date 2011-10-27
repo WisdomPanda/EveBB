@@ -8,8 +8,9 @@
 
 // The FluxBB version this script installs
 define('FORUM_VERSION', '1.4.5');
+define('EVE_BB_VERSION', '1.1.7');
 
-define('FORUM_DB_REVISION', 11);
+define('FORUM_DB_REVISION', 12);
 define('FORUM_SI_REVISION', 2);
 define('FORUM_PARSER_REVISION', 2);
 
@@ -2306,6 +2307,7 @@ else
 		'o_eve_max_groups' => "'100'",
 		'o_hide_stats' => "'0'",
 		//New since 1.1.2+
+		'o_eve_cur_version' => "'".EVE_BB_VERSION."'",
 		'o_eve_cak_mask' => "'33947656'",
 		'o_eve_cak_type' => "'1'",
 		'o_eve_use_image_server' => "'0'",
@@ -2434,7 +2436,7 @@ We hope you enjoy your new EveBB install!");
 <div id="brdheader" class="block">
 	<div class="box">
 		<div id="brdtitle" class="inbox">
-			<h1><span><?php echo $lang_install['FluxBB Installation'] ?></span></h1>
+			<h1><span><?php echo sprintf($lang_install['FluxBB Installation'], EVE_BB_VERSION); ?></span></h1>
 			<div id="brddesc"><p><?php echo $lang_install['FluxBB has been installed'] ?></p></div>
 		</div>
 	</div>
