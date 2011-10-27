@@ -49,7 +49,7 @@ $result = $db->query('SELECT f.id, f.forum_name, f.moderators, f.redirect_url, f
 		ON
 			(fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
 		WHERE
-			(fp.read_forum IS NULL OR fp.read_forum=1) AND f.id='.$fid
+			fp.read_forum=1 AND f.id='.$fid
 	) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
 } //End if - else.
 
@@ -72,8 +72,8 @@ if ($tid && $pun_config['o_censoring'] == '1')
 	$cur_posting['subject'] = censor_words($cur_posting['subject']);
 
 // Do we have permission to post?
-if ((($tid && (($cur_posting['post_replies'] == '' && $pun_user['g_post_replies'] == '0') || $cur_posting['post_replies'] == '0')) ||
-	($fid && (($cur_posting['post_topics'] == '' && $pun_user['g_post_topics'] == '0') || $cur_posting['post_topics'] == '0')) ||
+if ((($tid && (($cur_posting['post_replies'] == '0' || $pun_user['g_post_replies'] == '0') || $cur_posting['post_replies'] == '0')) ||
+	($fid && (($cur_posting['post_topics'] == '0' || $pun_user['g_post_topics'] == '0') || $cur_posting['post_topics'] == '0')) ||
 	(isset($cur_posting['closed']) && $cur_posting['closed'] == '1')) &&
 	!$is_admmod)
 	message($lang_common['No permission']);
