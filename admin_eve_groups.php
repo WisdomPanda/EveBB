@@ -71,7 +71,7 @@ if ($action == "add_group_rule") {
 		);
 		
 		$db->insert_or_update($fields, array('id', 'group_id', 'role'), $db->prefix.'api_groups') or error("Unable to update group rule information.".@current(@end($db->saved_queries)), __FILE__, __LINE__, $db->error());
-		
+		apply_rules($log);
 		redirect('admin_eve_groups.php', $lang_admin_eve_online['group_rule_add_redirect']);
 		
 	} //End if.
