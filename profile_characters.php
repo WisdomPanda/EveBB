@@ -95,12 +95,13 @@ if ($action == 'update_skills') {
 	if ($db->num_rows($skills) > 0) {
 		$skills = $db->fetch_assoc($skills);
 		$last_update = $skills['last_update'];
+		
 	} //End if - else.
 	
 	//Check if 20minutes has passed.
 	if ($last_update < (time() - (20*60))) {
 		//Let's update some skills!
-		$log = task_update_skills(false, $skills['character_id']);
+		$log = task_update_skills(false, $selected_char['character_id']);
 		redirect('profile.php?section=characters&amp;id='.$id, $log[0]);
 	} //End if.
 	
@@ -431,7 +432,7 @@ generate_profile_menu('characters');
 								<td valign="top">&nbsp;<strong><?php $offset = $offset / (60 * 60); echo $lang_profile_characters['skill_queue']; ?></strong><br/>
 								<?php
 								//Has at least 20minutes elapsed since last update?
-								if ($last_update < (time() - (20 * 60))) {
+								if ($last_update < (time() - (20 * 60)) || empty($queue)) {
 									echo '&nbsp;<a href="profile.php?section=characters&amp;id='.$id.'&amp;action=update_skills">[Update]</a>';
 								} //End if.
 								?>
