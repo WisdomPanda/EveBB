@@ -153,14 +153,23 @@ function check_cookie(&$pun_user)
         
         //Lets update all our tracking bits.
         $db->query("UPDATE ".$db->prefix."session SET stamp=".$now.", length=".((isset($cookie['remember'])) ? 2629743 : $pun_config['session_length'])." WHERE user_id=".$pun_user['id']);
+		
+		$token = $pun_user['token'];
+		
+		if (isset($cookie['remember']) && !isset($_SESSION['remember'])) {
+			//Let's generate a new token if they got here via a cookie login that doesn't have a session attached to it.
+			$_SESSION['remember'] = 1;
+			$token = gen_token();
+			$db->query("UPDATE ".$db->prefix."session SET token='".$token."' WHERE user_id=".$pun_user['id']);
+		} //End if.
 
 		// Send a new, updated cookie with a new expiration timestamp
 		if (isset($cookie['remember'])) {
-			forum_setcookie($cookie_name, $pun_user['id'].':'.$pun_user['token'].':'.md5($pun_user['id'].$cookie_seed.$pun_user['token']), $now+2629743); //Expire the cookie in 1 month.
+			forum_setcookie($cookie_name, $pun_user['id'].':'.$token.':'.md5($pun_user['id'].$cookie_seed.$pun_user['token']), $now+2629743); //Expire the cookie in 1 month.
 		} //End if - else.
 		
 		//Update the PHP Session.
-		$_SESSION[$cookie_name] = $pun_user['id'].':'.$pun_user['token'].':'.md5($pun_user['id'].$cookie_seed.$pun_user['token']);
+		$_SESSION[$cookie_name] = $pun_user['id'].':'.$token.':'.md5($pun_user['id'].$cookie_seed.$pun_user['token']);
 
 		// Set a default language if the user selected language no longer exists
 		if (!file_exists(PUN_ROOT.'lang/'.$pun_user['language']))
