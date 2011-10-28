@@ -80,7 +80,7 @@ class CAK {
 		} //End if.
 		
 		//We won't allow small vcodes.
-		if (strlen($this->vcode) < 20 && strlen($this->vcode) > 64) {
+		if (strlen($this->vcode) < 20 || strlen($this->vcode) > 64) {
 			$this->keys_validated = false;
 			return CAK_VCODE_LEN;
 		} //End if.
