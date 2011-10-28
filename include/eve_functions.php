@@ -175,6 +175,9 @@ function task_update_skills($cron = false, $character = 0) {
 	$_LAST_ERROR = 0;
 	
 	while ($row = $db->fetch_assoc($result)) {
+		if (intval($row['cak_type']) == 0) {
+			continue;
+		} //End if.
 		$now = time();
 		$char = new Character();
 		$cak = new CAK($row['api_user_id'],$row['api_key'],$row['api_character_id']);
@@ -254,6 +257,9 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 	
 	
 	while ($row = $db->fetch_assoc($result)) {
+		if (intval($row['cak_type']) == 0) {
+			continue;
+		} //End if.
 		$cak = new CAK($row['api_user_id'],$row['api_key'],$row['api_character_id']);
 		if (update_character_sheet($row['user_id'], $cak, false)) {
 			$log [] = sprintf($lang_eve_bb['char_sheet_updated'], $row['character_id'], $row['character_name']);
