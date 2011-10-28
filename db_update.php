@@ -946,7 +946,7 @@ function update_forum_perm($forum_id) {
 			$post_replies_new = '0';
 			$post_topics_new = '0';
 		} else {
-			$perrms = $db->fetch_assoc($perms);
+			$perms = $db->fetch_assoc($perms);
 			$read_forum_new = ($perms['read_forum'] != '') ? $perms['read_forum'] : '0';
 			$post_replies_new = ($perms['post_replies'] != '') ? $perms['post_replies'] : '0';
 			$post_topics_new = ($perms['post_topics'] != '') ? $perms['post_topics'] : '0';
