@@ -95,7 +95,6 @@ if ($action == 'update_skills') {
 	if ($db->num_rows($skills) > 0) {
 		$skills = $db->fetch_assoc($skills);
 		$last_update = $skills['last_update'];
-		
 	} //End if - else.
 	
 	//Check if 20minutes has passed.
@@ -202,11 +201,25 @@ if ($action == 'add_character') {
 		} //End if.
 		
 		$cak = new CAK($api_user_id, $api_key);
+		
+		if ($cak->validate() != CAK_OK) {
+			message("Malformed Vars.");
+		} //End if.
+		
+		if (($err = $cak->validate_mask()) != CAK_OK) {
+			if ($err == CAK_MASK_CLASH) {
+				message('Your API keys do not have the correct access mask associated.<br/>This forum requires a mask of at least '.$pun_config['o_eve_cak_mask']);
+			} else {
+				message('['.$err.'] Unable to fetch API information.');
+			} //End if - else.
+		} //End if.
+		
 		$result = update_characters($id, $cak);
 		
 		if ($result === false) {
 			message('['.$_LAST_ERROR.'] Unable to update your api details.');
 		} else if (is_array($result)) {
+			add_api_keys($id, $cak);
 			message(sprintf($lang_profile_characters['add_errors'], implode('<br/>', $result)));
 		}  //End if - else if.
 		

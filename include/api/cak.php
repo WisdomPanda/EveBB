@@ -170,7 +170,7 @@ class CAK {
 			} //End if.
 			
 			//It's all good, lets get on with checking!
-			$this->mask = $matches[0];
+			$this->mask = $matches[1];
 			
 		} //End if.
 		
@@ -204,11 +204,15 @@ class CAK {
 					$this->mask_validated = false;
 					return CAK_MASK_CLASH;
 				} //End if.
+				$r_mask = '1'.$r_mask;
 				
 				//So far so good, adjust the masks and keep going.
-				$temp_mask = bsub($temp_mask, $i);
 				$req_mask = bsub($req_mask, $i);
 				
+			} //End if.
+			
+			if ($temp_mask >= $i) {
+				$temp_mask = bsub($temp_mask, $i);
 			} //End if.
 			
 			//Deincrement $i for the next pass.
