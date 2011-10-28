@@ -29,7 +29,7 @@ function gen_token() {
 	
 	return $token;
 	
-} //End gen_toekn().
+} //End gen_token().
 
 //
 // Cookie stuff!
@@ -70,6 +70,7 @@ function check_cookie(&$pun_user)
     		if (defined('PUN_DEBUG')) {
     			error('Hash mismatch.', __FILE__, __LINE__, $db->error());
     		} //End if.
+        	sleep(3);
         	set_default_user();
         	return; //The session has been messed with, abort!
     	} //End if.
@@ -114,6 +115,7 @@ function check_cookie(&$pun_user)
     			error('No user found.', __FILE__, __LINE__, $db->error());
     		} //End if.
         	set_default_user();
+        	sleep(3);
         	return; //Chances are they have no active session.
         } //End if.
         
@@ -129,6 +131,7 @@ function check_cookie(&$pun_user)
         		pun_setcookie(1, pun_hash(uniqid(rand(), true)), $expire);
         	} //End if.
         	set_default_user();
+        	sleep(3);
         	return; //Trying to access from an old session, or they are evil!
         } //End if.
         

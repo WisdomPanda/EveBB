@@ -62,6 +62,7 @@ if (isset($_POST['form_sent']) && $action == 'in')
 	}
 
 	if (!$authorized) {
+        sleep(3);
 		foreach ($_HOOKS['users'] as $hook) {
 			$hook->login_failed($cur_user['id']);
 		} //End foreach().
