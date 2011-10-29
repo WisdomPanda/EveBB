@@ -87,6 +87,7 @@ if (isset($_POST['form_sent']))
 		'announcement_message'	=> pun_trim($_POST['form']['announcement_message']),
 		'maintenance'			=> $_POST['form']['maintenance'] != '1' ? '0' : '1',
 		'maintenance_message'	=> pun_trim($_POST['form']['maintenance_message']),
+		'use_topic_stamp' => intval($_POST['form']['use_topic_stamp']),
 	);
 	if ($form['board_title'] == '')
 		message($lang_admin_options['Must enter title message']);
@@ -426,18 +427,13 @@ generate_admin_menu('options');
 						<legend><?php echo $lang_admin_options['Display subhead'] ?></legend>
 						<div class="infldset">
 							<table class="aligntop" cellspacing="0">
-
-<?php
-/*
 								<tr>
-									<th scope="row"><?php echo $lang_admin_options['Version number label'] ?></th>
+									<th scope="row"><?php echo $lang_admin_options['o_use_topic_stamp'] ?></th>
 									<td>
-										<input type="radio" name="form[show_version]" value="1"<?php if ($pun_config['o_show_version'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[show_version]" value="0"<?php if ($pun_config['o_show_version'] == '0') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
-										<span><?php echo $lang_admin_options['Version number help'] ?></span>
+										<input type="radio" name="form[use_topic_stamp]" value="1"<?php if ($pun_config['o_use_topic_stamp'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[use_topic_stamp]" value="0"<?php if ($pun_config['o_use_topic_stamp'] == '0') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_options['o_use_topic_stamp_info'] ?></span>
 									</td>
 								</tr>
-*/
-?>
 								<tr>
 									<th scope="row"><?php echo $lang_admin_options['Info in posts label'] ?></th>
 									<td>

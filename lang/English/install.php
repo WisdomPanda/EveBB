@@ -121,7 +121,7 @@ $lang_install = array(
 'Evebb_admin_api_fetch' => 'Fetch Characters',
 'Evebb_admin_api_legend' => 'Enter Administrator\'s API Details',
 'Evebb_admin_api_info1' => 'The API details of the forum administrator.',
-'Evebb_admin_api_info2' => 'You can find your EVE-Online API details <a href="http://support.eveonline.com/api/Key/CreatePredefined/33947656">here.</a>',
+'Evebb_admin_api_info2' => 'You can find your EVE-Online API details <a href="http://support.eveonline.com/api/Key/CreatePredefined/33947656" onclick="window.open(this.href,\'_blank\');return false;">here.</a>',
 'Evebb_admin_api_id' => 'API Key ID',
 'Evebb_admin_api_key' => 'API Verification Code',
 'Evebb_username' => 'Username: ',

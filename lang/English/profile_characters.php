@@ -27,7 +27,7 @@ $lang_profile_characters = array(
 'dob'								=> 'Date of Birth:',
 'clone'							=> 'Clone:',
 'wallet'							=> 'Wallet:',
-'api_link'							=> 'You can find your EVE-Online API Key <a href="http://support.eveonline.com/api/Key/CreatePredefined/33947656">here.</a>',
+'api_link'							=> 'You can find your EVE-Online API Key <a href="http://support.eveonline.com/api/Key/CreatePredefined/33947656" onclick="window.open(this.href,\'_blank\');return false;">here.</a>',
 'skill_queue' 					=> 'Skill Queue',
 'reload_avatars' 				=> 'Reload Avatars',
 'skill_queue_remaining' 		=> '<em>%s</em> remaing...',

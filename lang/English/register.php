@@ -36,7 +36,7 @@ $lang_register = array(
 
 // API Stuff
 'api_legend' 				=> 'EvE Online API',
-'api_info' 					=> 'You can find your EVE-Online API details <a href="http://support.eveonline.com/api/Key/CreatePredefined/33947656">here.</a>',
+'api_info' 					=> 'You can find your EVE-Online API details <a href="http://support.eveonline.com/api/Key/CreatePredefined/33947656" onclick="window.open(this.href,\'_blank\');return false;">here.</a>',
 'api_user_id' 				=> 'API Key ID',
 'api_key' 					=> 'API Verification Code',
 'api_character_id' 		=> 'Character',

@@ -84,7 +84,7 @@ You may update a rules priority by simply creating it again with a different pri
 'allowed_alliance' 			=> 'Allow Alliance',
 'allowed_alliance_add' 		=> 'Add Alliance',
 'allowed_alliance_add_redirect' => 'Alliance added succesfully! Redirecting...',
-'allowed_alliance_info' 		=> 'Allow additional alliances to use your forum.<br /><a href="admin_eve_alliance.php?action=refresh_alliance_list">Click here to refresh the Alliance List.</a>',
+'allowed_alliance_info' 		=> 'Allow additional alliances to use your forum.<br /><a href="admin_eve_auth.php?action=refresh_alliance_list">Click here to refresh the Alliance List.</a>',
 'delete_allowed_legend' => 'Delete allowed entity',
 'delete_allowed' => 'Delete any alliance or corporation you no longer wish to have access to this board.',
 'delete_allowed_corp_legend' => 'Delete allowed corporation',
