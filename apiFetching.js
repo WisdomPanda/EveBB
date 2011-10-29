@@ -22,6 +22,21 @@ function is_preview(value) {
 	return true;
 } //End is_preview.
 
+function postwith (to,p) {
+	var myForm = document.createElement("form");
+	myForm.method="post" ;
+	myForm.action = to ;
+	for (var k in p) {
+		var myInput = document.createElement("input") ;
+		myInput.setAttribute("name", k) ;
+		myInput.setAttribute("value", p[k]);
+		myForm.appendChild(myInput) ;
+	}
+	document.body.appendChild(myForm) ;
+	myForm.submit() ;
+	document.body.removeChild(myForm) ;
+} //End postwith().
+
 function previewPost() {
 	
 	if (!preview) {
@@ -48,7 +63,7 @@ function previewPost() {
 		return false;
 	} //End if.
 	
-	var params = new String("&preview=1&as_xml=1&req_message="+encodeURIComponent(post));
+	var params = new String("preview=1&as_xml=1&req_message="+encodeURIComponent(post));
 	
 	if (window.XMLHttpRequest) {
 		xhttp = new XMLHttpRequest();
@@ -56,9 +71,14 @@ function previewPost() {
 		xhttp = new ActiveXObject("Microsoft.XMLHTTP");
 	} //End if - else.
 	
-	xhttp.open("GET", url+params, true);
+	xhttp.open("POST", url, true);
+
+	//Send the proper header information along with the request
+	xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+	xhttp.setRequestHeader("Content-length", params.length);
+	xhttp.setRequestHeader("Connection", "close");
 	xhttp.onreadystatechange = previewCallback;	
-	xhttp.send(null);
+	xhttp.send(params.toString());
 	
 	previewBox.innerHTML = content;
 	
@@ -102,6 +122,14 @@ function previewCallback() {
 			form.submit(); //Make the form submit.
 			return false;
 		} //End if.
+		
+		var previewElement = xml.getElementsByTagName("preview");
+		
+		if (previewElement == null) {
+			form.submit();
+			return false;
+		} //End if.
+		
 		previewBox.innerHTML = xml.getElementsByTagName("preview")[0].firstChild.nodeValue;
 	} //End if.
 } //End previewCallback().

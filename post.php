@@ -115,7 +115,7 @@ require PUN_ROOT.'lang/'.$pun_user['language'].'/post.php';
 // Start with a clean slate
 $errors = array();
 
-if (isset($_GET['preview']) && isset($_GET['as_xml'])) {
+if (isset($_POST['preview']) && isset($_POST['as_xml'])) {
 	if ($pun_user['is_guest']) {
 		$error = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>
 			<result><error><![CDATA[Unable to access preview.]]></error></result>';
@@ -136,7 +136,7 @@ if (isset($_GET['preview']) && isset($_GET['as_xml'])) {
 		</div>
 	</div>
 ]]></preview></result>';
-	echo sprintf($preview, parse_message(pun_linebreaks(pun_trim($_GET['req_message'])), $hide_smilies));
+	echo sprintf($preview, parse_message(pun_linebreaks(pun_trim($_POST['req_message'])), $hide_smilies));
 	exit;
 } //End if.
 
