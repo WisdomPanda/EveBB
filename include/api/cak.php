@@ -204,7 +204,6 @@ class CAK {
 					$this->mask_validated = false;
 					return CAK_MASK_CLASH;
 				} //End if.
-				$r_mask = '1'.$r_mask;
 				
 				//So far so good, adjust the masks and keep going.
 				$req_mask = bsub($req_mask, $i);

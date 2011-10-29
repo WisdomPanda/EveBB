@@ -101,8 +101,7 @@ if ($action == 'update_skills') {
 	if ($last_update < (time() - (20*60))) {
 		//Let's update some skills!
 		$log = task_update_skills(false, $selected_char['character_id']);
-		//redirect('profile.php?section=characters&amp;id='.$id, $log[0]);
-		message($log);
+		redirect('profile.php?section=characters&amp;id='.$id, $log[0]);
 	} //End if.
 	
 	//If they aren't yet allowed to update the skills, just display as normal.
