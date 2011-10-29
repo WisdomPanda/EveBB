@@ -2074,7 +2074,7 @@ else
 				'allow_null'	=> false
 			)
 		),
-		'PRIMARY KEY'		=> array('character_id', 'typeID')
+		'PRIMARY KEY'		=> array('character_id', 'typeID', 'queuePosition')
 	);
 
 	$db->create_table('api_skill_queue', $schema) or error('Unable to create skill queue table', __FILE__, __LINE__, $db->error());

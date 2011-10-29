@@ -139,7 +139,7 @@ function task_update_skills($cron = false, $character = 0) {
 	global $db, $pun_config, $lang_eve_bb, $_LAST_ERROR;
 	
 	$sql = "
-		SELECT
+		SELECT DISTINCT
 			c.character_name,
 			c.last_update,
 			c.character_id,
@@ -185,7 +185,6 @@ function task_update_skills($cron = false, $character = 0) {
 			
 			//Purge old skills
 			$db->query("DELTE FROM ".$db->prefix."api_skill_queue WHERE character_id=".$row['api_character_id']);
-
 			
 			foreach($char->skillQueue as $skill) {
 				
@@ -201,7 +200,7 @@ function task_update_skills($cron = false, $character = 0) {
 					'last_update' => $now,
 				);
 				
-				if (!$db->insert_or_update($fields, array('character_id', 'typeID'), $db->prefix."api_skill_queue")) {
+				if (!$db->insert_or_update($fields, array('character_id', 'typeID', 'queuePosition'), $db->prefix.'api_skill_queue')) {
 					$log[] = sprintf("[%s] %s - Unable to add skill.".print_r($db->error, true), $row['character_id'], $row['character_name']);
 				} //End if.
 				

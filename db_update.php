@@ -1239,6 +1239,52 @@ switch ($stage)
 		if (version_compare($cur_eve_version, '1.1.1', '<=')) {
 			//Update/insert new configs.
 			
+			$db->drop_table('api_skill_queue');
+			
+			$schema = array(
+				'FIELDS'		=> array(
+					'character_id'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false
+					),
+					'queuePosition'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false
+					),
+					'typeID'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false
+					),
+					'level'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false
+					),
+					'startSP'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false
+					),
+					'endSP'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false
+					),
+					'startTime'		=> array(
+						'datatype'		=> 'VARCHAR(25)',
+						'allow_null'	=> false
+					),
+					'endTime'		=> array(
+						'datatype'		=> 'VARCHAR(25)',
+						'allow_null'	=> false
+					),
+					'last_update'		=> array(
+						'datatype'		=> 'INT(10) UNSIGNED',
+						'allow_null'	=> false
+					)
+				),
+				'PRIMARY KEY'		=> array('character_id', 'typeID', 'queuePosition')
+			);
+		
+			$db->create_table('api_skill_queue', $schema) or error('Unable to create skill queue table', __FILE__, __LINE__, $db->error());
+			
 			$db->insert_or_update(
 				array('conf_name' => 'o_eve_cak_mask', 'conf_value' => '33947656'), //Fields
 				'conf_name', //Primary Key

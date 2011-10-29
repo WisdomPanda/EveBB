@@ -31,6 +31,7 @@ $lang_profile_characters = array(
 'skill_queue' 					=> 'Skill Queue',
 'reload_avatars' 				=> 'Reload Avatars',
 'skill_queue_remaining' 		=> '<em>%s</em> remaing...',
+'skill_queue_time' 				=> '<strong>Time Remaining</strong> - <em>%s</em>...',
 'unknown' 						=> 'Unknown',
 'next_update' 					=> '<em>Your skill training information is out of date.<br/>Please update or wait for the next cycle.</em>',
 'need_more_keys' 			=> 'You can not delete your only pair of API keys...',

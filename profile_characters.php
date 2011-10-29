@@ -101,7 +101,8 @@ if ($action == 'update_skills') {
 	if ($last_update < (time() - (20*60))) {
 		//Let's update some skills!
 		$log = task_update_skills(false, $selected_char['character_id']);
-		redirect('profile.php?section=characters&amp;id='.$id, $log[0]);
+		//redirect('profile.php?section=characters&amp;id='.$id, $log[0]);
+		message($log);
 	} //End if.
 	
 	//If they aren't yet allowed to update the skills, just display as normal.
@@ -359,9 +360,10 @@ generate_profile_menu('characters');
 				if ($last_skill == null) {
 					$last_skill = $now;
 				} //End if.
+				$skill['last_skill'] = $last_skill;
 				
 				$skill['color'] = '';
-				$skill['width'] = intval(($skill['endtime'] - $last_skill) / (60 * 60));
+				$skill['width'] = intval(($skill['endtime'] - $skill['last_skill']) / (60 * 60));
 				
 				if ($skill['width'] >= 24) {
 					$skill['width'] = 100;
@@ -371,7 +373,7 @@ generate_profile_menu('characters');
 					$skill['color'] = 'orange';
 				} //End if - else.
 				
-				if ($skill['width'] < 6) {
+				if ($skill['width'] < 6 && $skill['queueposition'] == 0) {
 					$skill['color'] = 'red';
 					if ($skill['width'] == 0) {
 						$skill['width'] = 1; //Show *something*
@@ -386,6 +388,7 @@ generate_profile_menu('characters');
 				
 				$total_width += $skill['width'];
 				$queue[] = $skill;
+				$last_skill = $skill['endtime'];
 			} //End while loop().
 			
 		} else {
@@ -452,9 +455,14 @@ generate_profile_menu('characters');
 								</td>
 								<td>
 								<?php
-									foreach($queue as $skill) {
+								if (empty($queue)) {
+									echo $lang_profile_characters['next_update'];
+								} else {
+									echo sprintf($lang_profile_characters['skill_queue_time'], format_time_diff($now, $last_skill)).'<br/><br/>';
+								} //End if - else.
+								foreach($queue as $skill) {
 								?>
-									<strong><?php echo (isset($skill['typename']) ? $skill['typename'].' '.$level[$skill['level']] : $lang_profile_characters['unknown']); ?></strong> - <?php  echo (isset($skill['typename']) ? sprintf($lang_profile_characters['skill_queue_remaining'], format_time_diff($now, $skill['endtime'])) : ''); ?><br/>
+									<strong><?php echo (isset($skill['typename']) ? $skill['typename'].' '.$level[$skill['level']] : $lang_profile_characters['unknown']); ?></strong> - <?php  echo (isset($skill['typename']) ? sprintf($lang_profile_characters['skill_queue_remaining'], format_time_diff($skill['last_skill'], $skill['endtime'])) : ''); ?><br/>
 									<div class="box" style="width: 100%; border-style: solid; border-width: 1px; padding:0;">
 										
 										<table class="infldset"><tr style="border-style: solid; border-width: 1px;"><td style="width: <?php echo $skill['left_width']?>%;"></td><td style="background-color: <?php echo $skill['color']; ?>; width: <?php echo $skill['width']; ?>%;"></td><td style="width: <?php echo 100-($skill['width']+$skill['left_width']);?>%;"></td></tr></table>
@@ -464,9 +472,6 @@ generate_profile_menu('characters');
 									
 								<?php
 								} //End foreach().
-								if (empty($queue)) {
-									echo $lang_profile_characters['next_update'];
-								} //End if.
 								?>
 								</td>
 							</tr>
