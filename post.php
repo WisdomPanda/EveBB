@@ -33,54 +33,94 @@ if (!empty($pun_user['group_ids'])) {
 // Fetch some info about the topic and/or the forum
 $sql = '';
 if ($tid) {
-	$sql = '
-	SELECT
-		f.id,
-		f.forum_name,
-		f.moderators,
-		f.redirect_url,
-		fp.post_replies,
-		fp.post_topics,
-		t.subject,
-		t.closed,
-		s.user_id AS is_subscribed
-	FROM
-		'.$db->prefix.'topics AS t
-	INNER JOIN
-		'.$db->prefix.'forums AS f
-	ON
-		f.id=t.forum_id
-	LEFT JOIN
-		'.$db->prefix.'forum_perms AS fp
-	ON
-		(fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
-	LEFT JOIN
-		'.$db->prefix.'topic_subscriptions AS s
-	ON
-		(t.id=s.topic_id AND s.user_id='.$pun_user['id'].')
-	WHERE
-		fp.read_forum=1
-	AND
-		t.id='.$tid;
-	$result = $db->query($sql) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
-} else {
-	
-	$sql = '
+	if ($pun_user['g_id'] == PUN_ADMIN) {
+		$sql = '
 		SELECT
 			f.id,
 			f.forum_name,
 			f.moderators,
 			f.redirect_url,
 			fp.post_replies,
-			fp.post_topics
+			fp.post_topics,
+			t.subject,
+			t.closed,
+			s.user_id AS is_subscribed
 		FROM
+			'.$db->prefix.'topics AS t
+		INNER JOIN
 			'.$db->prefix.'forums AS f
+		ON
+			f.id=t.forum_id
+		LEFT JOIN
+			'.$db->prefix.'topic_subscriptions AS s
+		ON
+			(t.id=s.topic_id AND s.user_id='.$pun_user['id'].')
+		WHERE
+			t.id='.$tid;
+	} else {
+		$sql = '
+		SELECT
+			f.id,
+			f.forum_name,
+			f.moderators,
+			f.redirect_url,
+			fp.post_replies,
+			fp.post_topics,
+			t.subject,
+			t.closed,
+			s.user_id AS is_subscribed
+		FROM
+			'.$db->prefix.'topics AS t
+		INNER JOIN
+			'.$db->prefix.'forums AS f
+		ON
+			f.id=t.forum_id
 		LEFT JOIN
 			'.$db->prefix.'forum_perms AS fp
 		ON
 			(fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
+		LEFT JOIN
+			'.$db->prefix.'topic_subscriptions AS s
+		ON
+			(t.id=s.topic_id AND s.user_id='.$pun_user['id'].')
 		WHERE
-			fp.read_forum=1 AND f.id='.$fid;
+			fp.read_forum=1
+		AND
+			t.id='.$tid;
+	} //End if - else.
+	$result = $db->query($sql) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
+} else {
+	if ($pun_user['g_id'] == PUN_ADMIN) {
+		$sql = '
+			SELECT
+				f.id,
+				f.forum_name,
+				f.moderators,
+				f.redirect_url,
+				fp.post_replies,
+				fp.post_topics
+			FROM
+				'.$db->prefix.'forums AS f
+			WHERE
+				f.id='.$fid;
+	} else {
+		$sql = '
+			SELECT
+				f.id,
+				f.forum_name,
+				f.moderators,
+				f.redirect_url,
+				fp.post_replies,
+				fp.post_topics
+			FROM
+				'.$db->prefix.'forums AS f
+			LEFT JOIN
+				'.$db->prefix.'forum_perms AS fp
+			ON
+				(fp.forum_id=f.id AND (fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
+			WHERE
+				fp.read_forum=1 AND f.id='.$fid;
+	} //End if.
 	$result = $db->query($sql) or error('Unable to fetch forum info', __FILE__, __LINE__, $db->error());
 } //End if - else.
 

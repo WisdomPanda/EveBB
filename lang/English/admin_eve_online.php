@@ -140,7 +140,7 @@ Low load added, may be set to happen fairly often to catch the updates done by [
 'o_eve_banner_dir' => 'Banner Directory',
 'o_eve_banner_dir_info' => 'Set the base directory to store/look in for banners. Omit the trailing slash.<br /> (Example: img/banners)',
 'o_hide_stats' => 'Hide Forum Details',
-'o_hide_stats_info' => 'Hide detials about the forum from guest members.',
+'o_hide_stats_info' => 'Hide details about the forum from guest members.',
 //New since 1.1.2+
 'o_eve_use_image_server' => 'Use CCP Image Server',
 'o_eve_use_image_server_info' => 'Use the CCP Image Server for user avatars instead of using local copies.',

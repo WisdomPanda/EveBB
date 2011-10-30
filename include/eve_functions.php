@@ -1047,6 +1047,7 @@ function update_characters($user_id, &$cak, $update = true) {
 		} //End while loop.
 		
 		$log = array();
+		
 		//Getting the list was successful and we want to update, huzzah!
 		foreach($characters->characterList as $char) {
 			$cak->char_id = $char['characterID'];
@@ -1059,10 +1060,10 @@ function update_characters($user_id, &$cak, $update = true) {
 				//Since we are loading multiple characters, lets try and continue.
 				//Debugging will stop the loading in update_character_sheet.
 				$log[] = "[".$_LAST_ERROR."] Could not load character.";
-			} else {
-				//Lets add the keys to the db.
-				add_api_keys($user_id, $cak);
-			} //End if - else.
+			} //End if.
+			
+			//Lets add the keys to the db.
+			add_api_keys($user_id, $cak);
 			
 		} //End foreach().
 		

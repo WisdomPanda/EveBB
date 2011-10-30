@@ -174,7 +174,7 @@ if ($action == 'refresh_keys') {
 	
 	$result = $db->fetch_assoc($result);
 	
-	$cak($result['api_user_id'],$result['api_key']);
+	$cak = new CAK($result['api_user_id'],$result['api_key']);
 	$result = update_characters($id, $cak);
 	
 	if ($result === false) {
