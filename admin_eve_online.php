@@ -371,7 +371,7 @@ generate_admin_menu('eve_online');
 									<td>
 										<input type="hidden" name="form_sent" value="1" />
 										<select id="o_eve_cak_type" name="o_eve_cak_type" tabindex="1">
-											<option value="<?php echo CAK_CHARACTER;?> <?php echo (intval($pun_config['o_eve_cak_type']) == CAK_CHARACTER) ? 'selected="selected"' : '';?>"><?php echo $lang_admin_eve_online['cak_type_char']; ?></option>
+											<option value="<?php echo CAK_CHARACTER;?>" <?php echo (intval($pun_config['o_eve_cak_type']) == CAK_CHARACTER) ? 'selected="selected"' : '';?>"><?php echo $lang_admin_eve_online['cak_type_char']; ?></option>
 											<option value="<?php echo CAK_ACCOUNT;?>" <?php echo (intval($pun_config['o_eve_cak_type']) == CAK_ACCOUNT) ? 'selected="selected"' : '';?>><?php echo $lang_admin_eve_online['cak_type_acc']; ?></option>
 										</select>
 										<span><?php echo $lang_admin_eve_online['o_eve_cak_type_info'] ?></span>

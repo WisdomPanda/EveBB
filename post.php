@@ -40,8 +40,6 @@ if ($tid) {
 			f.forum_name,
 			f.moderators,
 			f.redirect_url,
-			fp.post_replies,
-			fp.post_topics,
 			t.subject,
 			t.closed,
 			s.user_id AS is_subscribed
@@ -64,8 +62,6 @@ if ($tid) {
 			f.forum_name,
 			f.moderators,
 			f.redirect_url,
-			fp.post_replies,
-			fp.post_topics,
 			t.subject,
 			t.closed,
 			s.user_id AS is_subscribed
@@ -96,9 +92,7 @@ if ($tid) {
 				f.id,
 				f.forum_name,
 				f.moderators,
-				f.redirect_url,
-				fp.post_replies,
-				fp.post_topics
+				f.redirect_url
 			FROM
 				'.$db->prefix.'forums AS f
 			WHERE
