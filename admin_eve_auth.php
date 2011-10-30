@@ -171,7 +171,7 @@ while ($row = $db->fetch_assoc($result)) {
 	echo "\t\t\t\t\t\t\t\t".'<tr><th scope="row"><a href="admin_eve_auth.php?action=del_alliance&amp;allianceID='.$row['allianceid'].'">'.$lang_admin_eve_online['delete'].'</a></th><td><strong>'.pun_htmlspecialchars($row['alliancename']).'</strong><br />';
 	
 	
-	$sql = "SELECT c.corporationname, c.corporationid, c.allianceid FROM ".$db->prefix."api_allowed_corps AS c WHERE c.allowed=1 AND c.allianceid=".$row['allianceid']." ORDER BY c.corporationname;";
+	$sql = "SELECT c.corporationName, c.corporationID, c.allianceID FROM ".$db->prefix."api_allowed_corps AS c WHERE c.allowed=1 AND c.allianceID=".$row['allianceid']." ORDER BY c.corporationName;";
 	
 	$corp_result = $db->query($sql) or error('Unable to fetch corp list', __FILE__, __LINE__, $db->error());
 	echo '<ul class="bblist">';
