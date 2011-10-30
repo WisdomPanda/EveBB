@@ -163,7 +163,7 @@ while ($row = $db->fetch_assoc($result)) {
 							<table class="aligntop" cellspacing="0">
 <?php
 
-$sql = 'SELECT a.* FROM '.$db->prefix.'api_allowed_alliance AS a WHERE a.allowed=1 ORDER BY alliancename';
+$sql = 'SELECT a.* FROM '.$db->prefix.'api_allowed_alliance AS a WHERE a.allowed=1 ORDER BY allianceName';
 
 $result = $db->query($sql) or error('Unable to fetch alliance list', __FILE__, __LINE__, $db->error());
 
@@ -228,7 +228,7 @@ while ($row = $db->fetch_assoc($result)) {
 							<table class="aligntop" cellspacing="0">
 <?php
 
-$sql = "SELECT c.corporationname, c.corporationid, c.allianceid FROM ".$db->prefix."api_allowed_corps AS c WHERE c.allowed=1 ORDER BY c.allianceid, c.corporationid;";
+$sql = "SELECT c.corporationName, c.corporationID, c.allianceID FROM ".$db->prefix."api_allowed_corps AS c WHERE c.allowed=1 ORDER BY c.allianceID, c.corporationID;";
 
 $result = $db->query($sql) or error('Unable to fetch corp list', __FILE__, __LINE__, $db->error());
 if ($db->num_rows($result) > 1) {
