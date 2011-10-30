@@ -170,7 +170,7 @@ if (isset($_POST['preview']) && isset($_POST['as_xml'])) {
 		</div>
 	</div>
 ]]></preview></result>';
-	echo sprintf($preview, parse_message(pun_linebreaks(pun_trim($_POST['req_message'])), $hide_smilies));
+	echo sprintf($preview, parse_message(pun_linebreaks(pun_trim($_POST['req_message'])), isset($_POST['hide_smilies'])));
 	exit;
 } //End if.
 

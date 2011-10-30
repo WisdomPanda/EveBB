@@ -51,7 +51,7 @@ else
 
 $sfdb = array();
 
-$forums_info = $db->query('SELECT f.num_topics, f.num_posts, f.parent_forum_id, f.last_post_id, f.last_poster, f.last_post, f.id, f.forum_name FROM '.$db->prefix.'forums AS f LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND f.parent_forum_id <> 0 ORDER BY disp_position') or error(implode($db->error(),''),__FILE__,__LINE__,$db->error());
+$forums_info = $db->query('SELECT f.num_topics, f.num_posts, f.parent_forum_id, f.last_post_id, f.last_poster, f.last_post, f.id, f.forum_name, t.subject FROM '.$db->prefix.'forums AS f LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') LEFT JOIN '.$db->prefix.'topics AS t ON t.last_post_id=f.last_post_id WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND f.parent_forum_id <> 0 ORDER BY disp_position') or error(implode($db->error(),''),__FILE__,__LINE__,$db->error());
 
 while ($current = $db->fetch_assoc($forums_info))
 {
@@ -163,6 +163,7 @@ while ($cur_forum = $db->fetch_assoc($result))
 					$cur_forum['last_post_id'] = $cur_subforum['last_post_id'];
 					$cur_forum['last_poster'] = $cur_subforum['last_poster'];
 					$cur_forum['last_post'] = $cur_subforum['last_post'];
+					$cur_forum['subject'] = $cur_subforum['subject'];
 				}
 			}
 		}
@@ -182,6 +183,9 @@ while ($cur_forum = $db->fetch_assoc($result))
 				$last_post_user = pun_htmlspecialchars($char['character_name']);
 			} //End if.
 		} //End if.
+		
+		//Lets get some information about the last post.
+		
 		$last_post = '<a href="viewtopic.php?pid='.$cur_forum['last_post_id'].'#p'.$cur_forum['last_post_id'].'">'.((intval($pun_config['o_use_topic_stamp']) == 1) ? format_time($cur_forum['last_post']) : pun_htmlspecialchars($cur_forum['subject'])).'</a> <span class="byuser">'.$lang_common['by'].' '.$last_post_user.'</span>';
 	} else if ($cur_forum['redirect_url'] != '') {
 		$last_post = '- - -';
