@@ -130,7 +130,7 @@ if ($action == 'regen_token') {
 	//Let it silently fall through.
 	if ($pun_user['g_id'] == PUN_ADMIN && $pun_config['ts3_enabled'] == '1') {
 		
-		if (!function_exists('create_token')) {
+		if (!function_exists('ts3_create_token')) {
 			require(PUN_ROOT.'plugins/hooks/H_Teamspeak3.php');
 			
 			$username = $user['ticker'].'-'.$user['character_name'];
@@ -175,6 +175,19 @@ if ($action == 'refresh_keys') {
 	$result = $db->fetch_assoc($result);
 	
 	$cak = new CAK($result['api_user_id'],$result['api_key']);
+	
+	if ($cak->validate() != CAK_OK) {
+		message("Malformed Vars.");
+	} //End if.
+	
+	if (($err = $cak->validate_mask()) != CAK_OK) {
+		if ($err == CAK_MASK_CLASH) {
+			message('Your API keys do not have the correct access mask associated.<br/>This forum requires a mask of at least '.$pun_config['o_eve_cak_mask']);
+		} else {
+			message('['.$err.'] Unable to fetch API information.');
+		} //End if - else.
+	} //End if.
+	
 	$result = update_characters($id, $cak);
 	
 	if ($result === false) {
@@ -222,6 +235,14 @@ if ($action == 'add_character') {
 			add_api_keys($id, $cak);
 			message(sprintf($lang_profile_characters['add_errors'], implode('<br/>', $result)));
 		}  //End if - else if.
+		
+		/*hardcore debugging section
+		//Put this above update_characters, or even better, at the top of the page.
+		define('PUN_SHOW_QUERIES', 1);
+		
+		$cak->vcode = 'foo';
+		$cak->id = '1337';
+		message(str_replace("\n", "<br/>\n", print_r($cak, true)).'<br/><br/>'.str_replace("\n", "<br/>\n",$db->saved_queries));*/
 		
 		redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['add_redirect']);
 	} //End if.

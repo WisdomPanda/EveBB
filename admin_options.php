@@ -88,6 +88,7 @@ if (isset($_POST['form_sent']))
 		'maintenance'			=> $_POST['form']['maintenance'] != '1' ? '0' : '1',
 		'maintenance_message'	=> pun_trim($_POST['form']['maintenance_message']),
 		'use_topic_stamp' => intval($_POST['form']['use_topic_stamp']),
+		'regen_token' => intval($_POST['form']['regen_token']),
 	);
 	if ($form['board_title'] == '')
 		message($lang_admin_options['Must enter title message']);
@@ -416,6 +417,13 @@ generate_admin_menu('options');
 									<td>
 										<input type="text" name="form[redirect_delay]" size="3" maxlength="3" value="<?php echo $pun_config['o_redirect_delay'] ?>" />
 										<span><?php echo $lang_admin_options['Redirect time help'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_options['o_regen_token'] ?></th>
+									<td>
+										<input type="radio" name="form[regen_token]" value="1"<?php if ($pun_config['o_regen_token'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[regen_token]" value="0"<?php if ($pun_config['o_regen_token'] == '0') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_options['o_regen_token_info'] ?></span>
 									</td>
 								</tr>
 							</table>

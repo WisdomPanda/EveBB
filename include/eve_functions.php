@@ -184,7 +184,7 @@ function task_update_skills($cron = false, $character = 0) {
 		if ($char->load_skill_queue($cak)) {
 			
 			//Purge old skills
-			$db->query("DELTE FROM ".$db->prefix."api_skill_queue WHERE character_id=".$row['api_character_id']);
+			$db->query("DELETE FROM ".$db->prefix."api_skill_queue WHERE character_id=".$row['api_character_id']);
 			
 			foreach($char->skillQueue as $skill) {
 				
@@ -225,7 +225,7 @@ function task_update_skills($cron = false, $character = 0) {
 	} //End while loop.
 	$_LAST_ERROR = 0;
 	return $log;
-} //End update_skills.
+} //End task_update_skills().
 
 /**
  * Fetchs all API's in need of update and updates them.
@@ -932,7 +932,7 @@ function add_corp($corpID, $allowed = true) {
 /**
  * Adds a set of API keys to the database, updating where needed.
  */
-function add_api_keys($user_id, $cak) {
+function add_api_keys($user_id, &$cak) {
 	global $db;
 	
 	$fields = array(
@@ -948,7 +948,7 @@ function add_api_keys($user_id, $cak) {
 			error("Unable to update API keys.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
-	} //End if/
+	} //End if.
 	
 	return true;
 	

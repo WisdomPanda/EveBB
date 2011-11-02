@@ -18,13 +18,21 @@ function get_microtime()
 	return ((float)$usec + (float)$sec);
 }
 
-//pseudo md5 generation.
+//Real token generation.
+//This has been beefed up a little, by enhancing it's number of choices.
+//This takes it's "total number of possible combinations" from '751616304549', to '8.66106956337463e+24'
+//A brute force attack versus a server that will delay them is just not feasible at that stage.
+//It would be easier to break into the database.
 function gen_token() {
 	$token = '';
-	$chars = array('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f');
+	$chars = array(
+			'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+			'a', 'b', 'c', 'd', 'e', 'f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y,','z',
+			'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'
+		);
 	
 	for ($i = 0; $i < 32; $i++) {
-		$token .= $chars[rand(0, 15)];
+		$token .= $chars[rand(0, count($chars)-1)];
 	} //End 'i' for loop.
 	
 	return $token;
@@ -36,9 +44,13 @@ function gen_token() {
 //
 function check_cookie(&$pun_user)
 {
-	global $db, $db_type, $pun_config, $cookie_name, $cookie_seed;
+	global $db, $db_type, $pun_config, $cookie_seed;
+	
+	//Create a cookie name that can't clash in anyway, just to be one the safe side.
+	//(Browsers *should* isolate the cookie per domain, but either way I don't want duplicate cookie names.)
+	$cookie_name = base64_encode($_SERVER['SERVER_NAME']);
 
-	$now = time();
+	$now = gmmktime();
 	$earlier = $now - $pun_config['session_length'];
 	$much_earlier = $now - 2629743;
 	
@@ -50,7 +62,7 @@ function check_cookie(&$pun_user)
 	$db->query("DELETE FROM ".$db->prefix."session WHERE (stamp<".$earlier." AND length=".$pun_config['session_length'].") OR stamp<".$much_earlier);
 
     //Lets pull our session data out.
-    if (isset($_COOKIE[$cookie_name]) && preg_match('/^(\d+)\:([0-9a-fA-F]{32}):([0-9a-fA-F]{32})$/', $_COOKIE[$cookie_name], $matches)) {
+    if (isset($_COOKIE[$cookie_name]) && preg_match('/^(\d+)\:([0-9a-zA-Z]{32}):([0-9a-fA-F]{32})$/', $_COOKIE[$cookie_name], $matches)) {
         $cookie['user_id'] = intval($matches[1]);
         $cookie['token'] = $matches[2];
         $cookie['hash'] = $matches[3];
@@ -58,7 +70,7 @@ function check_cookie(&$pun_user)
     } //End if.
     
     //The cookie is more long term, the session is for when they don't select "Remember Me"
-    if (isset($_SESSION[$cookie_name]) && preg_match('/^(\d+)\:([0-9a-fA-F]{32}):([0-9a-fA-F]{32})$/', $_SESSION[$cookie_name], $matches)) {
+    if (isset($_SESSION[$cookie_name]) && preg_match('/^(\d+)\:([0-9a-zA-Z]{32}):([0-9a-fA-F]{32})$/', $_SESSION[$cookie_name], $matches)) {
     	$cookie['user_id'] = intval($matches[1]);
         $cookie['token'] = $matches[2];
         $cookie['hash'] = $matches[3];
@@ -128,7 +140,7 @@ function check_cookie(&$pun_user)
         	//Even though this failed, because of the possibility of external tomfoolery, we won't remove the session.
         	if (isset($cookie['remember'])) {
         		$expire = $now + 31536000; // The cookie expires after a year
-        		pun_setcookie(1, pun_hash(uniqid(rand(), true)), $expire);
+        		forum_setcookie($cookie_name, pun_hash(uniqid(rand(), true)), $expire);
         	} //End if.
         	set_default_user();
         	sleep(3);
@@ -136,33 +148,34 @@ function check_cookie(&$pun_user)
         } //End if.
         
         //Is the stamp old or are they using a session cookie from a different IP?
-        if ($now > ($pun_user['stamp'] + $pun_user['length']) || ($pun_user['ip'] != $_SERVER['REMOTE_ADDR']) && !isset($cookie['remember'])) {
+        if ($now > ($pun_user['stamp'] + $pun_user['length']) || (($pun_user['ip'] != $_SERVER['REMOTE_ADDR']) && !isset($cookie['remember']))) {
     		if (defined('PUN_DEBUG')) {
     			error('IP or stamp mismatch.', __FILE__, __LINE__, $db->error());
     		} //End if.
         	$db->query("DELETE FROM ".$db->prefix."session WHERE user_id=".$pun_user['id']); //Get rid of the old session.
         	if (isset($cookie['remember'])) {
         		$expire = $now + 31536000; // The cookie expires after a year
-        		pun_setcookie(1, pun_hash(uniqid(rand(), true)), $expire);
+        		forum_setcookie($cookie_name, pun_hash(uniqid(rand(), true)), $expire);
         	} //End if.
         	set_default_user();
         	return;
         } //End if.
         
         //If they got this far, they provided a valid token with a valid user_id.
+        $token = $pun_user['token'];
         
         //Lets update all our tracking bits.
         $db->query("UPDATE ".$db->prefix."session SET stamp=".$now.", length=".((isset($cookie['remember'])) ? 2629743 : $pun_config['session_length'])." WHERE user_id=".$pun_user['id']);
 		
-		$token = $pun_user['token'];
-		
-		if (isset($cookie['remember']) && !isset($_SESSION['remember'])) {
+		if (isset($cookie['remember']) && !isset($_SESSION['remember']) && $pun_config['o_regen_token'] == '1') {
 			//Let's generate a new token if they got here via a cookie login that doesn't have a session attached to it.
 			$_SESSION['remember'] = 1;
 			$token = gen_token();
 			$pun_user['token'] = $token;
 			$db->query("UPDATE ".$db->prefix."session SET token='".$token."' WHERE user_id=".$pun_user['id']);
-		} //End if.
+		} else if (isset($cookie['remember'])) {
+			$_SESSION['remember'] = 1;
+		} //End if - else.
 
 		// Send a new, updated cookie with a new expiration timestamp
 		if (isset($cookie['remember'])) {
@@ -438,7 +451,8 @@ function forum_hmac($data, $key, $raw_output = false)
 //
 function pun_setcookie($user_id, $password_hash, $expire)
 {
-	global $cookie_name, $cookie_seed;
+	global $cookie_seed;
+	$cookie_name = base64_encode($_SERVER['SERVER_NAME']);
 
 	forum_setcookie($cookie_name, $user_id.'|'.forum_hmac($password_hash, $cookie_seed.'_password_hash').'|'.$expire.'|'.forum_hmac($user_id.'|'.$expire, $cookie_seed.'_cookie_hash'), $expire);
 }

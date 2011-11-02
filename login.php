@@ -24,9 +24,9 @@ if (isset($_POST['form_sent']) && $action == 'in')
 	$form_password = pun_trim($_POST['req_password']);
 	$save_pass = isset($_POST['save_pass']);
 
-	$username_sql = ($db_type == 'mysql' || $db_type == 'mysqli' || $db_type == 'mysql_innodb' || $db_type == 'mysqli_innodb') ? 'username=\''.$db->escape($form_username).'\'' : 'LOWER(username)=LOWER(\''.$db->escape($form_username).'\')';
+	$username_sql = ($db_type == 'mysql' || $db_type == 'mysqli' || $db_type == 'mysql_innodb' || $db_type == 'mysqli_innodb') ? 'u.username=\''.$db->escape($form_username).'\'' : 'LOWER(u.username)=LOWER(\''.$db->escape($form_username).'\')';
 
-	$result = $db->query('SELECT * FROM '.$db->prefix.'users WHERE '.$username_sql) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT * FROM '.$db->prefix.'users AS u LEFT JOIN '.$db->prefix.'session AS s ON s.user_id=u.id WHERE '.$username_sql) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 	$cur_user = $db->fetch_assoc($result);
 
 	$authorized = false;
@@ -90,10 +90,15 @@ if (isset($_POST['form_sent']) && $action == 'in')
 	// Remove this users guest entry from the online list
 	$db->query('DELETE FROM '.$db->prefix.'online WHERE ident=\''.$db->escape(get_remote_address()).'\'') or error('Unable to delete from online list', __FILE__, __LINE__, $db->error());
 	
-	$now = time();
-	$offset = date('Z');
+	$now = gmmktime();
 	
 	$new_token = gen_token();
+	
+	//Should we prevent them from getting a new token?
+	if ($pun_config['o_regen_token'] != '1' && $save_pass == '1') {
+		//Try and set the token if it exists, otherwise use the new token stil.
+		$new_token = (strlen($cur_user['token']) == 32) ? $cur_user['token'] : $new_token;
+	} //End if.
         
     //Lets update all our tracking bits.
     $db->insert_or_update(
@@ -115,11 +120,11 @@ if (isset($_POST['form_sent']) && $action == 'in')
 
 	// Send a new, updated cookie with a new expiration timestamp
 	if ($save_pass == '1') {
-		forum_setcookie($cookie_name, $cur_user['id'].':'.$new_token.':'.md5($cur_user['id'].$cookie_seed.$new_token), $now+2629743); //Expire the cookie in 1 month.
+		forum_setcookie(base64_encode($_SERVER['SERVER_NAME']), $cur_user['id'].':'.$new_token.':'.md5($cur_user['id'].$cookie_seed.$new_token), $now+2629743); //Expire the cookie in 1 month.
 	} //End if - else.
 		
 	//Update the PHP Session.
-	$_SESSION[$cookie_name] = $cur_user['id'].':'.$new_token.':'.md5($cur_user['id'].$cookie_seed.$new_token);
+	$_SESSION[base64_encode($_SERVER['SERVER_NAME'])] = $cur_user['id'].':'.$new_token.':'.md5($cur_user['id'].$cookie_seed.$new_token);
 	
 	/*$now = $offset > 0 ? $now - $offset : $now + offset;
 	$expire = ($save_pass == '1') ? $now + 1209600 : $now +$pun_config['o_timeout_visit'];

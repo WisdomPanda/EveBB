@@ -166,7 +166,8 @@ switch ($db_type)
 if (isset($pun_config['o_database_revision']) && $pun_config['o_database_revision'] >= UPDATE_TO_DB_REVISION &&
 		isset($pun_config['o_searchindex_revision']) && $pun_config['o_searchindex_revision'] >= UPDATE_TO_SI_REVISION &&
 		isset($pun_config['o_parser_revision']) && $pun_config['o_parser_revision'] >= UPDATE_TO_PARSER_REVISION &&
-		version_compare($pun_config['o_cur_version'], UPDATE_TO, '>='))
+		version_compare($pun_config['o_cur_version'], UPDATE_TO, '>=') &&
+		version_compare($pun_config['o_eve_cur_version'], UPDATE_TO_EVEBB, '>='))
 	error($lang_update['No update error']);
 
 $default_style = $pun_config['o_default_style'];

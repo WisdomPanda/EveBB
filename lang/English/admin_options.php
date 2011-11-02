@@ -89,6 +89,8 @@ $lang_admin_options = array(
 'Online timeout help'				=>	'Number of seconds a user must be idle before being removed from the online users list.',
 'Redirect time label'				=>	'Redirect time',
 'Redirect time help'				=>	'Number of seconds to wait when redirecting. If set to 0, no redirect page will be displayed (not recommended).',
+'o_regen_token' 					=> 'Regen Token',
+'o_regen_token_info' 			=> 'Regenerate a users token if they login from a different location or after a set period of time.<br/>Only effects logins using cookies, when logging in normally a new token will always be granted.',
 
 // Display Section
 'Display subhead'					=>	'Display',

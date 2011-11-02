@@ -187,6 +187,7 @@ if ($action == "update_settings") {
 		'o_use_fopen', // => (defined('EVEBB_CURL')) ? "'0'" : "'1'"
 		'o_eve_cak_mask',
 		'o_eve_cak_type',
+		'o_eve_profile_page',
 		);
 		
 		$log = '';
@@ -349,6 +350,13 @@ generate_admin_menu('eve_online');
 									<td>
 										<input type="radio" name="o_use_fopen" value="1"<?php if ($pun_config['o_use_fopen'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="o_use_fopen" value="0"<?php if ($pun_config['o_use_fopen'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
 										<span><?php echo $lang_admin_eve_online['o_use_fopen_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_eve_online['o_eve_profile_page'] ?></th>
+									<td>
+										<input type="radio" name="o_eve_profile_page" value="1"<?php if ($pun_config['o_eve_profile_page'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="o_eve_profile_page" value="0"<?php if ($pun_config['o_eve_profile_page'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_eve_online['o_eve_profile_page_info'] ?></span>
 									</td>
 								</tr>
 							</table>

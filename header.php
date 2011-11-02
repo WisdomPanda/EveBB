@@ -226,7 +226,7 @@ if ($pun_user['is_guest'])
 }
 else
 {
-	$links[] = '<li id="navprofile"'.((PUN_ACTIVE_PAGE == 'profile') ? ' class="isactive"' : '').'><a href="profile.php?id='.$pun_user['id'].'">'.$lang_common['Profile'].'</a></li>';
+	$links[] = '<li id="navprofile"'.((PUN_ACTIVE_PAGE == 'profile') ? ' class="isactive"' : '').'><a href="profile.php?'.($pun_config['o_eve_profile_page'] == '0' ? '' : 'section=characters&amp;').'id='.$pun_user['id'].'">'.$lang_common['Profile'].'</a></li>';
 // New PMS
 	if ($pun_config['o_pms_enabled'] == '1' && ($pun_user['g_pm'] == 1 || $pun_user['messages_new'] > 0))
 		$links[] = '<li id="navpmsnew"'.(((PUN_ACTIVE_PAGE == 'pms_new') || ($pun_user['messages_new'] > 0)) ? ' class="isactive"' : '').'><a href="pmsnew.php">'.$lang_common['PM'].(($pun_user['messages_new'] > 0) ? ' ('.$pun_user['messages_new'].(empty($pun_config['o_pms_flasher']) ? '' : '&nbsp;<img style="border: 0 none; vertical-align: middle;" src="img/flasher.gif" alt="flasher" />' ).')' : '').'</a></li>';
