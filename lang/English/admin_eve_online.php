@@ -158,6 +158,8 @@ Low load added, may be set to happen fairly often to catch the updates done by [
 //New since 1.1.9+
 'o_eve_profile_page' 						=> 'Profile Characters Default',
 'o_eve_profile_page_info' 				=> 'Make the characters area of the profile the default for the header link.',
+'o_eve_req_cak' 							=> 'Require Valid CAK',
+'o_eve_req_cak_info'						=> 'Prevent a user from posting unless they have updated their API details to the new CAK based system.',
 );
 
 ?>

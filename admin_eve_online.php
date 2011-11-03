@@ -188,6 +188,7 @@ if ($action == "update_settings") {
 		'o_eve_cak_mask',
 		'o_eve_cak_type',
 		'o_eve_profile_page',
+		'o_eve_req_cak',
 		);
 		
 		$log = '';
@@ -383,6 +384,13 @@ generate_admin_menu('eve_online');
 											<option value="<?php echo CAK_ACCOUNT;?>" <?php echo (intval($pun_config['o_eve_cak_type']) == CAK_ACCOUNT) ? 'selected="selected"' : '';?>><?php echo $lang_admin_eve_online['cak_type_acc']; ?></option>
 										</select>
 										<span><?php echo $lang_admin_eve_online['o_eve_cak_type_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_eve_online['o_eve_req_cak'] ?></th>
+									<td>
+										<input type="radio" name="o_eve_req_cak" value="1"<?php if ($pun_config['o_eve_req_cak'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="o_eve_req_cak" value="0"<?php if ($pun_config['o_eve_req_cak'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_eve_online['o_eve_req_cak_info'] ?></span>
 									</td>
 								</tr>
 								<tr>

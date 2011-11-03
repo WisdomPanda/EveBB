@@ -187,19 +187,21 @@ if (isset($_POST['form_sent']))
 		$errors[] = $lang_post['Flood start'].' '.$pun_user['g_post_flood'].' '.$lang_post['flood end'];
 		
 	//See if they have a valid CAK type and are thus allowed to post.
-	$sql = "SELECT * FROM ".$db->prefix."api_auth AS a INNER JOIN ".$db->prefix."api_selected_char AS s ON a.api_character_id=s.character_id WHERE s.user_id=".$pun_user['id'];
-	if (!$result = $db->query($sql)) {
-		$errors[] = "Failed to fetch information about you!".$sql;
-	} else {
-		if ($db->num_rows($result) != 1) {
-			$errors[] = "Unable to fetch information about you!";
+	if ($pun_config['o_eve_req_cak'] == '1') {
+		$sql = "SELECT * FROM ".$db->prefix."api_auth AS a INNER JOIN ".$db->prefix."api_selected_char AS s ON a.api_character_id=s.character_id WHERE s.user_id=".$pun_user['id'];
+		if (!$result = $db->query($sql)) {
+			$errors[] = "Failed to fetch information about you!".$sql;
 		} else {
-			$result = $db->fetch_assoc($result);
-			if ($pun_config['o_eve_cak_type'] > $result['cak_type']) {
-				$errors[] = "You are unable to post until you update your API information.";
-			} //End if.
+			if ($db->num_rows($result) != 1) {
+				$errors[] = "Unable to fetch information about you!";
+			} else {
+				$result = $db->fetch_assoc($result);
+				if ($pun_config['o_eve_cak_type'] > $result['cak_type']) {
+					$errors[] = "You are unable to post until you update your API information.";
+				} //End if.
+			} //End if - else.
 		} //End if - else.
-	} //End if - else.
+	} //End if.
 
 	// If it's a new topic
 	if ($fid)
