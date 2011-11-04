@@ -637,11 +637,12 @@ function apply_rules(&$log) {
 		//Now we actually assign them groups
 		$primary_restricted = ($row['g_locked'] == '1' || $row['group_id'] == PUN_ADMIN || $row['group_id'] == PUN_MOD);
 		
-		$roles = convert_roles($row['roles']);
+		//$roles = convert_roles($row['roles']);
 		
 		while ($rule = $db->fetch_assoc($rules_result)) {
 			
-			if (!$roles[$rule['role']]) {
+			//Find out if the mask matches.
+			if (!compare_roles($rule['role'], $row['roles'])) {
 				$post_purge[] = $rule['group_id'];
 				continue; //Denied based on roles.
 			} //End if.
@@ -1480,14 +1481,69 @@ function format_time_diff($start, $end = 0) {
 	
 } //End format_time_diff().
 
+function compare_roles($req_roles, $user_roles) {
+	bscale(0);
+	$i = '18446744073709551616';
+	
+	while (intval($i) != 0) {
+		
+		//Is the flag set in our required mask?
+		if (bdiv($req_roles, $i) == 1) {
+			
+			//Does the user_rules have that flag set?
+			if (bdiv($user_roles, $i) != 1) {
+				//OMGAH, PANIC!
+				return false;
+			} //End if.
+			
+			//So far so good, adjust the masks and keep going.
+			$req_roles = bsub($req_roles, $i);
+			
+		} //End if.
+		
+		if ($user_roles >= $i) {
+			$user_roles = bsub($user_roles, $i);
+		} //End if.
+		
+		//Deincrement $i for the next pass.
+		$i = bdiv($i, 2);
+	} //End while loop.
+	
+	return true;
+		
+} //End compare_roles().
+
 /**
  * This function takes a string created from BC maths and subs out the roles to create a bool array, indexed with the role values as strings.
  * Director would be: '1' => true, for example.
  */
 function convert_roles($roles) {
-	global $api_roles;
 	
-	//Lets first set the scale to 0.
+	bscale(0);
+	
+	$i = '18446744073709551616';
+	
+	$auth = array();
+	$auth['0'] = true;
+	
+	while (intval($i) != 0) {
+			
+		//Is the flag set?
+		if (bdiv($roles, $i) != 1) {
+			//Not set, no need to sub anything.
+			$auth[$i] = false;
+		} else {
+			$auth[$i] = true;
+			$roles = bsub($roles, $i);
+		} //End if - else.
+		
+		//Deincrement $i for the next pass.
+		$i = bdiv($i, 2);
+		
+		
+	} //End while loop.
+	
+	/*//Lets first set the scale to 0.
 	bscale(0);
 	$auth = array();
 	
@@ -1503,7 +1559,7 @@ function convert_roles($roles) {
 			$roles = bsub($roles, $value);
 			$auth[$value] = true;
 		} //End if.
-	} //End 'i' for loop().
+	} //End 'i' for loop().*/
 	
 	return $auth;
 } //End convert_roles().

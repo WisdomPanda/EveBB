@@ -45,6 +45,7 @@ $lang_profile_characters = array(
 'api_id'							=> 'API Key ID',
 'api_vcode'						=> 'API Verification Code',
 'api_heading'					=> 'Characters for API Key [%s]',
+'char_roles' 						=> 'Character Roles',
 
 );
 

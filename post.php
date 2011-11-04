@@ -187,7 +187,7 @@ if (isset($_POST['form_sent']))
 		$errors[] = $lang_post['Flood start'].' '.$pun_user['g_post_flood'].' '.$lang_post['flood end'];
 		
 	//See if they have a valid CAK type and are thus allowed to post.
-	if ($pun_config['o_eve_req_cak'] == '1') {
+	if ($pun_config['o_eve_req_cak'] == '1' && !$pun_user['is_guest']) {
 		$sql = "SELECT * FROM ".$db->prefix."api_auth AS a INNER JOIN ".$db->prefix."api_selected_char AS s ON a.api_character_id=s.character_id WHERE s.user_id=".$pun_user['id'];
 		if (!$result = $db->query($sql)) {
 			$errors[] = "Failed to fetch information about you!".$sql;

@@ -500,6 +500,45 @@ generate_profile_menu('characters');
 					</div>
 				</fieldset>
 				<br/>
+				<fieldset>
+					<legend><?php echo $lang_profile_characters['char_roles'] ?></legend>
+					<div class="infldset" id="char_roles_info">
+						<table class="aligntop" cellspacing="0">
+							<tr>
+								<td>
+							<?php
+							if (!defined('EVE_ROLES')) {
+								include(PUN_ROOT.'lang/'.$pun_user['language'].'/eve_roles.php');
+							} //End if.
+							
+							$roles = $selected_char['roles'];
+							$keys = array_keys($lang_api_roles);
+							bscale(0);
+							$count = 0;
+							
+							for ($i = (count($keys) - 1); $i >= 0; $i--) {
+								//echo $i.'-'.$keys[$i].':'.$lang_api_roles[$keys[$i]].'<br/>';
+								if (bdiv($roles, $keys[$i]) != 1) {
+									continue;
+								} //End if.
+								
+								$roles = bsub($roles, $keys[$i]);
+								
+								if ($count > 0) {
+									echo ', ';
+								} //End if.
+								echo (strlen($lang_api_roles[$keys[$i]]) > 0) ? $lang_api_roles[$keys[$i]] : 'Unknown: '.$keys[$i];
+								$count++;
+								
+							} //End 'i' for loop.
+							
+							?>
+								</td>
+							</tr>
+						</table>
+					</div>
+				</fieldset>
+				<br/>
 				<?php
 					if ($pun_config['o_eve_use_image_server'] != '1') {
 				?>

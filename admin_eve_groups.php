@@ -134,12 +134,15 @@ generate_admin_menu('eve_groups');
 												<td>
 													<select id="roles" name="role" tabindex="1">
 <?php
+if (!defined('EVE_ROLES')) {
+	include(PUN_ROOT.'lang/'.$pun_user['language'].'/eve_roles.php');
+} //End if.
 
-foreach ($api_roles as $key => $value) {
-		if ($key == '') {
+foreach ($lang_api_roles as $key => $value) {
+		if ($value == '') {
 			continue;
 		} //End if.
-		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$value.'">'.$key.'</option>'."\n";
+		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$key.'">'.$value.'</option>'."\n";
 } //End 'i' for loop.
 
 ?>
@@ -289,7 +292,7 @@ while ($row = $db->fetch_assoc($result)) {
 			</a>
 		</th>
 		<td>
-			&lt;'.array_search($row['role'], $api_roles).'&gt; ['.$row['priority'].'] '.pun_htmlspecialchars($name).' -&gt; '.pun_htmlspecialchars($row['g_title']).'
+			&lt;'.$lang_api_roles[$row['role']].'&gt; ['.$row['priority'].'] '.pun_htmlspecialchars($name).' -&gt; '.pun_htmlspecialchars($row['g_title']).'
 		</td>
 	</tr>'."\n";
 } //End while loop.
