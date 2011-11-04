@@ -48,7 +48,7 @@ function check_cookie(&$pun_user)
 	
 	//Create a cookie name that can't clash in anyway, just to be one the safe side.
 	//(Browsers *should* isolate the cookie per domain, but either way I don't want duplicate cookie names.)
-	$cookie_name = base64_encode($_SERVER['SERVER_NAME']);
+	$cookie_name = str_replace('=', '', base64_encode($_SERVER['SERVER_NAME']));
 
 	$now = gmmktime();
 	$earlier = $now - $pun_config['session_length'];
@@ -468,10 +468,11 @@ function forum_setcookie($name, $value, $expire)
 	// Enable sending of a P3P header
 	header('P3P: CP="CUR ADM"');
 
-	if (version_compare(PHP_VERSION, '5.2.0', '>='))
+	if (version_compare(PHP_VERSION, '5.2.0', '>=')) {
 		setcookie($name, $value, $expire, $cookie_path, $cookie_domain, $cookie_secure, true);
-	else
+	} else {
 		setcookie($name, $value, $expire, $cookie_path.'; HttpOnly', $cookie_domain, $cookie_secure);
+	} //End if - else.
 }
 
 

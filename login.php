@@ -120,7 +120,7 @@ if (isset($_POST['form_sent']) && $action == 'in')
 
 	// Send a new, updated cookie with a new expiration timestamp
 	if ($save_pass == '1') {
-		forum_setcookie(base64_encode($_SERVER['SERVER_NAME']), $cur_user['id'].':'.$new_token.':'.md5($cur_user['id'].$cookie_seed.$new_token), $now+2629743); //Expire the cookie in 1 month.
+		forum_setcookie(str_replace('=', '', base64_encode($_SERVER['SERVER_NAME'])), $cur_user['id'].':'.$new_token.':'.md5($cur_user['id'].$cookie_seed.$new_token), $now+2629743); //Expire the cookie in 1 month.
 	} //End if - else.
 		
 	//Update the PHP Session.
