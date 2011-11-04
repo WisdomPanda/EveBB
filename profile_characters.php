@@ -532,6 +532,10 @@ generate_profile_menu('characters');
 								
 							} //End 'i' for loop.
 							
+							if ($count == 0) {
+								echo 'None';
+							} //End if.
+							
 							?>
 								</td>
 							</tr>
