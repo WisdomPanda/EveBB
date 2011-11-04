@@ -124,7 +124,7 @@ if (isset($_POST['form_sent']) && $action == 'in')
 	} //End if - else.
 		
 	//Update the PHP Session.
-	$_SESSION[base64_encode($_SERVER['SERVER_NAME'])] = $cur_user['id'].':'.$new_token.':'.md5($cur_user['id'].$cookie_seed.$new_token);
+	$_SESSION[str_replace('=', '', base64_encode($_SERVER['SERVER_NAME']))] = $cur_user['id'].':'.$new_token.':'.md5($cur_user['id'].$cookie_seed.$new_token);
 	
 	/*$now = $offset > 0 ? $now - $offset : $now + offset;
 	$expire = ($save_pass == '1') ? $now + 1209600 : $now +$pun_config['o_timeout_visit'];
