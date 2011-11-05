@@ -71,6 +71,9 @@ $tpl_main = str_replace('<pun_language>', $lang_common['lang_identifier'], $tpl_
 $tpl_main = str_replace('<pun_content_direction>', $lang_common['lang_direction'], $tpl_main);
 // END SUBST - <pun_content_direction>
 
+// START SUBST - <server_name>
+$tpl_main = str_replace('<server_name>', $_SERVER['SERVER_NAME'], $tpl_main);
+// END SUBST - <server_name>
 
 // START SUBST - <pun_head>
 ob_start();

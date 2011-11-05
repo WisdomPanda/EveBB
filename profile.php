@@ -1107,7 +1107,7 @@ if ($pun_user['id'] != $id &&                                                   
 	
 
 	$user_personal[] = '<dt>'.$lang_common['Username'].'</dt>';
-	$user_personal[] = '<dd>'.(($pun_config['o_eve_use_iga']) == '1' ? $char['character_name'] : pun_htmlspecialchars($user['username'])).'</dd>';
+	$user_personal[] = '<dd>'.(($pun_config['o_eve_use_iga']) == '1' ? $char['character_name'] : pun_htmlspecialchars($user['username'])).(($_SESSION['igb']) ? '&nbsp;&nbsp;<a href="#" onclick="CCPEVE.showInfo(1377, '.$char['character_id'].'); return false">[Info]</a>' : '').'</dd>';
 
 	$user_title_field = get_title($user);
 	$user_personal[] = '<dt>'.$lang_common['Title'].'</dt>';

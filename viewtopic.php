@@ -360,6 +360,7 @@ while ($cur_post = $db->fetch_assoc($result))
 	if ($pun_config['o_eve_use_iga'] == '1') {
 		if (empty($characters[$cur_post['poster_id']])) {
 			$char = fetch_selected_character($cur_post['poster_id']);
+			$characters[$cur_post['poster_id']] = $char;
 		} else {
 			$char = $characters[$cur_post['poster_id']];
 		} //End if - else.
@@ -570,7 +571,7 @@ while ($cur_post = $db->fetch_assoc($result))
 			<div class="postbody">
 				<div class="postleft">
 					<dl>
-						<dt><strong><?php echo $username ?></strong></dt>
+						<dt><strong><?php echo $username.(($_SESSION['igb']) ? '&nbsp;&nbsp;<a href="#" onclick="CCPEVE.showInfo(1377, '.$char['character_id'].'); return false">[Info]</a>' : '') ?></strong></dt>
 						<dd class="usertitle"><strong><?php echo $user_title; ?></strong></dd>
 <?php if ($user_avatar != '') echo "\t\t\t\t\t\t".'<dd class="postavatar">'.$user_avatar.$char_tag.'</dd>'."\n"; ?>
 <?php if (count($user_info)) echo "\t\t\t\t\t\t".implode("\n\t\t\t\t\t\t", $user_info)."\n"; ?>

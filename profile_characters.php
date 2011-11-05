@@ -429,7 +429,7 @@ generate_profile_menu('characters');
 							<tr>
 								<th valign="top" scope="row" rowspan="6" style="width: 140px;">	<img class="avatar_image" src="img/chars/<?php echo $selected_char['character_id']; ?>_128.jpg" width="128px" height="128px" alt="" /></th>
 								<td style="width: 120px;">&nbsp;<strong><?php echo $lang_profile_characters['name']; ?></strong></td>
-								<td><?php echo $selected_char['character_name']; ?></td>
+								<td><?php echo $selected_char['character_name'].(($_SESSION['igb']) ? '&nbsp;&nbsp;<a href="#" onclick="CCPEVE.showInfo(1377, '.$selected_char['character_id'].'); return false">[Info]</a>' : ''); ?></td>
 							</tr>
 							<tr>
 								<td>&nbsp;<strong><?php echo $lang_profile_characters['corp']; ?></strong></td>

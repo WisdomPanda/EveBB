@@ -57,6 +57,12 @@ function check_cookie(&$pun_user)
 	$cookie = array();
 	$matches = array();
 	
+	if (isset($_SERVER['HTTP_EVE_TRUSTED'])) {
+		$_SESSION['igb'] = true;
+	} else {
+		$_SESSION['igb'] = false;
+	} //End if - else.
+	
 	//There is an easier way to do this, but PostgreSQL complains about it, so here is a messy way.
 	//The general idea is to remove old sessions.
 	$db->query("DELETE FROM ".$db->prefix."session WHERE (stamp<".$earlier." AND length=".$pun_config['session_length'].") OR stamp<".$much_earlier);
