@@ -468,6 +468,10 @@ while ($cur_post = $db->fetch_assoc($result))
 				$user_contacts[] = '<span class="email"><a href="mailto:'.$cur_post['email'].'">'.$lang_common['Email'].'</a></span>';
 			else if ($cur_post['email_setting'] == '1' && !$pun_user['is_guest'] && $pun_user['g_send_email'] == '1')
 				$user_contacts[] = '<span class="email"><a href="misc.php?email='.$cur_post['poster_id'].'">'.$lang_common['Email'].'</a></span>';
+				
+			if ($_SESSION['igb']) {
+				$user_contacts[] = '<span class="evemail"><a href="#" onclick="CCPEVE.sendMail('.$char['character_id'].', \'Re: \', \'-\'); return false">'.$lang_common['Evemail'].'</a></span>';
+			} //End if.
 
 			if ($cur_post['url'] != '')
 			{

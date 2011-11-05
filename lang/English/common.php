@@ -47,6 +47,7 @@ $lang_common = array(
 'Username'							=>	'Username',
 'Password'							=>	'Password',
 'Email'								=>	'Email',
+'Evemail'								=>	'Eve Mail',
 
 //Eve-BB stuff.
 'Send email'						=>	'Send email',

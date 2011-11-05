@@ -1144,6 +1144,11 @@ if ($pun_user['id'] != $id &&                                                   
 		$user_personal[] = '<dd><span class="email">'.$email_field.'</span></dd>';
 	}
 	
+	if ($_SESSION['igb']) {
+		$user_personal[] = '<dt>'.$lang_common['Evemail'].'</dt>';
+		$user_personal[] = '<dd><span class="evemail"><a href="#" onclick="CCPEVE.sendMail('.$char['character_id'].', \'Re: \', \'-\'); return false">'.$lang_common['Evemail'].'</a></span></dd>';
+	} //End if.
+	
 // New PMS
 	if (!$pun_user['is_guest'] && $pun_config['o_pms_enabled'] == '1' && $pun_user['g_pm'] == 1 && $pun_user['messages_enable'] == 1)
 		if ($user['g_pm'] == 1 && $user['messages_enable'] == 1)

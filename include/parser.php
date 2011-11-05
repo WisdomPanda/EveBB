@@ -199,7 +199,7 @@ function preparse_tags($text, &$errors, $is_signature = false)
 	// Start off by making some arrays of bbcode tags and what we need to do with each one
 
 	// List of all the tags
-	$tags = array('quote', 'code', 'b', 'i', 'u', 's', 'ins', 'del', 'em', 'color', 'colour', 'url', 'email', 'img', 'list', '*', 'h', 'size', 'video');
+	$tags = array('quote', 'code', 'b', 'i', 'u', 's', 'ins', 'del', 'em', 'color', 'colour', 'url', 'email', 'img', 'list', '*', 'h', 'size', 'video', 'char', 'contract', 'item', 'route', 'market', 'chat', 'dest', 'fitting');
 	// List of tags that we need to check are open (You could not put b,i,u in here then illegal nesting like [b][i][/b][/i] would be allowed)
 	$tags_opened = $tags;
 	// and tags we need to check are closed (the same as above, added it just in case)
@@ -211,7 +211,7 @@ function preparse_tags($text, &$errors, $is_signature = false)
 	// Block tags, block tags can only go within another block tag, they cannot be in a normal tag
 	$tags_block = array('quote', 'code', 'list', 'h', '*');
 	// Inline tags, we do not allow new lines in these
-	$tags_inline = array('b', 'i', 'u', 's', 'ins', 'del', 'em', 'color', 'colour', 'h', 'size', 'video');
+	$tags_inline = array('b', 'i', 'u', 's', 'ins', 'del', 'em', 'color', 'colour', 'h', 'size', 'video', 'char', 'contract', 'item', 'route', 'market', 'chat', 'fitting');
 	// Tags we trim interior space
 	$tags_trim = array('img', 'video');
 	// Tags we remove quotes from the argument
@@ -753,6 +753,16 @@ function do_bbcode($text, $is_signature = false)
 	$pattern[] = '#\[video=([0-9]+),([0-9]+)\]([^\[<]*?)/video/([^_\[<]*?)_([^\[<]*?)\[/video\]#ms';
 	$pattern[] = '#\[video\]([^\[<]*?)/(v/|watch\?v=)([^\[<]*?)\[/video\]#ms';
 	$pattern[] = '#\[video=([0-9]+),([0-9]+)\]([^\[<]*?)/(v/|watch\?v=)([^\[<]*?)\[/video\]#ms';
+	$pattern[] = '#\[char=([0-9]+)\](.*?)\[/char\]#ms';
+	$pattern[] = '#\[contract=([0-9]+),([0-9]+)\](.*?)\[/contract\]#ms';
+	$pattern[] = '#\[item=([0-9]+)\](.*?)\[/item\]#ms';
+	$pattern[] = '#\[route=([0-9]+)\,([0-9]+)\](.*?)\[/route\]#ms';
+	$pattern[] = '#\[route=([0-9]+)\](.*?)\[/route\]#ms';
+	$pattern[] = '#\[dest=([0-9]+)\](.*?)\[/dest\]#ms';
+	$pattern[] = '#\[market=([0-9]+)\](.*?)\[/market\]#ms';
+	$pattern[] = '#\[map=([0-9]+)\](.*?)\[/map\]#ms';
+	$pattern[] = '#\[chat=([\s\d\w\-\.]+)\](.*?)\[/chat\]#ms';
+	$pattern[] = '#\[fitting=([0-9\:\;]+)\](.*?)\[/fitting\]#ms';
 
 	$replace[] = '<strong>$1</strong>';
 	$replace[] = '<em>$1</em>';
@@ -768,6 +778,16 @@ function do_bbcode($text, $is_signature = false)
 	$replace[] = '<object type="application/x-shockwave-flash" data="http://www.dailymotion.com/swf/video/$4" width="$1" height="$2"><param name="movie" value="http://www.dailymotion.com/swf/video/$4" /><param name="allowFullScreen" value="true" /><param name="allowScriptAccess" value="always" /><p>Flash required</p></object>';
 	$replace[] = '<object type="application/x-shockwave-flash" data="http://www.youtube.com/v/$3" width="425" height="344"><param name="movie" value="http://www.youtube.com/v/$3" /><param name="allowFullScreen" value="true" /><param name="allowScriptAccess" value="always" /><p>Flash required</p></object>';
 	$replace[] = '<object type="application/x-shockwave-flash" data="http://www.youtube.com/v/$5" width="$1" height="$2"><param name="movie" value="http://www.youtube.com/v/$5" /><param name="allowFullScreen" value="true" /><param name="allowScriptAccess" value="always" /><p>Flash required</p></object>';
+	$replace[] = '<a href="#" class="eve_char_link" onclick="CCPEVE.showInfo(1377, $1); return false">$2</a>';
+	$replace[] = '<a href="#" class="eve_contract_link" onclick="CCPEVE.showContract($1, $2); return false">$3</a>';
+	$replace[] = '<a href="#" class="eve_item_link" onclick="CCPEVE.showInfo($1); return false">$2</a>';
+	$replace[] = '<a href="#" class="eve_route_link" onclick="CCPEVE.showRouteTo($1, $2); return false">$3</a>';
+	$replace[] = '<a href="#" class="eve_route_link" onclick="CCPEVE.showRouteTo($1); return false">$2</a>';
+	$replace[] = '<a href="#" class="eve_dest_link" onclick="CCPEVE.setDestination($1); return false">$2</a>';
+	$replace[] = '<a href="#" class="eve_market_link" onclick="CCPEVE.showMarketDetails($1); return false">$2</a>';
+	$replace[] = '<a href="#" class="eve_map_link" onclick="CCPEVE.showMap($1); return false">$2</a>';
+	$replace[] = '<a href="#" class="eve_chat_link" onclick="CCPEVE.joinChannel(\'$1\'); return false">$2</a>';
+	$replace[] = '<a href="#" class="eve_fitting_link" onclick="CCPEVE.showFitting(\'$1\'); return false">$2</a>';
 	
 
 	if (($is_signature && $pun_config['p_sig_img_tag'] == '1') || (!$is_signature && $pun_config['p_message_img_tag'] == '1'))
