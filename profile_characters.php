@@ -516,7 +516,7 @@ generate_profile_menu('characters');
 							bscale(0);
 							$count = 0;
 							
-							for ($i = (count($keys) - 1); $i >= 0; $i--) {
+							for ($i = (count($keys) - 1); $i > 0; $i--) {
 								//echo $i.'-'.$keys[$i].':'.$lang_api_roles[$keys[$i]].'<br/>';
 								if (bdiv($roles, $keys[$i]) != 1) {
 									continue;
