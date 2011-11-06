@@ -8,7 +8,7 @@
 
 // The FluxBB version this script installs
 define('FORUM_VERSION', '1.4.5');
-define('EVE_BB_VERSION', '1.1.10');
+define('EVE_BB_VERSION', '1.1.12');
 
 define('FORUM_DB_REVISION', 12);
 define('FORUM_SI_REVISION', 2);
