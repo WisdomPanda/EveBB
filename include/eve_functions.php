@@ -15,6 +15,7 @@ define('API_BAD_REQUEST', 1001);
 define('API_BAD_AUTH', 1002);
 define('API_SERVER_ERROR', 1003);
 define('API_ACCOUNT_STATUS', 1004);
+define('API_BAD_VARS', 1005);
 
 $_LAST_ERROR = 0;
 
@@ -269,7 +270,9 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 				purge_unclean(array($row['user_id']), $pun_config['o_eve_restricted_group']);
 				remove_api_keys($row['user_id']);
 			} else if ($_LAST_ERROR == API_BAD_AUTH) {
-				$log [] = sprintf($lang_eve_bb['char_sheet_failed'], $row['character_id'], $row['character_name']);
+				$log [] = sprintf("[%s] %s - Bad Authentication, purging.", $row['character_id'], $row['character_name']);
+				purge_unclean(array($row['user_id']), $pun_config['o_eve_restricted_group']);
+				remove_api_keys($row['user_id']);
 			} else if ($_LAST_ERROR == API_BAD_FETCH || $_LAST_ERROR == API_SERVER_ERROR) {
 				if (defined('PUN_DEBUG')) {
 					$log [] = sprintf("[%s] %s - Unable to fetch API data.", $row['character_id'], $row['character_name']);
@@ -284,8 +287,36 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 		} //End if - else.
 		$_LAST_ERROR = 0;
 	} //End while loop.
+	
+	clean_no_auth(&$log);
+	
 	return $log;
 } //End task_update_characters().
+
+/**
+ * Find the users with no authed characters and restrict them as such.
+ */
+function clean_no_auth($log) {
+	global $db, $pun_config, $lang_eve_bb, $_LAST_ERROR;
+	
+	$sql = "SELECT u.id, u.username FROM ".$db->prefix."users AS u WHERE u.id NOT IN (SELECT user_id FROM ".$db->prefix."api_auth)  AND u.group_id!=".PUN_GUEST;
+	if (!$result = $db->query($sql)) {
+		if (defined('PUN_DEBUG')) {
+			error("Unable find the inactive characters.", __FILE__, __LINE__, $db->error());
+		} //End if.
+		return; //What can we do?
+	} //End if.
+	
+	$unclean = array();
+	
+	while ($row = $db->fetch_assoc($result)) {
+		$log [] = sprintf("[%s] %s - Restricting user.", $row['id'], $row['username']);
+		$unclean[] = $row['id'];
+	} //End while loop().
+	
+	purge_unclean($unclean, $pun_config['o_eve_restricted_group']);
+	
+} //End clean_no_auth().
 
 /**
  * Checks to see if a user is not in the corp/alliance specified, and if they aren't move them to an inactive status.
@@ -1108,7 +1139,7 @@ function update_character_sheet($user_id, $cak = null, $sheet = false) {
 	
 	//If any of them are not set and if sheet is false...
 	if ($cak == null && !$sheet) {
-		$_LAST_ERROR = API_BAD_AUTH;
+		$_LAST_ERROR = API_BAD_VARS;
 		return false;
 	} //End if.
 	

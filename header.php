@@ -72,7 +72,7 @@ $tpl_main = str_replace('<pun_content_direction>', $lang_common['lang_direction'
 // END SUBST - <pun_content_direction>
 
 // START SUBST - <server_name>
-$tpl_main = str_replace('<server_name>', $_SERVER['SERVER_NAME'], $tpl_main);
+$tpl_main = str_replace('<request_trust>', (($_SESSION['igb']) ? ' onload="CCPEVE.requestTrust(\'http://'.$_SERVER['SERVER_NAME'].'\')' : ''), $tpl_main);
 // END SUBST - <server_name>
 
 // START SUBST - <pun_head>

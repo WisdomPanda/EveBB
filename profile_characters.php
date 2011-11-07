@@ -233,16 +233,14 @@ if ($action == 'add_character') {
 			message('['.$_LAST_ERROR.'] Unable to update your api details.');
 		} else if (is_array($result)) {
 			add_api_keys($id, $cak);
+			$log = '';
+			apply_rules($log); //We need to make sure they get moved correctly.
 			message(sprintf($lang_profile_characters['add_errors'], implode('<br/>', $result)));
 		}  //End if - else if.
 		
-		/*hardcore debugging section
-		//Put this above update_characters, or even better, at the top of the page.
-		define('PUN_SHOW_QUERIES', 1);
-		
-		$cak->vcode = 'foo';
-		$cak->id = '1337';
-		message(str_replace("\n", "<br/>\n", print_r($cak, true)).'<br/><br/>'.str_replace("\n", "<br/>\n",$db->saved_queries));*/
+		add_api_keys($id, $cak);
+		$log = '';
+		apply_rules($log); //We need to make sure they get moved correctly.
 		
 		redirect('profile.php?section=characters&amp;id='.$id, $lang_profile_characters['add_redirect']);
 	} //End if.

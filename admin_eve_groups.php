@@ -13,6 +13,9 @@ if ($pun_user['g_id'] != PUN_ADMIN)
 
 // Load the eve language file
 require PUN_ROOT.'lang/'.$admin_language.'/admin_eve_online.php';
+if (!defined('EVE_ROLES')) {
+	include(PUN_ROOT.'lang/'.$pun_user['language'].'/eve_roles.php');
+} //End if.
 	
 $action = isset($_GET['action']) ? $_GET['action'] : null;
 
@@ -34,7 +37,7 @@ if ($action == "add_group_rule") {
 		$priority = intval($_POST['priority']);
 		$role = (string)$_POST['role'];
 		
-		if (($from < 4 && $from !=  0) || $to < 1 || ($type > 1 || $type < 0) || !in_array($role, $api_roles)) {
+		if (($from < 4 && $from !=  0) || $to < 1 || ($type > 1 || $type < 0) || !isset($lang_api_roles[$role])) {
 			message("Incorrect variables sent.");
 		} //End if.
 		
@@ -134,9 +137,6 @@ generate_admin_menu('eve_groups');
 												<td>
 													<select id="roles" name="role" tabindex="1">
 <?php
-if (!defined('EVE_ROLES')) {
-	include(PUN_ROOT.'lang/'.$pun_user['language'].'/eve_roles.php');
-} //End if.
 
 foreach ($lang_api_roles as $key => $value) {
 		if ($value == '') {

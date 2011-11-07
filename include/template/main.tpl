@@ -5,7 +5,7 @@
 <pun_head>
 </head>
 
-<body onload="CCPEVE.requestTrust('http://<server_name>')">
+<body<request_trust>>
 
 <div id="pun<pun_page>" class="pun">
 <div class="top-box"><div><!-- Top Corners --></div></div>
