@@ -24,7 +24,34 @@ require PUN_ROOT.'lang/'.$admin_language.'/admin_maintenance.php';
 
 $action = isset($_REQUEST['action']) ? trim($_REQUEST['action']) : '';
 
-if ($action == 'rebuild')
+if ($action == 'sessions') {
+	
+	$mode = $_GET['mode'];
+	
+	if ($mode != 'old' && $mode != 'all') {
+		message($lang_common['Bad request']);
+	} //End if.
+	
+	$sql = 'DELETE FROM '.$db->prefix.'session WHERE ';
+	
+	if ($mode == 'old') {
+		$now = gmmktime();
+		$earlier = $now - $pun_config['session_length'];
+		$much_earlier = $now - 2629743;
+		
+		$sql .= 'stamp<'.$much_earlier.' OR (stamp<'.$earlier.' AND length='.$pun_config['session_length'].')';
+		
+	} else {
+		$sql .= 'user_id!=0';
+	} //End if - else.
+	
+	if (!$db->query($sql)) {
+		message($lang_admin_maintenance['clear_sessions_error']);
+	} //End if.
+	
+	redirect('admin_maintenance.php', $lang_admin_maintenance['clear_sessions_ok']);
+	
+} else if ($action == 'rebuild')
 {
 	$per_page = isset($_GET['i_per_page']) ? intval($_GET['i_per_page']) : 0;
 	$start_at = isset($_GET['i_start_at']) ? intval($_GET['i_start_at']) : 0;
@@ -231,6 +258,32 @@ generate_admin_menu('maintenance');
 	<div class="blockform">
 		<h2><span><?php echo $lang_admin_maintenance['Maintenance head'] ?></span></h2>
 		<div class="box">
+			<form method="get" action="admin_maintenance.php">
+				<div class="inform">
+					<input type="hidden" name="action" value="sessions" />
+					<fieldset>
+						<legend><?php echo $lang_admin_maintenance['clear_sessions'] ?></legend>
+						<div class="infldset">
+							<table class="aligntop" cellspacing="0">
+								<tr>
+									<th scope="row"><?php echo $lang_admin_maintenance['clear_old_sessions'] ?></th>
+									<td>
+										<a href="admin_maintenance.php?action=sessions&amp;mode=old">[<?php echo $lang_admin_maintenance['clear_old_sessions'] ?>]</a><br/>
+										<span><?php echo $lang_admin_maintenance['clear_old_sessions_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_maintenance['clear_all_sessions'] ?></th>
+									<td>
+										<a href="admin_maintenance.php?action=sessions&amp;mode=all">[<?php echo $lang_admin_maintenance['clear_all_sessions'] ?>]</a><br/>
+										<span><?php echo $lang_admin_maintenance['clear_all_sessions_info'] ?></span>
+									</td>
+								</tr>
+							</table>
+						</div>
+					</fieldset>
+				</div>
+			</form>
 			<form method="get" action="admin_maintenance.php">
 				<div class="inform">
 					<input type="hidden" name="action" value="rebuild" />

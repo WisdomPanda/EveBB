@@ -36,5 +36,12 @@ $lang_admin_maintenance = array(
 'Confirm prune subhead'			=>	'Confirm prune posts',
 'Confirm prune info'			=>	'Are you sure that you want to prune all topics older than %s days from %s (%s topics).',
 'Confirm prune warn'			=>	'WARNING! Pruning posts deletes them permanently.',
+'clear_sessions' => 'Session maintenance',
+'clear_old_sessions' => 'Clear Old Sessions',
+'clear_old_sessions_info' => 'Clear any sessions in the database that are no longer valid.<br/><br/>This is done per-user when then visit the site, but you may want to clear them anyways.',
+'clear_all_sessions' => 'Clear All Sessions',
+'clear_all_sessions_info' => 'Clearing all sessions will log everyone (including your self) out of the forums and force a refresh of all tokens.<br/><br/>If people are having login issues, try this first.',
+'clear_sessions_error' => 'Unable to remove sessions from the database.',
+'clear_sessions_ok' => 'Successfully removed sessions from the database.',
 
 );
