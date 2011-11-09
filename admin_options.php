@@ -13,7 +13,6 @@ define('PUN_ROOT', dirname(__FILE__).'/');
 require PUN_ROOT.'include/common.php';
 require PUN_ROOT.'include/common_admin.php';
 
-
 if ($pun_user['g_id'] != PUN_ADMIN)
 	message($lang_common['No permission']);
 
@@ -92,6 +91,7 @@ if (isset($_POST['form_sent']))
 		'enable_debug' => intval($_POST['form']['enable_debug']),
 		'users_online_refresh' => intval($_POST['form']['users_online_refresh']),
 	);
+	
 	if ($form['board_title'] == '')
 		message($lang_admin_options['Must enter title message']);
 
@@ -212,25 +212,20 @@ if (isset($_POST['form_sent']))
 	foreach ($form as $key => $input)
 	{
 		// Only update values that have changed
-		if (array_key_exists('o_'.$key, $pun_config) && $pun_config['o_'.$key] != $input)
+		if (array_key_exists($key, $form) && $pun_config['o_'.$key] != $input)
 		{
-			if ($input != '' || is_int($input))
+			if ($input != '' || is_int($input)) {
 				$value = '\''.$db->escape($input).'\'';
-			else
+			} else {
 				$value = 'NULL';
-
-			$db->query('UPDATE '.$db->prefix.'config SET conf_value='.$value.' WHERE conf_name=\'o_'.$db->escape($key).'\'') or error('Unable to update board config', __FILE__, __LINE__, $db->error());
-		} else if (in_array($key, $form)) {
-			//New value added to $form, lets insert it.
+			} //End if - else.
 			
-			//Just to be on the safe side.
 			$db->insert_or_update(
 				array('conf_name' => 'o_'.$key, 'conf_value' => $input), //Fields
 				'conf_name', //Primary Key
 				$db->prefix.'config' //Table
 			);
-			
-		} //End if - else.
+		} //End if.
 	}
 
 	// Regenerate the config cache
@@ -240,6 +235,7 @@ if (isset($_POST['form_sent']))
 	generate_config_cache();
 	clear_feed_cache();
 
+	//message($lang_admin_options['Options updated redirect']);
 	redirect('admin_options.php', $lang_admin_options['Options updated redirect']);
 }
 
