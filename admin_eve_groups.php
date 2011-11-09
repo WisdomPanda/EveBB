@@ -136,16 +136,51 @@ generate_admin_menu('eve_groups');
 												</th>
 												<td>
 													<select id="roles" name="role" tabindex="1">
+													<optgroup label="<?php echo $lang_api_sections['general'];?>">
 <?php
 
-foreach ($lang_api_roles as $key => $value) {
-		if ($value == '') {
-			continue;
-		} //End if.
-		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$key.'">'.$value.'</option>'."\n";
+foreach ($api_roles_general as $role) {
+		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$role.'">'.$lang_api_roles[$role].'</option>'."\n";
 } //End 'i' for loop.
 
 ?>
+													</optgroup>
+													<optgroup label="<?php echo $lang_api_sections['station_service'];?>">
+<?php
+
+foreach ($api_roles_station_service as $role) {
+		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$role.'">'.$lang_api_roles[$role].'</option>'."\n";
+} //End 'i' for loop.
+
+?>
+													</optgroup>
+													<optgroup label="<?php echo $lang_api_sections['accounting'];?>">
+<?php
+
+foreach ($api_roles_accounting as $role) {
+		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$role.'">'.$lang_api_roles[$role].'</option>'."\n";
+} //End 'i' for loop.
+
+?>
+													</optgroup>
+													<optgroup label="<?php echo $lang_api_sections['hanger_access'];?>">
+<?php
+
+foreach ($api_roles_hanger as $role) {
+		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$role.'">'.$lang_api_roles[$role].'</option>'."\n";
+} //End 'i' for loop.
+
+?>
+													</optgroup>
+													<optgroup label="<?php echo $lang_api_sections['container_access'];?>">
+<?php
+
+foreach ($api_roles_container as $role) {
+		echo "\t\t\t\t\t\t\t\t\t\t\t".'<option value="'.$role.'">'.$lang_api_roles[$role].'</option>'."\n";
+} //End 'i' for loop.
+
+?>
+													</optgroup>
 													</select>
 												<td>
 											</tr>
