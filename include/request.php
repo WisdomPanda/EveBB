@@ -7,13 +7,15 @@ class Request {
 	
 	var $last_request;
 	var $num_requests;
+	var $saved_requests;
 	
 	/**
 	 * Constructs a new request object.
 	 */
 	function Request() {
-		$num_requests = 0;
-		$last_request = array('url' => '', 'data' => array(), 'err' => '');
+		$this->num_requests = 0;
+		$this->last_request = array('url' => '', 'data' => array(), 'err' => '');
+		$this->saved_requests = array();
 	} //End Constructor().
 	
 	/**
@@ -24,11 +26,24 @@ class Request {
 	 * @return Returns the number of bytes written, or false on failure.
 	 */
 	function fetch_file($url, $file) {
-		if (defined('EVEBB_CURL')) {
-			return $this->curl_fetch_file($url, $file);
+
+		$response;
+		
+		if (defined('PUN_SHOW_REQUESTS')) {
+			$f_start = get_microtime();
 		} //End if.
 		
-		return $this->fopen_fetch_file($url, $file);
+		if (defined('EVEBB_CURL')) {
+			$response = $this->curl_fetch_file($url, $file);
+		} else {
+			$response = $this->fopen_fetch_file($url, $file);
+		} //End if - else.
+		
+		if (defined('PUN_SHOW_REQUESTS')) {
+			$this->saved_requests[] = array($url, sprintf('%.5f', get_microtime() - $f_start));
+		} //End if.
+		
+		return $response;
 	} //End fetch_file().
 	
 	function curl_fetch_file($url, $file) {
@@ -97,11 +112,24 @@ class Request {
 	 * @return Returns the response from the URL, or false on failure.
 	 */
 	function get($url) {
-		if (defined('EVEBB_CURL')) {
-			return $this->curl_get($url);
+
+		$response;
+		
+		if (defined('PUN_SHOW_REQUESTS')) {
+			$f_start = get_microtime();
 		} //End if.
 		
-		return $this->fopen_get($url);
+		if (defined('EVEBB_CURL')) {
+			$response = $this->curl_get($url);
+		} else {
+			$response = $this->fopen_get($url);
+		} //End if - else.
+		
+		if (defined('PUN_SHOW_REQUESTS')) {
+			$this->saved_requests[] = array($url, sprintf('%.5f', get_microtime() - $f_start));
+		} //End if.
+		
+		return $response;
 	} //End get().
 	
 	/**
@@ -170,13 +198,25 @@ class Request {
 	 * @return Returns the response from the URL, or false on failure.
 	 */
 	function post($url, $data = array(), $optional_headers = array()) {
+
+		$response;
 		
-		if (defined('EVEBB_CURL')) {
-			return $this->curl_post($url, $data, $optional_headers);
+		if (defined('PUN_SHOW_REQUESTS')) {
+			$f_start = get_microtime();
 		} //End if.
 		
-		return $this->fopen_post($url, $data, $optional_headers);
+		if (defined('EVEBB_CURL')) {
+			$response = $this->curl_post($url, $data, $optional_headers);
+		} else {
+			$response = $this->fopen_post($url, $data, $optional_headers);
+		} //End if - else.
 		
+		if (defined('PUN_SHOW_REQUESTS')) {
+			$this->saved_requests[] = array($url, sprintf('%.5f', get_microtime() - $f_start));
+		} //End if.
+		
+		return $response;
+			
 	} //End post().
 	
 	/**

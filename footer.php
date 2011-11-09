@@ -162,6 +162,10 @@ $db->end_transaction();
 // Display executed queries (if enabled)
 if (defined('PUN_SHOW_QUERIES'))
 	display_saved_queries();
+	
+if (defined('PUN_SHOW_REQUESTS')) {
+	display_saved_requests();
+} //End if.
 
 $tpl_temp = trim(ob_get_contents());
 $tpl_main = str_replace('<pun_footer>', $tpl_temp, $tpl_main);

@@ -139,6 +139,9 @@ $lang_common = array(
 'Query times'						=>	'Time (s)',
 'Query'								=>	'Query',
 'Total query time'					=>	'Total query time: %s',
+'Request times'						=>	'Time (s)',
+'Request'								=>	'Request',
+'Total request time'					=>	'Total request time: %s',
 
 // Email related notifications
 'New user notification'				=>	'Alert - New registration',

@@ -124,6 +124,24 @@ if (!defined('PUN_CONFIG_LOADED'))
 	require FORUM_CACHE_DIR.'cache_config.php';
 }
 
+//Debugging is now based out of the admin options.
+if ($pun_config['o_enable_debug'] == 1) {
+	//The lock file is made by the options, if it doesn't exist, someone has deleted it.
+	if (file_exists(FORUM_CACHE_DIR.'debug.lock')) {
+		define('PUN_DEBUG', 1);
+	} else {
+		//Turn it off fully, just to be sure.
+		$pun_config['o_enable_debug'] = 0;
+		$db->query('UPDATE '.$db->prefix.'config SET conf_value=0 WHERE conf_name=\'o_enable_debug\'');
+		if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
+			require PUN_ROOT.'include/cache.php';
+		generate_config_cache();
+	} //End if - else.
+} //End if.
+
+//define('PUN_SHOW_QUERIES', 1);
+//define('PUN_SHOW_REQUESTS', 1);
+
 //Set the session length.
 //This is not something I'd like anyone tampering with unless they are aware of the kind of issues it could bring.
 //Anyone comfortable with editing the session length should be OK with editing this file.
@@ -186,9 +204,6 @@ if (!defined('PUN_BANS_LOADED'))
 
 // Check if current user is banned
 check_bans();
-
-// Update online list
-update_users_online();
 
 // Check to see if we logged in without a cookie being set
 if ($pun_user['is_guest'] && isset($_GET['login']))

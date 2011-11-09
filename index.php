@@ -352,33 +352,28 @@ if ($pun_config['o_hide_stats'] && $pun_user['is_guest']) {
 
 if ($pun_config['o_users_online'] == '1')
 {
-	// Fetch users online info and generate strings for output
-	$num_guests = 0;
-	$users = array();
-	$result = $db->query('SELECT o.user_id, o.ident, o.idle,sc.user_id,sc.character_id,c.character_id,c.character_name,o.logged FROM '.$db->prefix.'online AS o,'.$db->prefix.'api_selected_char AS sc, '.$db->prefix.'api_characters AS c  WHERE o.idle=0  AND sc.user_id=o.user_id AND sc.character_id=c.character_id ORDER BY o.ident', true) or error('Unable to fetch online list', __FILE__, __LINE__, $db->error());
-
-	while ($pun_user_online = $db->fetch_assoc($result))
-	{
-		if ($pun_user_online['user_id'] > 1)
-		{
-			if ($pun_user['g_view_users'] == '1')
-				$users[] = "\n\t\t\t\t".'<dd><a href="profile.php?id='.$pun_user_online['user_id'].'">'.pun_htmlspecialchars($pun_user_online['character_name']).'</a>';
-			else
-				$users[] = "\n\t\t\t\t".'<dd>'.pun_htmlspecialchars($pun_user_online['character_name']);
-		}
-		else
-			++$num_guests;
-	}
-
-	$num_users = count($users);
-	echo "\t\t\t\t".'<dd><span>'.sprintf($lang_index['Users online'], '<strong>'.forum_number_format($num_users).'</strong>').'</span></dd>'."\n\t\t\t\t".'<dd><span>'.sprintf($lang_index['Guests online'], '<strong>'.forum_number_format($num_guests).'</strong>').'</span></dd>'."\n\t\t\t".'</dl>'."\n";
-
-
-	if ($num_users > 0)
-		echo "\t\t\t".'<dl id="onlinelist" class="clearb">'."\n\t\t\t\t".'<dt><strong>'.$lang_index['Online'].' </strong></dt>'."\t\t\t\t".implode(',</dd> ', $users).'</dd>'."\n\t\t\t".'</dl>'."\n";
-	else
-		echo "\t\t\t".'<div class="clearer"></div>'."\n";
-
+	$reload = false;
+	//Lets see if there is a cache file!
+	if (file_exists(FORUM_CACHE_DIR.'online.stamp')) {
+		$now = time();
+		$then = file_get_contents(FORUM_CACHE_DIR.'online.stamp');
+		
+		//You can fine tune how rapidly this is updated by adjusting o_users_online_refresh.
+		if (($now - $then) > $pun_config['o_users_online_refresh']) {
+			$reload = true;
+		} //End if.
+	} else {
+		$reload = true;
+	} //End if - else.
+	
+	if ($reload) {
+		if (!defined('FORUM_CACHE_FUNCTIONS_LOADED')) {
+			require PUN_ROOT.'include/cache.php';
+		} //End if.
+		generate_online_cache();
+	} //End if.
+	include(FORUM_CACHE_DIR.'cache_online.php');
+	
 }
 else
 	echo "\t\t\t".'</dl>'."\n\t\t\t".'<div class="clearer"></div>'."\n";

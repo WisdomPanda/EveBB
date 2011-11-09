@@ -91,6 +91,8 @@ $lang_admin_options = array(
 'Redirect time help'				=>	'Number of seconds to wait when redirecting. If set to 0, no redirect page will be displayed (not recommended).',
 'o_regen_token' 					=> 'Regen Token',
 'o_regen_token_info' 			=> 'Regenerate a users token if they login from a different location or after a set period of time.<br/>Only effects logins using cookies, when logging in normally a new token will always be granted.',
+'users_online_refresh'			=> 'Online Users Refresh',
+'users_online_refresh_info'		=> 'Set how long between updating the online user table, in seconds.<br/><br/>This is provided as a way to keep the online list on a forum under heavy load.',
 
 // Display Section
 'Display subhead'					=>	'Display',
@@ -225,10 +227,15 @@ $lang_admin_options = array(
 'Announcement message help'			=>	'This text will not be parsed like regular posts and thus may contain HTML.',
 
 // Maintenance Section
-'Maintenance subhead'				=>	'Maintenance',
-'Maintenance mode label'			=>	'Maintenance mode',
+'Maintenance subhead'					=>	'Maintenance',
+'Maintenance mode label'				=>	'Maintenance mode',
 'Maintenance mode help'				=>	'When enabled, the board will only be available to administrators. This should be used if the board needs to be taken down temporarily for maintenance. <strong>WARNING! Do not log out when the board is in maintenance mode.</strong> You will not be able to login again.',
 'Maintenance message label'			=>	'Maintenance message',
 'Maintenance message help'			=>	'The message that will be displayed to users when the board is in maintenance mode. If left blank, a default message will be used. This text will not be parsed like regular posts and thus may contain HTML.',
-
+'enable_debug' 							=> 'Enable Debugging',
+'enable_debug_info' 						=> 'Put the forum into debugging mode.<br/><br/>
+Please note that this mode will create errors where there is nothing wrong, and is to be used only for tracing a problem.<br/><br/>
+If you are unable to access this page again for what ever reason, you can delete the file \'%s\' to disable debugging.',
+'enable_debug_make_error' 			=> 'Unable to write debug lock file, please ensure the cache is writeable.',
+'enable_debug_delete_error' 			=> 'Unable to remove debug lock file, please ensure the cache is writeable.',
 );

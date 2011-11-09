@@ -36,6 +36,53 @@ function generate_config_cache()
 		@apc_delete_file(FORUM_CACHE_DIR.'cache_config.php');
 }
 
+function generate_online_cache() {
+	global $db, $lang_index;
+	
+	// Update online list
+	update_users_online();
+
+	$fh = @fopen(FORUM_CACHE_DIR.'cache_online.php', 'wb');
+	if (!$fh) {
+		error('Unable to online cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+	} //End if.
+	
+	if (!file_put_contents(FORUM_CACHE_DIR.'online.stamp', time())) {
+		error('Unable to online cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+	} //End if.
+	
+	fwrite($fh, '<?php'."\n\n".'define(\'PUN_ONLINE_LOADED\', 1);'."\n\n".'?>'."\n\n");
+	// Fetch users online info and generate strings for output
+	$num_guests = 0;
+	$users = array();
+	$result = $db->query('SELECT o.user_id, o.ident, o.idle,sc.user_id,sc.character_id,c.character_id,c.character_name,o.logged FROM '.$db->prefix.'online AS o,'.$db->prefix.'api_selected_char AS sc, '.$db->prefix.'api_characters AS c  WHERE o.idle=0  AND sc.user_id=o.user_id AND sc.character_id=c.character_id ORDER BY o.ident', true) or error('Unable to fetch online list', __FILE__, __LINE__, $db->error());
+
+	while ($pun_user_online = $db->fetch_assoc($result))
+	{
+		if ($pun_user_online['user_id'] > 1)
+		{
+			if ($pun_user['g_view_users'] == '1')
+				$users[] = "\n\t\t\t\t".'<dd><a href="profile.php?id='.$pun_user_online['user_id'].'">'.pun_htmlspecialchars($pun_user_online['character_name']).'</a>';
+			else
+				$users[] = "\n\t\t\t\t".'<dd>'.pun_htmlspecialchars($pun_user_online['character_name']);
+		}
+		else
+			++$num_guests;
+	}
+
+	$num_users = count($users);
+	fwrite($fh,  "\t\t\t\t".'<dd><span>'.sprintf($lang_index['Users online'], '<strong>'.forum_number_format($num_users).'</strong>').'</span></dd>'."\n\t\t\t\t".'<dd><span>'.sprintf($lang_index['Guests online'], '<strong>'.forum_number_format($num_guests).'</strong>').'</span></dd>'."\n\t\t\t".'</dl>'."\n");
+
+
+	if ($num_users > 0)
+		fwrite($fh,  "\t\t\t".'<dl id="onlinelist" class="clearb">'."\n\t\t\t\t".'<dt><strong>'.$lang_index['Online'].' </strong></dt>'."\t\t\t\t".implode(',</dd> ', $users).'</dd>'."\n\t\t\t".'</dl>'."\n");
+	else
+		fwrite($fh,  "\t\t\t".'<div class="clearer"></div>'."\n");
+		
+	fclose($fh);
+		
+} //End generate_online_cache().
+
 
 //
 // Generate the bans cache PHP script

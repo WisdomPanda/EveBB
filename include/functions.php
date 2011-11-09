@@ -6,9 +6,6 @@
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
 
-//Comment this out after.
-//define('PUN_DEBUG', 1);
-
 //
 // Return current timestamp (with microseconds) as a float
 //
@@ -62,10 +59,6 @@ function check_cookie(&$pun_user)
 	} else {
 		$_SESSION['igb'] = false;
 	} //End if - else.
-	
-	//There is an easier way to do this, but PostgreSQL complains about it, so here is a messy way.
-	//The general idea is to remove old sessions.
-	$db->query("DELETE FROM ".$db->prefix."session WHERE (stamp<".$earlier." AND length=".$pun_config['session_length'].") OR stamp<".$much_earlier);
 
     //Lets pull our session data out.
     if (isset($_COOKIE[$cookie_name]) && preg_match('/^(\d+)\:([0-9a-zA-Z]{32}):([0-9a-fA-F]{32})$/', $_COOKIE[$cookie_name], $matches)) {
@@ -73,10 +66,7 @@ function check_cookie(&$pun_user)
         $cookie['token'] = $matches[2];
         $cookie['hash'] = $matches[3];
         $cookie['remember'] = 1;
-    } //End if.
-    
-    //The cookie is more long term, the session is for when they don't select "Remember Me"
-    if (isset($_SESSION[$cookie_name]) && preg_match('/^(\d+)\:([0-9a-zA-Z]{32}):([0-9a-fA-F]{32})$/', $_SESSION[$cookie_name], $matches)) {
+    } else if (isset($_SESSION[$cookie_name]) && preg_match('/^(\d+)\:([0-9a-zA-Z]{32}):([0-9a-fA-F]{32})$/', $_SESSION[$cookie_name], $matches)) {
     	$cookie['user_id'] = intval($matches[1]);
         $cookie['token'] = $matches[2];
         $cookie['hash'] = $matches[3];
@@ -88,6 +78,7 @@ function check_cookie(&$pun_user)
     		if (defined('PUN_DEBUG')) {
     			error('Hash mismatch.', __FILE__, __LINE__, $db->error());
     		} //End if.
+        	unset($_SESSION[$cookie_name]);
         	sleep(3);
         	set_default_user();
         	return; //The session has been messed with, abort!
@@ -132,6 +123,7 @@ function check_cookie(&$pun_user)
     		if (defined('PUN_DEBUG')) {
     			error('No user found.', __FILE__, __LINE__, $db->error());
     		} //End if.
+        	unset($_SESSION[$cookie_name]);
         	set_default_user();
         	sleep(3);
         	return; //Chances are they have no active session.
@@ -148,6 +140,7 @@ function check_cookie(&$pun_user)
         		$expire = $now + 31536000; // The cookie expires after a year
         		forum_setcookie($cookie_name, pun_hash(uniqid(rand(), true)), $expire);
         	} //End if.
+        	unset($_SESSION[$cookie_name]);
         	set_default_user();
         	sleep(3);
         	return; //Trying to access from an old session, or they are evil!
@@ -163,6 +156,7 @@ function check_cookie(&$pun_user)
         		$expire = $now + 31536000; // The cookie expires after a year
         		forum_setcookie($cookie_name, pun_hash(uniqid(rand(), true)), $expire);
         	} //End if.
+        	unset($_SESSION[$cookie_name]);
         	set_default_user();
         	return;
         } //End if.
@@ -1334,7 +1328,6 @@ function array_insert(&$input, $offset, $element, $key = null)
 	$input = array_merge(array_slice($input, 0, $offset), array($key => $element), array_slice($input, $offset));
 }
 
-
 //
 // Display a message when board is in maintenance mode
 //
@@ -1576,6 +1569,10 @@ function redirect($destination_url, $message, $link_back = true)
 	// Display executed queries (if enabled)
 	if (defined('PUN_SHOW_QUERIES'))
 		display_saved_queries();
+		
+	if (defined('PUN_SHOW_REQUESTS')) {
+		display_saved_requests($pun_request);
+	} //End if.
 
 	$tpl_temp = trim(ob_get_contents());
 	$tpl_redir = str_replace('<pun_footer>', $tpl_temp, $tpl_redir);
@@ -2135,6 +2132,59 @@ function display_saved_queries()
 <?php
 
 }
+
+/**
+ * Display the requests made, if any.
+ */
+function display_saved_requests()
+{
+	global $pun_request, $lang_common;
+
+	// Get the queries so that we can print them out
+	$saved_queries = $pun_request->saved_requests;
+
+?>
+
+<div id="debug" class="blocktable">
+	<h2><span><?php echo $lang_common['Debug table'] ?></span></h2>
+	<div class="box">
+		<div class="inbox">
+			<table cellspacing="0">
+			<thead>
+				<tr>
+					<th class="tcl" scope="col"><?php echo $lang_common['Request times'] ?></th>
+					<th class="tcr" scope="col"><?php echo $lang_common['Request'] ?></th>
+				</tr>
+			</thead>
+			<tbody>
+<?php
+
+	$req_time_total = 0.0;
+	foreach ($saved_queries as $cur_req)
+	{
+		$req_time_total += $cur_req[1];
+
+?>
+				<tr>
+					<td class="tcl"><?php echo ($cur_req[1] != 0) ? $cur_req[1] : '&#160;' ?></td>
+					<td class="tcr"><?php echo pun_htmlspecialchars($cur_req[0]) ?></td>
+				</tr>
+<?php
+
+	}
+
+?>
+				<tr>
+					<td class="tcl" colspan="2"><?php printf($lang_common['Total request time'], $req_time_total.' s') ?></td>
+				</tr>
+			</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+<?php
+
+} //End display_saved_requests().
 
 
 //

@@ -89,6 +89,8 @@ if (isset($_POST['form_sent']))
 		'maintenance_message'	=> pun_trim($_POST['form']['maintenance_message']),
 		'use_topic_stamp' => intval($_POST['form']['use_topic_stamp']),
 		'regen_token' => intval($_POST['form']['regen_token']),
+		'enable_debug' => intval($_POST['form']['enable_debug']),
+		'users_online_refresh' => intval($_POST['form']['users_online_refresh']),
 	);
 	if ($form['board_title'] == '')
 		message($lang_admin_options['Must enter title message']);
@@ -110,7 +112,22 @@ if (isset($_POST['form_sent']))
 
 	if ($form['date_format'] == '')
 		$form['date_format'] = 'Y-m-d';
-
+		
+	//Try and sort out the debug file situation.
+	if (!file_exists(FORUM_CACHE_DIR.'debug.lock') && $form['enable_debug'] == '1') {
+		if (!$file = fopen(FORUM_CACHE_DIR.'debug.lock', 'x')) {
+			message($lang_admin_options['enable_debug_make_error']);
+		} //End if.
+		
+		fwrite($file, '1', 1);
+		fflush($file);
+		fclose($file);
+		
+	} else if (file_exists(FORUM_CACHE_DIR.'debug.lock') && $form['enable_debug'] != '1') {
+		if (!@unlink(FORUM_CACHE_DIR.'debug.lock')) {
+			message($lang_admin_options['enable_debug_delete_error']);
+		} //End if.
+	} //End if.
 
 	require PUN_ROOT.'include/email.php';
 
@@ -424,6 +441,13 @@ generate_admin_menu('options');
 									<td>
 										<input type="radio" name="form[regen_token]" value="1"<?php if ($pun_config['o_regen_token'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[regen_token]" value="0"<?php if ($pun_config['o_regen_token'] == '0') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
 										<span><?php echo $lang_admin_options['o_regen_token_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_options['users_online_refresh'] ?></th>
+									<td>
+										<input type="text" name="form[users_online_refresh]" size="3" maxlength="4" value="<?php echo $pun_config['o_users_online_refresh'] ?>" />
+										<span><?php echo $lang_admin_options['users_online_refresh_info'] ?></span>
 									</td>
 								</tr>
 							</table>
@@ -860,6 +884,13 @@ generate_admin_menu('options');
 									<td>
 										<textarea name="form[maintenance_message]" rows="5" cols="55"><?php echo pun_htmlspecialchars($pun_config['o_maintenance_message']) ?></textarea>
 										<span><?php echo $lang_admin_options['Maintenance message help'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_options['enable_debug'] ?></th>
+									<td>
+										<input type="radio" name="form[enable_debug]" value="1"<?php if ($pun_config['o_enable_debug'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[enable_debug]" value="0"<?php if ($pun_config['o_enable_debug'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo sprintf($lang_admin_options['enable_debug_info'], FORUM_CACHE_DIR.'debug.lock') ?></span>
 									</td>
 								</tr>
 							</table>

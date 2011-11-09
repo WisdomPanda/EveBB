@@ -94,6 +94,8 @@ if (!empty($pun_user['group_ids'])) {
 	} //End foreach().
 } //End if.
 
+$sql = 'NULL';
+
 //(fp.group_id='.$pun_user['g_id'].' '.$group_list.'))
 // Fetch some info about the topic
 if (!$pun_user['is_guest']) {
@@ -175,10 +177,11 @@ if (!$pun_user['is_guest']) {
 		AND
 			t.moved_to IS NULL';
 	} //End if - else.
-	$result = $db->query($sql) or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
 } else {
-	$result = $db->query('SELECT t.subject, t.closed, t.num_replies, t.sticky, t.first_post_id, t.poll_type, t.poll_time, t.poll_term, t.poll_kol, f.id AS forum_id, f.forum_name, f.moderators, fp.post_replies, 0 AS is_subscribed FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forums AS f ON f.id=t.forum_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE fp.read_forum=1 AND t.id='.$id.' AND t.moved_to IS NULL') or error('Unable to fetch topic info', __FILE__, __LINE__, $db->error());
+	$sql = 'SELECT t.subject, t.closed, t.num_replies, t.sticky, t.first_post_id, t.poll_type, t.poll_time, t.poll_term, t.poll_kol, f.id AS forum_id, f.forum_name, f.moderators, fp.post_replies, 0 AS is_subscribed FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'forums AS f ON f.id=t.forum_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE fp.read_forum=1 AND t.id='.$id.' AND t.moved_to IS NULL';
 } //End if.
+
+$result = $db->query($sql, __FILE__, __LINE__, $db->error()) or error('Unable to fetch topic info');
 
 if (!$db->num_rows($result)) {
 	message($lang_common['Bad request']);
