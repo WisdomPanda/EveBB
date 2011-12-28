@@ -123,8 +123,15 @@ Setting this below 4 Hours is not reccommended as each time this is called it ad
 'o_eve_auth_interval' 					=> 'Char Auth Interval',
 'o_eve_auth_interval_info' 				=> 'This determines how long the server waits before re-checking character credentials.<br/>
 Low load added, may be set to happen fairly often to catch the updates done by [Char Sheet Interval].',
-'o_eve_use_cron' 							=> 'Use Cron Job',
-'o_eve_use_cron_info' 					=> 'Enable the use a cron job for scheduled events, such as fetching character data.<br />Please see the README file for information in setting up a cron job.',
+'o_eve_use_cron'							=> 'Use Cron Job',
+'o_eve_use_cron_info'					=> 'Enable the use a cron job for scheduled events, such as fetching character data.<br />Please see the README file for information in setting up a cron job.',
+'o_eve_cron_token'						=> 'Use Cron Token',
+'o_eve_cron_token_info'				=> 'Enable the use a token to secure access to cron jobs.<br/>
+To use the token, create a cron job pointing to the cron file with a token value, such as; http://evebb.com/cron.php?action=update_characters&token=aaabbbcccdddeeefff<br/>
+<br/>
+To generate a new token, delete the "cron_lock.php" file located in the cache directory of your forum.<br/>
+<br/>
+<strong>Current token:</strong> %s',
 'o_eve_max_groups' 						=> 'Max Group Rule Priorities',
 'o_eve_max_groups_info' 				=> 'Lets you adjust how many priorities are displayed in the drop down box on the Group Rules section. More is slower per load.',
 'o_eve_use_banner' 						=> 'Use Forum Banner',

@@ -321,8 +321,8 @@ if (isset($_POST['form_sent']))
 			require PUN_ROOT.'include/cache.php';
 
 		generate_users_info_cache();
-
-		pun_setcookie($new_uid, $password_hash, time() + $pun_config['o_timeout_visit']);
+		
+		//pun_setcookie($new_uid, $password_hash, time() + $pun_config['o_timeout_visit']);
 
 		//redirect('index.php', $lang_register['Reg complete']);
 		

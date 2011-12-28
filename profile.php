@@ -52,14 +52,14 @@ if ($action == 'del_group') {
 	
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error('Unable to fetch user information.', __FILE__, __LINE__, $db->error());
+			$pun_debug->error('Unable to fetch user information.', __FILE__, __LINE__, $db->error());
 		} //End if.
 		message('Unable to fetch user information.');
 	} //End if.
 	
 	if ($db->num_rows($result) != 1) {
 		if (defined('PUN_DEBUG')) {
-			error('User information is incomplete.', __FILE__, __LINE__, $db->error());
+			$pun_debug->error('User information is incomplete.', __FILE__, __LINE__, $db->error());
 		} //End if.
 		message('User information is incomplete.');
 	} //End if.
@@ -74,7 +74,7 @@ if ($action == 'del_group') {
 		
 		if (!$result = $db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
-				error('Unable to fetch group information.', __FILE__, __LINE__, $db->error());
+				$pun_debug->error('Unable to fetch group information.', __FILE__, __LINE__, $db->error());
 			} //End if.
 			message('Unable to fetch group information.');
 		} //End if.
@@ -90,7 +90,7 @@ if ($action == 'del_group') {
 		$sql = "UPDATE ".$db->prefix."users SET group_id=".$new_g_id." WHERE id=".$id;
 		if (!$result = $db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
-				error('Unable to update user information.', __FILE__, __LINE__, $db->error());
+				$pun_debug->error('Unable to update user information.', __FILE__, __LINE__, $db->error());
 			} //End if.
 			message('Unable to update user information.');
 		} //End if.
@@ -100,7 +100,7 @@ if ($action == 'del_group') {
 	$sql = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$id." AND group_id=".$g_id;
 	if (!$db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error('Unable to delete group from table.', __FILE__, __LINE__, $db->error());
+			$pun_debug->error('Unable to delete group from table.', __FILE__, __LINE__, $db->error());
 		} //End if.
 		message($lang_common['Bad request']);
 	} //End if.
@@ -119,7 +119,7 @@ if ($action == 'add_group' && !isset($_POST['delete_user'])) {
 	$g_id = intval($_GET['g_id']);
 	if ($g_id < 1 || $g_id == PUN_GUEST) {
 		if (defined('PUN_DEBUG')) {
-			error('You have specified an incorrect group id.', __FILE__, __LINE__, $db->error());
+			$pun_debug->error('You have specified an incorrect group id.', __FILE__, __LINE__, $db->error());
 		} //End if.
 		message($lang_common['Bad request']);
 	} //End if.
@@ -130,7 +130,7 @@ if ($action == 'add_group' && !isset($_POST['delete_user'])) {
 	);
 	if (!$db->insert_or_update($fields, array('user_id', 'group_id'), $db->prefix.'groups_users')) {
 		if (defined('PUN_DEBUG')) {
-			error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
+			$pun_debug->error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
 		} //End if.
 		message($lang_common['Bad request']);
 	} //End if.
@@ -172,7 +172,7 @@ if ($action == 'change_pass')
 			message($lang_common['No permission']);
 		else if ($pun_user['g_moderator'] == '1') // A moderator trying to change a users password?
 		{
-			$result = $db->query('SELECT u.group_id, g.g_moderator FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'groups AS g ON (g.g_id=u.group_id) WHERE u.id='.$id) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+			$result = $db->query('SELECT u.group_id, g.g_moderator FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'groups AS g ON u._group_id IN ('.$pun_user['g_id'].(!empty($pun_user['group_ids']) ? ','.implode(',', $pun_user['group_ids']) : '').') WHERE u.id='.$id) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 			if (!$db->num_rows($result))
 				message($lang_common['Bad request']);
 
@@ -217,8 +217,8 @@ if ($action == 'change_pass')
 
 		$db->query('UPDATE '.$db->prefix.'users SET password=\''.$new_password_hash.'\''.(!empty($cur_user['salt']) ? ', salt=NULL' : '').' WHERE id='.$id) or error('Unable to update password', __FILE__, __LINE__, $db->error());
 
-		if ($pun_user['id'] == $id)
-			pun_setcookie($pun_user['id'], $new_password_hash, time() + $pun_config['o_timeout_visit']);
+		//if ($pun_user['id'] == $id)
+		//	pun_setcookie($pun_user['id'], $new_password_hash, time() + $pun_config['o_timeout_visit']);
 
 		redirect('profile.php?section=essentials&amp;id='.$id, $lang_profile['Pass updated redirect']);
 	}
@@ -561,7 +561,7 @@ else if (isset($_POST['update_group_membership']))
 	$sql = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$id." AND group_id=".$new_group_id;
 	if (!$db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error('Unable to delete extra group from table.');
+			$pun_debug->error('Unable to delete extra group from table.');
 		} //End if.
 	} //End if.
 

@@ -232,10 +232,27 @@ $lang_admin_options = array(
 'Maintenance mode help'				=>	'When enabled, the board will only be available to administrators. This should be used if the board needs to be taken down temporarily for maintenance. <strong>WARNING! Do not log out when the board is in maintenance mode.</strong> You will not be able to login again.',
 'Maintenance message label'			=>	'Maintenance message',
 'Maintenance message help'			=>	'The message that will be displayed to users when the board is in maintenance mode. If left blank, a default message will be used. This text will not be parsed like regular posts and thus may contain HTML.',
+
+//Debugging Section
+'debug_subhead' 							=> 'Debugging',
 'enable_debug' 							=> 'Enable Debugging',
 'enable_debug_info' 						=> 'Put the forum into debugging mode.<br/><br/>
-Please note that this mode will create errors where there is nothing wrong, and is to be used only for tracing a problem.<br/><br/>
+Please note that this mode may create errors in places that seem to work just fine. It should be used only for tracing a problem.<br/><br/>
 If you are unable to access this page again for what ever reason, you can delete the file \'%s\' to disable debugging.',
 'enable_debug_make_error' 			=> 'Unable to write debug lock file, please ensure the cache is writeable.',
 'enable_debug_delete_error' 			=> 'Unable to remove debug lock file, please ensure the cache is writeable.',
+'debug_build_speed'						=> 'Show Build Speed',
+'debug_build_speed_info'				=> 'Show the build speed of each page at the bottom. Doesn\'t require debuggign to be activated.',
+'debug_admin' 								=> 'Admin Debug',
+'debug_admin_info' 						=> 'Only show debugging for admin users. This is a nice way to run a test or two without your users knowing.',
+'debug_verbose' 							=> 'Verbose Debugging',
+'debug_verbose_info' 					=> 'Shows more details in debugging, including PHP errors, which will display on the page.',
+'debug_log' 									=> 'Enable Debug Log',
+'debug_log_info' 							=> 'Debugging messages will be saved to a file as well.<br/><br/>You can find \'debug_log.php\' in your cache folder.',
+'debug_show_logs' 						=> 'Show Error logs',
+'debug_show_logs_info' 					=> 'Will show any errors that have happened on the current page at the bottom of the page.<br/><br/>Best to leave this disabled unless you are actively debugging.',
+'debug_show_queries' 					=> 'Show Query logs',
+'debug_show_queries_info' 			=> 'Show the queries that were sent during page construction.<br/><br/>Best to leave this disabled unless you are actively debugging.',
+'debug_show_requests' 					=> 'Show Request logs',
+'debug_show_requests_info' 			=> 'Show any off-site requests that were made and details about them.<br/><br/>Best to leave this disabled unless you are actively debugging.',
 );

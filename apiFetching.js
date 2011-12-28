@@ -228,7 +228,7 @@ function corpCallback() {
 
 function fetchCharacters() {
 	//Get the information, put our little loading image in,then submit the auth to the XML fetcher.
-	var userID,key,url;
+	var userID,key,url,fopen;
 	var newContent = new String();
 	
 	if (charText.length == 0) {
@@ -236,7 +236,8 @@ function fetchCharacters() {
 	} //End if,
 	
 	userID = document.getElementById("api_user_id").value;
-	key = document.getElementById("api_key").value;
+	key = document.getElementById("api_key").value;	
+	fopen = document.getElementById("use_fopen");
 	
 	//Lets check if they clicked OK without putting anything in (noobs)
 	if (userID == null || !isNumeric(userID)) {
@@ -253,11 +254,17 @@ function fetchCharacters() {
 		return false;
 	} //End if.
 	
+	if (fopen == null) {
+		fopen = false;
+	} else if (fopen.checked) {
+		fopen = true;
+	} //End if - else.
+	
 	//Pretty loading image.
 	newContent += "<img src=\"img/ajax-loader.gif\" width=\"16\" height=\"16\">";
 
 	//Now lets get the ball rolling in regards to the XML data.
-	url = "api.php?char_list="+userID+"-"+key;
+	url = "api.php?char_list="+userID+"-"+key+(fopen ? '&use_fopen' : '');
 	
 	document.getElementById("api_holder").innerHTML = newContent;
 	

@@ -89,6 +89,13 @@ if (isset($_POST['form_sent']))
 		'use_topic_stamp' => intval($_POST['form']['use_topic_stamp']),
 		'regen_token' => intval($_POST['form']['regen_token']),
 		'enable_debug' => intval($_POST['form']['enable_debug']),
+		'debug_build_speed' => intval($_POST['form']['debug_build_speed']),
+		'debug_admin' => intval($_POST['form']['debug_admin']),
+		'debug_log' => intval($_POST['form']['debug_log']),
+		'debug_verbose' => intval($_POST['form']['debug_verbose']),
+		'debug_show_logs' => intval($_POST['form']['debug_show_logs']),
+		'debug_show_queries' => intval($_POST['form']['debug_show_queries']),
+		'debug_show_requests' => intval($_POST['form']['debug_log']),
 		'users_online_refresh' => intval($_POST['form']['users_online_refresh']),
 	);
 	
@@ -882,11 +889,69 @@ generate_admin_menu('options');
 										<span><?php echo $lang_admin_options['Maintenance message help'] ?></span>
 									</td>
 								</tr>
+							</table>
+						</div>
+					</fieldset>
+				</div>
+				<div class="inform">
+					<fieldset>
+						<legend><?php echo $lang_admin_options['debug_subhead'] ?></legend>
+						<div class="infldset">
+							<table class="aligntop" cellspacing="0">
 								<tr>
 									<th scope="row"><?php echo $lang_admin_options['enable_debug'] ?></th>
 									<td>
 										<input type="radio" name="form[enable_debug]" value="1"<?php if ($pun_config['o_enable_debug'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[enable_debug]" value="0"<?php if ($pun_config['o_enable_debug'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
 										<span><?php echo sprintf($lang_admin_options['enable_debug_info'], FORUM_CACHE_DIR.'debug.lock') ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_options['debug_build_speed'] ?></th>
+									<td>
+										<input type="radio" name="form[debug_build_speed]" value="1"<?php if ($pun_config['o_debug_build_speed'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[debug_build_speed]" value="0"<?php if ($pun_config['o_debug_build_speed'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_options['debug_build_speed_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_options['debug_admin'] ?></th>
+									<td>
+										<input type="radio" name="form[debug_admin]" value="1"<?php if ($pun_config['o_debug_admin'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[debug_admin]" value="0"<?php if ($pun_config['o_debug_admin'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_options['debug_admin_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_options['debug_verbose'] ?></th>
+									<td>
+										<input type="radio" name="form[debug_verbose]" value="1"<?php if ($pun_config['o_debug_verbose'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[debug_verbose]" value="0"<?php if ($pun_config['o_debug_verbose'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_options['debug_verbose_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_options['debug_log'] ?></th>
+									<td>
+										<input type="radio" name="form[debug_log]" value="1"<?php if ($pun_config['o_debug_log'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[debug_log]" value="0"<?php if ($pun_config['o_debug_log'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_options['debug_log_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_options['debug_show_logs'] ?></th>
+									<td>
+										<input type="radio" name="form[debug_show_logs]" value="1"<?php if ($pun_config['o_debug_show_logs'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[debug_show_logs]" value="0"<?php if ($pun_config['o_debug_show_logs'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_options['debug_show_logs_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_options['debug_show_queries'] ?></th>
+									<td>
+										<input type="radio" name="form[debug_show_queries]" value="1"<?php if ($pun_config['o_debug_show_queries'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[debug_show_queries]" value="0"<?php if ($pun_config['o_debug_show_queries'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_options['debug_show_queries_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_options['debug_show_requests'] ?></th>
+									<td>
+										<input type="radio" name="form[debug_show_requests]" value="1"<?php if ($pun_config['o_debug_show_requests'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="form[debug_show_requests]" value="0"<?php if ($pun_config['o_debug_show_requests'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span><?php echo $lang_admin_options['debug_show_requests_info'] ?></span>
 									</td>
 								</tr>
 							</table>

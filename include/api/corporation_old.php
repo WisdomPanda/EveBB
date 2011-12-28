@@ -18,7 +18,7 @@ class Corporation {
 	var $taxRate;
 	
 	function load_corp($corpID) {
-		global $db, $pun_request, $_LAST_ERROR;
+		global $db, $pun_request, $pun_debug, $_LAST_ERROR;
 		$_LAST_ERROR = 0;
 		
 		$url = "http://api.eve-online.com/corp/CorporationSheet.xml.aspx";
@@ -34,9 +34,13 @@ class Corporation {
 		xml_set_character_data_handler($xml_parser, "characterData");
 		
 		if (!xml_parse($xml_parser, $xml, true)) {
-			error(sprintf("XML error: %s at line %d",
-			xml_error_string(xml_get_error_code($xml_parser)),
-			xml_get_current_line_number($xml_parser)), __FILE__, __LINE__);
+			if (defined('PUN_DEBUG')) {
+				$pun_debug->error(sprintf("XML error: %s at line %d",
+				xml_error_string(xml_get_error_code($xml_parser)),
+				xml_get_current_line_number($xml_parser)), __FILE__, __LINE__);
+			} //End if.
+			$_LAST_ERROR = API_SERVER_ERROR;
+			return false;
 		} //End if.
 		xml_parser_free($xml_parser);
 		

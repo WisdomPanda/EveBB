@@ -7,7 +7,7 @@ define('PUN_DEBUG', 1);
 define('PUN_ROOT', dirname(__FILE__).'/');
 
 //Determine if we can/should use cURL where possible.
-if (extension_loaded('curl') && $pun_config['o_use_fopen'] != '1') {
+if (extension_loaded('curl') && $pun_config['o_use_fopen'] != '1' && !isset($_GET['use_fopen'])) {
 	define('EVEBB_CURL', 1);
 } //End if.
 require(PUN_ROOT.'include/request.php');

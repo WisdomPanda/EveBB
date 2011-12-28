@@ -17,7 +17,7 @@ class Alliance {
 	 */
 	function update_list() {
 		
-		global $db, $pun_request, $_LAST_ERROR;
+		global $db, $pun_request, $pun_debug, $_LAST_ERROR;
 		$_LAST_ERROR = 0;
 		
 		$url = 'http://api.eve-online.com/eve/AllianceList.xml.aspx';
@@ -29,8 +29,8 @@ class Alliance {
 		
 		if (!$db->truncate_table('api_alliance_corps')) {
 			if (defined('PUN_DEBUG')) {
-					error("Unable to delete corps.", __FILE__, __LINE__, $db->error());
-				} //End if.
+				$pun_debug->error("Unable to delete corps.", __FILE__, __LINE__, $db->error());
+			} //End if.
 			return false;
 		} //End if.
 		
@@ -40,9 +40,13 @@ class Alliance {
 		xml_set_character_data_handler($xml_parser, "characterData");
 		
 		if (!xml_parse($xml_parser, $xml, true)) {
-			error(sprintf("XML error: %s at line %d",
-			xml_error_string(xml_get_error_code($xml_parser)),
-			xml_get_current_line_number($xml_parser)), __FILE__, __LINE__);
+			if (defined('PUN_DEBUG')) {
+				$pun_debug->error(sprintf("XML error: %s at line %d",
+				xml_error_string(xml_get_error_code($xml_parser)),
+				xml_get_current_line_number($xml_parser)), __FILE__, __LINE__);
+			} //End if.
+			$_LAST_ERROR = API_SERVER_ERROR;
+			return false;
 		} //End if.
 		xml_parser_free($xml_parser);
 		
@@ -50,7 +54,7 @@ class Alliance {
 	} //End load_list().
 		
 	function startElement($parser, $name, $attrs) {
-		global $db;
+		global $db, $pun_debug;
 		$this->current_tag = $name;
 		
 		if ($name == 'ROWSET') {
@@ -67,7 +71,7 @@ class Alliance {
 				$sql = "INSERT INTO ".$db->prefix."api_alliance_corps(allianceID, corporationID, startDate) VALUES(".$this->current_alliance.", ".$attrs['CORPORATIONID'].", '".$attrs['STARTDATE']."')";
 				if (!$db->query($sql)) {
 					if (defined('PUN_DEBUG')) {
-						error("Unable to insert corp.<br/>".$sql."<br/>".print_r($corp, true)."<br/>", __FILE__, __LINE__, $db->error());
+						$pun_debug->error("Unable to insert corp.<br/>".$sql."<br/>".print_r($corp, true)."<br/>", __FILE__, __LINE__, $db->error());
 					} //End if.
 					return false;
 				} //End if.
@@ -84,7 +88,7 @@ class Alliance {
 				
 				if (!$db->insert_or_update($fields, 'allianceID', $db->prefix.'api_alliance_list')) {
 					if (defined('PUN_DEBUG')) {
-							error((string)$list->error."<br/>".$sql."<br/>".print_r($row, true)."<br/>", __FILE__, __LINE__, $db->error());
+							$pun_debug->error((string)$list->error."<br/>".$sql."<br/>".print_r($row, true)."<br/>", __FILE__, __LINE__, $db->error());
 						} //End if.
 					return false;
 				} //End if.

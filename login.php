@@ -101,7 +101,26 @@ if (isset($_POST['form_sent']) && $action == 'in')
 	} //End if.
         
     //Lets update all our tracking bits.
-    $db->insert_or_update(
+    $sql = "DELETE FROM ".$db->prefix."session WHERE user_id=".$cur_user['id'];
+    $db->query($sql) or error('Unable to remove old session.');
+    $sql = "INSERT INTO ".$db->prefix."session
+    	(
+    		user_id,
+    		token,
+    		stamp,
+    		length,
+    		ip
+    	)
+    	VALUES
+    	(
+    		".$cur_user['id'].",
+    		'".$new_token."',
+    		".$now.",
+    		".(($save_pass == '1') ? 2629743 : $pun_config['session_length']).",
+    		'".$_SERVER['REMOTE_ADDR']."'
+    	);";
+    $db->query($sql) or error('Unable to add new session.');
+    /*$db->insert_or_update(
     	array(
     		'user_id' => $cur_user['id'],
     		'token' => $new_token,
@@ -111,7 +130,7 @@ if (isset($_POST['form_sent']) && $action == 'in')
     	),
     	'user_id',
     	$db->prefix.'session'
-    ) or error('Unable to update session data.', __FILE__, __LINE__, $db->error());
+    ) or error('Unable to update session data.', __FILE__, __LINE__, $db->error());*/
     
     //Have they never logged logged out before?
     if ($cur_user['last_visit'] == 0) {
@@ -132,7 +151,9 @@ if (isset($_POST['form_sent']) && $action == 'in')
 
 	// Reset tracked topics
 	set_tracked_topics(null);
-
+	if (defined('PUN_DEBUG_VERBOSE')) {
+		redirect(htmlspecialchars($_POST['redirect_url']), $lang_login['Login redirect'].'<br/>SQL: '.$sql.'<br/>$cookie:<br/>'.str_replace("\n", "<br/>\n", print_r($cookie, true)).'<br/>$_COOKIE:<br/>'.str_replace("\n", "<br/>\n", print_r($_COOKIE, true)).'<br/>$_SESSION:<br/>'.str_replace("\n", "<br/>\n", print_r($_SESSION, true)), false, 180);
+	} //End if.
 	redirect(htmlspecialchars($_POST['redirect_url']), $lang_login['Login redirect']);
 }
 
@@ -147,7 +168,7 @@ else if ($action == 'out')
 	
 	$db->query("DELETE FROM ".$db->prefix."session WHERE user_id=".$pun_user['user_id']); //Get rid of the old session.
 	
-	unset($_SESSION[$cookie_name]);
+	unset($_SESSION[str_replace('=', '', base64_encode($_SERVER['SERVER_NAME']))]);
 
 	// Remove user from "users online" list
 	$db->query('DELETE FROM '.$db->prefix.'online WHERE user_id='.$pun_user['id']) or error('Unable to delete from online list', __FILE__, __LINE__, $db->error());

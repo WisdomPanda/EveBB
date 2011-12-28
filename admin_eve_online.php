@@ -189,6 +189,7 @@ if ($action == "update_settings") {
 		'o_eve_cak_type',
 		'o_eve_profile_page',
 		'o_eve_req_cak',
+		'o_eve_cron_token',
 		);
 		
 		$log = '';
@@ -344,6 +345,21 @@ generate_admin_menu('eve_online');
 									<td>
 										<input type="radio" name="o_eve_use_cron" value="1"<?php if ($pun_config['o_eve_use_cron'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="o_eve_use_cron" value="0"<?php if ($pun_config['o_eve_use_cron'] == '0') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
 										<span><?php echo $lang_admin_eve_online['o_eve_use_cron_info'] ?></span>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><?php echo $lang_admin_eve_online['o_eve_cron_token'] ?></th>
+									<td>
+										<input type="radio" name="o_eve_cron_token" value="1"<?php if ($pun_config['o_eve_cron_token'] == '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="o_eve_cron_token" value="0"<?php if ($pun_config['o_eve_cron_token'] != '1') echo ' checked="checked"' ?> />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
+										<span>
+											<?php
+												$token = read_id_file('cron');
+												if ($token === false) {
+													$token = create_id_file('cron');
+												} //End if.
+												echo sprintf($lang_admin_eve_online['o_eve_cron_token_info'], $token);
+											?>
+										</span>
 									</td>
 								</tr>
 								<tr>

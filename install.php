@@ -33,7 +33,7 @@ define('EVE_ENABLED', 1);
 define('PUN_ROOT', dirname(__FILE__).'/');
 
 //Determine if we can/should use cURL where possible.
-if (extension_loaded('curl') && $pun_config['o_use_fopen'] != '1') {
+if (extension_loaded('curl') && $pun_config['o_use_fopen'] != '1' && !isset($_POST['use_fopen'])) {
 	define('EVEBB_CURL', 1);
 } //End if.
 require(PUN_ROOT.'include/request.php');
@@ -627,7 +627,9 @@ foreach ($alerts as $cur_alert)
 						<p><?php echo $lang_install['Evebb_admin_api_info1'] ?></p>
 						<label class="required"><strong><?php echo $lang_install['Evebb_admin_api_id'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><input id="api_user_id" type="text" name="api_user_id" value="<?php echo pun_htmlspecialchars($api_user_id) ?>" size="50" maxlength="80" /><br /></label>
 						<label class="required"><strong><?php echo $lang_install['Evebb_admin_api_key'] ?> <span><?php echo $lang_install['Required'] ?></span></strong><br /><input id="api_key" type="text" name="api_key" value="<?php echo pun_htmlspecialchars($api_key) ?>" size="50" maxlength="80" /><br /></label><br/>
-						<span id="api_holder"><a class="fetch_chars" href="index.php" onclick="fetchCharacters(); return false;"><span id="char_fetch_text"><?php echo $lang_install['Evebb_admin_api_fetch'] ?></span></a></span>
+						<span id="api_holder"><a class="fetch_chars" href="index.php" onclick="fetchCharacters(); return false;"><span id="char_fetch_text"><?php echo $lang_install['Evebb_admin_api_fetch'] ?></span></a></span><br/>
+						<input id="use_fopen" type=checkbox name="use_fopen" /> <?php echo $lang_install['eve_use_fopen']; ?><br/>
+						<br/>
 						<p><?php echo $lang_install['Evebb_admin_api_info2'] ?></p>
 						<div class="clearer"></div>
 					</div>

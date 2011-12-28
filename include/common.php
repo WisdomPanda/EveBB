@@ -6,10 +6,9 @@
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
 
-session_start();
 
 if (!defined('PUN_ROOT'))
-	exit('The constant PUN_ROOT must be defined and point to a valid FluxBB installation root directory.');
+	exit('The constant PUN_ROOT must be defined and point to a valid EveBB installation root directory.');
 
 // Define the version and database revision that this code was written for
 define('FORUM_VERSION', '1.4.5');
@@ -17,6 +16,7 @@ define('EVE_BB_VERSION', '1.1.14');
 //Functions for EvE-BB
 define('EVE_ENABLED', 1);
 require(PUN_ROOT.'include/eve_functions.php');
+require(PUN_ROOT.'include/debug.php');
 
 define('FORUM_DB_REVISION', 12);
 define('FORUM_SI_REVISION', 2);
@@ -69,6 +69,9 @@ $pun_start = get_microtime();
 // Make sure PHP reports all errors except E_NOTICE. FluxBB supports E_ALL, but a lot of scripts it may interact with, do not
 error_reporting(E_ALL ^ E_NOTICE);
 
+//To help keep everything clean and to follow the "no debugging unless enabled" train of thought, this is set via the debug_verbose option in the admin options section.
+ini_set('display_errors', 'off');
+
 // Force POSIX locale (to prevent functions such as strtolower() from messing up UTF-8 strings)
 setlocale(LC_CTYPE, 'C');
 
@@ -97,6 +100,8 @@ if (empty($cookie_name))
 // If the cache directory is not specified, we use the default setting
 if (!defined('FORUM_CACHE_DIR'))
 	define('FORUM_CACHE_DIR', PUN_ROOT.'cache/');
+	
+$pun_debug = new Debug();
 
 // Define a few commonly used constants
 define('PUN_UNVERIFIED', 0);
@@ -128,7 +133,31 @@ if (!defined('PUN_CONFIG_LOADED'))
 if ($pun_config['o_enable_debug'] == 1) {
 	//The lock file is made by the options, if it doesn't exist, someone has deleted it.
 	if (file_exists(FORUM_CACHE_DIR.'debug.lock')) {
+		
 		define('PUN_DEBUG', 1);
+		
+		//Now we enable the other debug options.
+		if ($pun_config['o_debug_log'] == 1) {
+			define('PUN_DEBUG_LOG', 1);
+		} //End if.
+		
+		if ($pun_config['o_debug_verbose'] == 1) {
+			ini_set('display_errors', 'on');
+			define('PUN_DEBUG_VERBOSE', 1);
+		} //End if.
+		
+		if ($pun_config['o_debug_show_logs'] == 1) {
+			define('PUN_SHOW_LOGS', 1);
+		} //End if.
+		
+		if ($pun_config['o_debug_show_requests'] == 1) {
+			define('PUN_SHOW_REQUESTS', 1);
+		} //End if.
+		
+		if ($pun_config['o_debug_show_queries'] == 1) {
+			define('PUN_SHOW_QUERIES', 1);
+		} //End if.
+		
 	} else {
 		//Turn it off fully, just to be sure.
 		$pun_config['o_enable_debug'] = 0;
@@ -138,9 +167,6 @@ if ($pun_config['o_enable_debug'] == 1) {
 		generate_config_cache();
 	} //End if - else.
 } //End if.
-
-//define('PUN_SHOW_QUERIES', 1);
-//define('PUN_SHOW_REQUESTS', 1);
 
 //Set the session length.
 //This is not something I'd like anyone tampering with unless they are aware of the kind of issues it could bring.
@@ -166,7 +192,7 @@ if (!defined('PUN_DISABLE_BUFFERING'))
 	else
 		ob_start();
 }
-
+session_start();
 // Define standard date/time formats
 $forum_time_formats = array($pun_config['o_time_format'], 'H:i:s', 'H:i', 'g:i:s a', 'g:i a');
 $forum_date_formats = array($pun_config['o_date_format'], 'Y-m-d', 'Y-d-m', 'd-m-Y', 'm-d-Y', 'M j Y', 'jS M Y');
@@ -182,7 +208,7 @@ if (file_exists(PUN_ROOT.'lang/'.$pun_user['language'].'/common.php')) {
 	include PUN_ROOT.'lang/'.$pun_user['language'].'/eve_bb.php';
 	/*********** EVE-BB ***********/
 } else {
-	error('There is no valid language pack \''.pun_htmlspecialchars($pun_user['language']).'\' installed. Please reinstall a language of that name');
+	$pun_debug->error('There is no valid language pack \''.pun_htmlspecialchars($pun_user['language']).'\' installed. Please reinstall a language of that name', 0, 0, false, true);
 } //End if - else.
 
 // Check if we are to display a maintenance message

@@ -93,8 +93,7 @@ if (get_magic_quotes_gpc())
 }
 
 // If a cookie name is not specified in config.php, we use the default (forum_cookie)
-if (empty($cookie_name))
-	$cookie_name = 'pun_cookie';
+$cookie_name = str_replace('=', '', base64_encode($_SERVER['SERVER_NAME']));
 
 // If the cache directory is not specified, we use the default setting
 if (!defined('FORUM_CACHE_DIR'))
@@ -968,7 +967,7 @@ function update_forum_perm($forum_id) {
 				$log .= "[".$cur_group['g_id']."]: Unable to add permissions [".$old_group."].\n";
 				continue;
 		} //End if.
-	}
+	} //End while loop.
 } //End update_forum_perm().
 
 /* EVEBB Updates*/

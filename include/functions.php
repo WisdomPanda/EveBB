@@ -41,7 +41,7 @@ function gen_token() {
 //
 function check_cookie(&$pun_user)
 {
-	global $db, $db_type, $pun_config, $cookie_seed;
+	global $db, $db_type, $pun_config, $cookie_seed, $pun_debug;
 	
 	//Create a cookie name that can't clash in anyway, just to be one the safe side.
 	//(Browsers *should* isolate the cookie per domain, but either way I don't want duplicate cookie names.)
@@ -59,7 +59,8 @@ function check_cookie(&$pun_user)
 	} else {
 		$_SESSION['igb'] = false;
 	} //End if - else.
-
+	
+	$_SESSION['remember'] = 0;
     //Lets pull our session data out.
     if (isset($_COOKIE[$cookie_name]) && preg_match('/^(\d+)\:([0-9a-zA-Z]{32}):([0-9a-fA-F]{32})$/', $_COOKIE[$cookie_name], $matches)) {
         $cookie['user_id'] = intval($matches[1]);
@@ -72,19 +73,46 @@ function check_cookie(&$pun_user)
         $cookie['hash'] = $matches[3];
     } //End if.
     
+    if (defined('PUN_DEBUG_VERBOSE')) {
+    	$pun_debug->error('Verbose dump - Pre Parse');
+    	
+    	$pun_debug->error('$cookie: ');
+    	$pun_debug->var_dump($cookie);
+    	
+    	$pun_debug->error('$_COOKIE: ');
+    	$pun_debug->var_dump($_COOKIE);
+    	
+    	$pun_debug->error('$_SESSION: ');
+    	$pun_debug->var_dump($_SESSION);
+    	
+    	$pun_debug->error('Listing sessions: ');
+    	
+    	$sql = 'SELECT * FROM '.$db->prefix.'session';
+    	$result = $db->query($sql);
+    	while ($row = $db->fetch_assoc($result)) {
+    		$pun_debug->error('['.$row['user_id'].'] '.$row['token'].' stamped @ '.$row['stamp'].' ('.gmdate('H:i:s d-m-Y', $row['stamp']).'), expires @ '.($row['stamp']+$row['length']).' ('.gmdate('H:i:s d-m-Y', ($row['stamp']+$row['length'])).')');
+    	} //End while loop.
+    } //End if.
+    
     if (!empty($cookie) && isset($cookie['user_id'])) {
     	
     	if (md5($cookie['user_id'].$cookie_seed.$cookie['token']) != $cookie['hash']) {
-    		if (defined('PUN_DEBUG')) {
-    			error('Hash mismatch.', __FILE__, __LINE__, $db->error());
-    		} //End if.
         	unset($_SESSION[$cookie_name]);
         	sleep(3);
         	set_default_user();
+        	
+        	if (defined('PUN_DEBUG')) {
+    			$pun_debug->error('Hash mismatch.', __FILE__, __LINE__, $db->error(), true);
+    		} //End if.
+    		
         	return; //The session has been messed with, abort!
     	} //End if.
     	
-		$result = $db->query('
+    	if (defined('PUN_DEBUG_VERBOSE')) {
+    		$pun_debug->error('Cookie hash is OK.');
+    	} //End if.
+    	
+    	$sql = '
 			SELECT
 				sess.*,
 				c.*,
@@ -94,12 +122,12 @@ function check_cookie(&$pun_user)
 				o.logged,
 				o.idle
 			FROM
-				'.$db->prefix.'session AS sess
-			INNER JOIN
 				'.$db->prefix.'users AS u
+			INNER JOIN
+				'.$db->prefix.'session AS sess
 			ON
 				sess.user_id=u.id
-			INNER JOIN
+			LEFT JOIN
 				'.$db->prefix.'groups AS g
 			ON
 				u.group_id=g.g_id
@@ -116,41 +144,49 @@ function check_cookie(&$pun_user)
 			ON
 				sc.character_id=c.character_id
 			WHERE
-				u.id='.intval($cookie['user_id']))
-		or error('Unable to fetch user information', __FILE__, __LINE__, $db->error());
+				u.id='.intval($cookie['user_id']);
+		$result = $db->query($sql) or $pun_debug->error('Unable to fetch user information', __FILE__, __LINE__, $db->error(), true);
         
         if ($db->num_rows($result) != 1) {
-    		if (defined('PUN_DEBUG')) {
-    			error('No user found.', __FILE__, __LINE__, $db->error());
-    		} //End if.
         	unset($_SESSION[$cookie_name]);
-        	set_default_user();
-        	sleep(3);
-        	return; //Chances are they have no active session.
-        } //End if.
-        
-        $pun_user = $db->fetch_assoc($result);
-        
-        if ($pun_user['token'] != $cookie['token']) {
-    		if (defined('PUN_DEBUG')) {
-    			error('Token mismatch: '.$pun_user['token'].', '.$cookie['token'], __FILE__, __LINE__, $db->error());
-    		} //End if.
-        	//Even though this failed, because of the possibility of external tomfoolery, we won't remove the session.
         	if (isset($cookie['remember'])) {
         		$expire = $now + 31536000; // The cookie expires after a year
         		forum_setcookie($cookie_name, pun_hash(uniqid(rand(), true)), $expire);
         	} //End if.
+        	set_default_user();
+        	sleep(3); //Delay them a bit.
+        	if (defined('PUN_DEBUG')) {
+    			$pun_debug->error('No user found.', __FILE__, __LINE__, $db->error(), true);
+    		} //End if.
+        	return;
+        } //End if.
+        
+        $pun_user = $db->fetch_assoc($result);
+    	
+    	if (defined('PUN_DEBUG_VERBOSE')) {
+    		$pun_debug->error('User OK.');
+    	} //End if.
+        
+        if ($pun_user['token'] != $cookie['token']) {
+        	//Even though this failed, because of the possibility of external tomfoolery, we won't remove the session.
+        	if (isset($cookie['remember'])) {
+        		forum_setcookie($cookie_name, pun_hash(uniqid(rand(), true)), $now + 31536000); //Reset the cookie to a dead cookie.
+        	} //End if.
         	unset($_SESSION[$cookie_name]);
         	set_default_user();
-        	sleep(3);
+        	sleep(1); //Slight delay.
+    		if (defined('PUN_DEBUG')) {
+    			$pun_debug->error('Token mismatch: '.$pun_user['token'].', '.$cookie['token'], __FILE__, __LINE__, $db->error(), true);
+    		} //End if.
         	return; //Trying to access from an old session, or they are evil!
         } //End if.
+    	
+    	if (defined('PUN_DEBUG_VERBOSE')) {
+    		$pun_debug->error('Token OK.');
+    	} //End if.
         
         //Is the stamp old or are they using a session cookie from a different IP?
         if ($now > ($pun_user['stamp'] + $pun_user['length']) || (($pun_user['ip'] != $_SERVER['REMOTE_ADDR']) && !isset($cookie['remember']))) {
-    		if (defined('PUN_DEBUG')) {
-    			error('IP or stamp mismatch.', __FILE__, __LINE__, $db->error());
-    		} //End if.
         	$db->query("DELETE FROM ".$db->prefix."session WHERE user_id=".$pun_user['id']); //Get rid of the old session.
         	if (isset($cookie['remember'])) {
         		$expire = $now + 31536000; // The cookie expires after a year
@@ -158,8 +194,15 @@ function check_cookie(&$pun_user)
         	} //End if.
         	unset($_SESSION[$cookie_name]);
         	set_default_user();
+    		if (defined('PUN_DEBUG')) {
+    			$pun_debug->error('IP or stamp mismatch.', __FILE__, __LINE__, $db->error(), true);
+    		} //End if.
         	return;
         } //End if.
+    	
+    	if (defined('PUN_DEBUG_VERBOSE')) {
+    		$pun_debug->error('IP/Stamp OK.');
+    	} //End if.
         
         //If they got this far, they provided a valid token with a valid user_id.
         $token = $pun_user['token'];
@@ -167,7 +210,7 @@ function check_cookie(&$pun_user)
         //Lets update all our tracking bits.
         $db->query("UPDATE ".$db->prefix."session SET stamp=".$now.", length=".((isset($cookie['remember'])) ? 2629743 : $pun_config['session_length'])." WHERE user_id=".$pun_user['id']);
 		
-		if (isset($cookie['remember']) && !isset($_SESSION['remember']) && $pun_config['o_regen_token'] == '1') {
+		if (isset($cookie['remember']) && $_SESSION['remember'] == 0 && $pun_config['o_regen_token'] == '1') {
 			//Let's generate a new token if they got here via a cookie login that doesn't have a session attached to it.
 			$_SESSION['remember'] = 1;
 			$token = gen_token();
@@ -176,14 +219,47 @@ function check_cookie(&$pun_user)
 		} else if (isset($cookie['remember'])) {
 			$_SESSION['remember'] = 1;
 		} //End if - else.
+    	
+    	if (defined('PUN_DEBUG_VERBOSE')) {
+    		$pun_debug->error('Regen OK.');
+    	} //End if.
 
 		// Send a new, updated cookie with a new expiration timestamp
 		if (isset($cookie['remember'])) {
 			forum_setcookie($cookie_name, $pun_user['id'].':'.$token.':'.md5($pun_user['id'].$cookie_seed.$token), $now+2629743); //Expire the cookie in 1 month.
 		} //End if - else.
+    	
+    	if (defined('PUN_DEBUG_VERBOSE')) {
+    		$pun_debug->error('Cookie OK.');
+    	} //End if.*/
 		
 		//Update the PHP Session.
 		$_SESSION[$cookie_name] = $pun_user['id'].':'.$token.':'.md5($pun_user['id'].$cookie_seed.$token);
+    	
+    	if (defined('PUN_DEBUG_VERBOSE')) {
+    		$pun_debug->error('Session OK.');
+    	} //End if.
+		
+	    if (defined('PUN_DEBUG_VERBOSE')) {
+	    	$pun_debug->error('Verbose dump - Post Parse');
+	    	
+	    	$pun_debug->error('$cookie: ');
+	    	$pun_debug->var_dump($cookie);
+	    	
+	    	$pun_debug->error('$_COOKIE: ');
+	    	$pun_debug->var_dump($_COOKIE);
+	    	
+	    	$pun_debug->error('$_SESSION: ');
+	    	$pun_debug->var_dump($_SESSION);
+	    	
+	    	$pun_debug->error('Listing sessions: ');
+	    	
+	    	$sql = 'SELECT * FROM '.$db->prefix.'session';
+	    	$result = $db->query($sql);
+	    	while ($row = $db->fetch_assoc($result)) {
+	    		$pun_debug->error('['.$row['user_id'].'] '.$row['token'].' stamped @ '.$row['stamp'].' ('.gmdate('H:i:s d-m-Y', $row['stamp']).'), expires @ '.($row['stamp']+$row['length']).' ('.gmdate('H:i:s d-m-Y', ($row['stamp']+$row['length'])).')');
+	    	} //End while loop.
+	    } //End if.
 
 		// Set a default language if the user selected language no longer exists
 		if (!file_exists(PUN_ROOT.'lang/'.$pun_user['language']))
@@ -214,11 +290,11 @@ function check_cookie(&$pun_user)
 					case 'mysql_innodb':
 					case 'mysqli_innodb':
 					case 'sqlite':
-						$db->query('REPLACE INTO '.$db->prefix.'online (user_id, ident, logged) VALUES('.$pun_user['id'].', \''.$db->escape($pun_user['username']).'\', '.$pun_user['logged'].')') or error('Unable to insert into online list', __FILE__, __LINE__, $db->error());
+						$db->query('REPLACE INTO '.$db->prefix.'online (user_id, ident, logged) VALUES('.$pun_user['id'].', \''.$db->escape($pun_user['username']).'\', '.$pun_user['logged'].')') or $pun_debug->error('Unable to insert into online list', __FILE__, __LINE__, $db->error(), true);
 						break;
 
 					default:
-						$db->query('INSERT INTO '.$db->prefix.'online (user_id, ident, logged) SELECT '.$pun_user['id'].', \''.$db->escape($pun_user['username']).'\', '.$pun_user['logged'].' WHERE NOT EXISTS (SELECT 1 FROM '.$db->prefix.'online WHERE user_id='.$pun_user['id'].')') or error('Unable to insert into online list', __FILE__, __LINE__, $db->error());
+						$db->query('INSERT INTO '.$db->prefix.'online (user_id, ident, logged) SELECT '.$pun_user['id'].', \''.$db->escape($pun_user['username']).'\', '.$pun_user['logged'].' WHERE NOT EXISTS (SELECT 1 FROM '.$db->prefix.'online WHERE user_id='.$pun_user['id'].')') or $pun_debug->error('Unable to insert into online list', __FILE__, __LINE__, $db->error(), true);
 						break;
 				}
 
@@ -230,12 +306,12 @@ function check_cookie(&$pun_user)
 				// Special case: We've timed out, but no other user has browsed the forums since we timed out
 				if ($pun_user['logged'] < ($now-$pun_config['o_timeout_visit']))
 				{
-					$db->query('UPDATE '.$db->prefix.'users SET last_visit='.$pun_user['logged'].' WHERE id='.$pun_user['id']) or error('Unable to update user visit data', __FILE__, __LINE__, $db->error());
+					$db->query('UPDATE '.$db->prefix.'users SET last_visit='.$pun_user['logged'].' WHERE id='.$pun_user['id']) or $pun_debug->error('Unable to update user visit data', __FILE__, __LINE__, $db->error(), true);
 					$pun_user['last_visit'] = $pun_user['logged'];
 				}
 
 				$idle_sql = ($pun_user['idle'] == '1') ? ', idle=0' : '';
-				$db->query('UPDATE '.$db->prefix.'online SET logged='.$now.$idle_sql.' WHERE user_id='.$pun_user['id']) or error('Unable to update online list', __FILE__, __LINE__, $db->error());
+				$db->query('UPDATE '.$db->prefix.'online SET logged='.$now.$idle_sql.' WHERE user_id='.$pun_user['id']) or $pun_debug->error('Unable to update online list', __FILE__, __LINE__, $db->error(), true);
 
 				// Update tracked topics with the current expire time
 				if (isset($_COOKIE[$cookie_name.'_track']))
@@ -247,6 +323,10 @@ function check_cookie(&$pun_user)
 			if (!$pun_user['logged'])
 				$pun_user['logged'] = $pun_user['last_visit'];
 		}
+		
+		if ($pun_user['g_id'] == '') {
+			$pun_user['g_id'] = $pun_user['group_id'];
+		} //End if.
 
 		$pun_user['is_guest'] = false;
 		$pun_user['is_admmod'] = $pun_user['g_id'] == PUN_ADMIN || $pun_user['g_moderator'] == '1';
@@ -255,9 +335,9 @@ function check_cookie(&$pun_user)
 		//We only look at their other groups if they aren't set as the purge group as primary.
 		if ($pun_user['g_id'] != $pun_config['o_eve_restricted_group']) {
 			$sql = "SELECT group_id FROM ".$db->prefix."groups_users WHERE user_id=".$pun_user['id'];
-			$result = $db->query($sql) or error('Unable to fetch group list', __FILE__, __LINE__, $db->error());
+			$result = $db->query($sql) or $pun_debug->error('Unable to fetch group list', __FILE__, __LINE__, $db->error(), true);
 			
-			$pun_user['group_ids'] = array();
+			$pun_user['group_ids'] = array($pun_user['g_id']);
 			
 			while ($row = $db->fetch_assoc($result)) {
 				$pun_user['group_ids'][] = $row['group_id'];
@@ -292,10 +372,10 @@ function escape_cdata($str)
 //
 function authenticate_user($user, $password, $password_is_hash = false)
 {
-	global $db, $pun_user;
+	global $db, $pun_user, $pun_debug;
 
 	// Check if there's a user matching $user and $password
-	$result = $db->query('SELECT u.*, g.*, o.logged, o.idle FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'groups AS g ON g.g_id=u.group_id LEFT JOIN '.$db->prefix.'online AS o ON o.user_id=u.id WHERE '.(is_int($user) ? 'u.id='.intval($user) : 'u.username=\''.$db->escape($user).'\'')) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT u.*, g.*, o.logged, o.idle FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'groups AS g ON g.g_id=u.group_id LEFT JOIN '.$db->prefix.'online AS o ON o.user_id=u.id WHERE '.(is_int($user) ? 'u.id='.intval($user) : 'u.username=\''.$db->escape($user).'\'')) or $pun_debug->error('Unable to fetch user info', __FILE__, __LINE__, $db->error(), true);
 	$pun_user = $db->fetch_assoc($result);
 
 	if (!isset($pun_user['id']) ||
@@ -367,12 +447,12 @@ function get_base_url($support_https = false)
 //
 function set_default_user()
 {
-	global $db, $db_type, $pun_user, $pun_config;
+	global $db, $db_type, $pun_user, $pun_config, $pun_debug;
 
 	$remote_addr = get_remote_address();
 
 	// Fetch guest user
-	$result = $db->query('SELECT u.*, g.*, o.logged, o.last_post, o.last_search FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'groups AS g ON u.group_id=g.g_id LEFT JOIN '.$db->prefix.'online AS o ON o.ident=\''.$remote_addr.'\' WHERE u.id=1') or error('Unable to fetch guest information', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT u.*, g.*, o.logged, o.last_post, o.last_search FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'groups AS g ON u.group_id=g.g_id LEFT JOIN '.$db->prefix.'online AS o ON o.ident=\''.$remote_addr.'\' WHERE u.id=1') or $pun_debug->error('Unable to fetch guest information', __FILE__, __LINE__, $db->error(), true);
 	if (!$db->num_rows($result))
 		exit('Unable to fetch guest information. The table \''.$db->prefix.'users\' must contain an entry with id = 1 that represents anonymous users.');
 
@@ -391,16 +471,16 @@ function set_default_user()
 			case 'mysql_innodb':
 			case 'mysqli_innodb':
 			case 'sqlite':
-				$db->query('REPLACE INTO '.$db->prefix.'online (user_id, ident, logged) VALUES(1, \''.$db->escape($remote_addr).'\', '.$pun_user['logged'].')') or error('Unable to insert into online list', __FILE__, __LINE__, $db->error());
+				$db->query('REPLACE INTO '.$db->prefix.'online (user_id, ident, logged) VALUES(1, \''.$db->escape($remote_addr).'\', '.$pun_user['logged'].')') or $pun_debug->error('Unable to insert into online list', __FILE__, __LINE__, $db->error(), true);
 				break;
 
 			default:
-				$db->query('INSERT INTO '.$db->prefix.'online (user_id, ident, logged) SELECT 1, \''.$db->escape($remote_addr).'\', '.$pun_user['logged'].' WHERE NOT EXISTS (SELECT 1 FROM '.$db->prefix.'online WHERE ident=\''.$db->escape($remote_addr).'\')') or error('Unable to insert into online list', __FILE__, __LINE__, $db->error());
+				$db->query('INSERT INTO '.$db->prefix.'online (user_id, ident, logged) SELECT 1, \''.$db->escape($remote_addr).'\', '.$pun_user['logged'].' WHERE NOT EXISTS (SELECT 1 FROM '.$db->prefix.'online WHERE ident=\''.$db->escape($remote_addr).'\')') or $pun_debug->error('Unable to insert into online list', __FILE__, __LINE__, $db->error(), true);
 				break;
 		}
 	}
 	else
-		$db->query('UPDATE '.$db->prefix.'online SET logged='.time().' WHERE ident=\''.$db->escape($remote_addr).'\'') or error('Unable to update online list', __FILE__, __LINE__, $db->error());
+		$db->query('UPDATE '.$db->prefix.'online SET logged='.time().' WHERE ident=\''.$db->escape($remote_addr).'\'') or $pun_debug->error('Unable to update online list', __FILE__, __LINE__, $db->error(), true);
 
 	$pun_user['disp_topics'] = $pun_config['o_disp_topics_default'];
 	$pun_user['disp_posts'] = $pun_config['o_disp_posts_default'];
@@ -452,7 +532,7 @@ function forum_hmac($data, $key, $raw_output = false)
 function pun_setcookie($user_id, $password_hash, $expire)
 {
 	global $cookie_seed;
-	$cookie_name = base64_encode($_SERVER['SERVER_NAME']);
+	$cookie_name = str_replace('=', '', base64_encode($_SERVER['SERVER_NAME']));
 
 	forum_setcookie($cookie_name, $user_id.'|'.forum_hmac($password_hash, $cookie_seed.'_password_hash').'|'.$expire.'|'.forum_hmac($user_id.'|'.$expire, $cookie_seed.'_cookie_hash'), $expire);
 }
@@ -500,7 +580,7 @@ function check_bans()
 		// Has this ban expired?
 		if ($cur_ban['expire'] != '' && $cur_ban['expire'] <= time())
 		{
-			$db->query('DELETE FROM '.$db->prefix.'bans WHERE id='.$cur_ban['id']) or error('Unable to delete expired ban', __FILE__, __LINE__, $db->error());
+			$db->query('DELETE FROM '.$db->prefix.'bans WHERE id='.$cur_ban['id']) or $pun_debug->error('Unable to delete expired ban', __FILE__, __LINE__, $db->error(), true);
 			$bans_altered = true;
 			continue;
 		}
@@ -531,7 +611,7 @@ function check_bans()
 
 		if ($is_banned)
 		{
-			$db->query('DELETE FROM '.$db->prefix.'online WHERE ident=\''.$db->escape($pun_user['username']).'\'') or error('Unable to delete from online list', __FILE__, __LINE__, $db->error());
+			$db->query('DELETE FROM '.$db->prefix.'online WHERE ident=\''.$db->escape($pun_user['username']).'\'') or $pun_debug->error('Unable to delete from online list', __FILE__, __LINE__, $db->error(), true);
 			message($lang_common['Ban message'].' '.(($cur_ban['expire'] != '') ? $lang_common['Ban message 2'].' '.strtolower(format_time($cur_ban['expire'], true)).'. ' : '').(($cur_ban['message'] != '') ? $lang_common['Ban message 3'].'<br /><br /><strong>'.pun_htmlspecialchars($cur_ban['message']).'</strong><br /><br />' : '<br /><br />').$lang_common['Ban message 4'].' <a href="mailto:'.$pun_config['o_admin_email'].'">'.$pun_config['o_admin_email'].'</a>.', true);
 		}
 	}
@@ -552,7 +632,7 @@ function check_bans()
 //
 function check_username($username, $exclude_id = null)
 {
-	global $db, $pun_config, $errors, $lang_prof_reg, $lang_register, $lang_common, $pun_bans;
+	global $db, $pun_config, $errors, $lang_prof_reg, $lang_register, $lang_common, $pun_bans, $pun_debug;
 
 	// Convert multiple whitespace characters into one (to prevent people from registering with indistinguishable usernames)
 	$username = preg_replace('#\s+#s', ' ', $username);
@@ -578,7 +658,7 @@ function check_username($username, $exclude_id = null)
 	// Check that the username (or a too similar username) is not already registered
 	$query = ($exclude_id) ? ' AND id!='.$exclude_id : '';
 
-	$result = $db->query('SELECT username FROM '.$db->prefix.'users WHERE (UPPER(username)=UPPER(\''.$db->escape($username).'\') OR UPPER(username)=UPPER(\''.$db->escape(ucp_preg_replace('/[^\p{L}\p{N}]/u', '', $username)).'\')) AND id>1'.$query) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT username FROM '.$db->prefix.'users WHERE (UPPER(username)=UPPER(\''.$db->escape($username).'\') OR UPPER(username)=UPPER(\''.$db->escape(ucp_preg_replace('/[^\p{L}\p{N}]/u', '', $username)).'\')) AND id>1'.$query) or $pun_debug->error('Unable to fetch user info', __FILE__, __LINE__, $db->error(), true);
 
 	if ($db->num_rows($result))
 	{
@@ -603,27 +683,27 @@ function check_username($username, $exclude_id = null)
 //
 function update_users_online()
 {
-	global $db, $pun_config;
+	global $db, $pun_config, $pun_debug;
 
 	$now = time();
 
 	// Fetch all online list entries that are older than "o_timeout_online"
-	$result = $db->query('SELECT user_id, ident, logged, idle FROM '.$db->prefix.'online WHERE logged<'.($now-$pun_config['o_timeout_online'])) or error('Unable to fetch old entries from online list', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT user_id, ident, logged, idle FROM '.$db->prefix.'online WHERE logged<'.($now-$pun_config['o_timeout_online'])) or $pun_debug->error('Unable to fetch old entries from online list', __FILE__, __LINE__, $db->error(), true);
 	while ($cur_user = $db->fetch_assoc($result))
 	{
 		// If the entry is a guest, delete it
 		if ($cur_user['user_id'] == '1')
-			$db->query('DELETE FROM '.$db->prefix.'online WHERE ident=\''.$db->escape($cur_user['ident']).'\'') or error('Unable to delete from online list', __FILE__, __LINE__, $db->error());
+			$db->query('DELETE FROM '.$db->prefix.'online WHERE ident=\''.$db->escape($cur_user['ident']).'\'') or $pun_debug->error('Unable to delete from online list', __FILE__, __LINE__, $db->error(), true);
 		else
 		{
 			// If the entry is older than "o_timeout_visit", update last_visit for the user in question, then delete him/her from the online list
 			if ($cur_user['logged'] < ($now-$pun_config['o_timeout_visit']))
 			{
-				$db->query('UPDATE '.$db->prefix.'users SET last_visit='.$cur_user['logged'].' WHERE id='.$cur_user['user_id']) or error('Unable to update user visit data', __FILE__, __LINE__, $db->error());
-				$db->query('DELETE FROM '.$db->prefix.'online WHERE user_id='.$cur_user['user_id']) or error('Unable to delete from online list', __FILE__, __LINE__, $db->error());
+				$db->query('UPDATE '.$db->prefix.'users SET last_visit='.$cur_user['logged'].' WHERE id='.$cur_user['user_id']) or $pun_debug->error('Unable to update user visit data', __FILE__, __LINE__, $db->error(), true);
+				$db->query('DELETE FROM '.$db->prefix.'online WHERE user_id='.$cur_user['user_id']) or $pun_debug->error('Unable to delete from online list', __FILE__, __LINE__, $db->error(), true);
 			}
 			else if ($cur_user['idle'] == '0')
-				$db->query('UPDATE '.$db->prefix.'online SET idle=1 WHERE user_id='.$cur_user['user_id']) or error('Unable to insert into online list', __FILE__, __LINE__, $db->error());
+				$db->query('UPDATE '.$db->prefix.'online SET idle=1 WHERE user_id='.$cur_user['user_id']) or $pun_debug->error('Unable to insert into online list', __FILE__, __LINE__, $db->error(), true);
 		}
 	}
 }
@@ -707,8 +787,8 @@ function generate_page_title($page_title, $p = null)
 //
 function set_tracked_topics($tracked_topics)
 {
-	global $cookie_name, $cookie_path, $cookie_domain, $cookie_secure, $pun_config;
-
+	global $cookie_path, $cookie_domain, $cookie_secure, $pun_config;
+	$cookie_name = str_replace('=', '', base64_encode($_SERVER['SERVER_NAME']));
 	$cookie_data = '';
 	if (!empty($tracked_topics))
 	{
@@ -740,7 +820,7 @@ function set_tracked_topics($tracked_topics)
 //
 function get_tracked_topics()
 {
-	global $cookie_name;
+	$cookie_name = str_replace('=', '', base64_encode($_SERVER['SERVER_NAME']));
 
 	$cookie_data = isset($_COOKIE[$cookie_name.'_track']) ? $_COOKIE[$cookie_name.'_track'] : false;
 	if (!$cookie_data)
@@ -770,22 +850,22 @@ function get_tracked_topics()
 //
 function update_forum($forum_id)
 {
-	global $db;
+	global $db, $pun_debug;
 
-	$result = $db->query('SELECT COUNT(id), SUM(num_replies) FROM '.$db->prefix.'topics WHERE forum_id='.$forum_id) or error('Unable to fetch forum topic count', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT COUNT(id), SUM(num_replies) FROM '.$db->prefix.'topics WHERE forum_id='.$forum_id) or $pun_debug->error('Unable to fetch forum topic count', __FILE__, __LINE__, $db->error(), true);
 	list($num_topics, $num_posts) = $db->fetch_row($result);
 
 	$num_posts = $num_posts + $num_topics; // $num_posts is only the sum of all replies (we have to add the topic posts)
 
-	$result = $db->query('SELECT last_post, last_post_id, last_poster FROM '.$db->prefix.'topics WHERE forum_id='.$forum_id.' AND moved_to IS NULL ORDER BY last_post DESC LIMIT 1') or error('Unable to fetch last_post/last_post_id/last_poster', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT last_post, last_post_id, last_poster FROM '.$db->prefix.'topics WHERE forum_id='.$forum_id.' AND moved_to IS NULL ORDER BY last_post DESC LIMIT 1') or $pun_debug->error('Unable to fetch last_post/last_post_id/last_poster', __FILE__, __LINE__, $db->error(), true);
 	if ($db->num_rows($result)) // There are topics in the forum
 	{
 		list($last_post, $last_post_id, $last_poster) = $db->fetch_row($result);
 
-		$db->query('UPDATE '.$db->prefix.'forums SET num_topics='.$num_topics.', num_posts='.$num_posts.', last_post='.$last_post.', last_post_id='.$last_post_id.', last_poster=\''.$db->escape($last_poster).'\' WHERE id='.$forum_id) or error('Unable to update last_post/last_post_id/last_poster', __FILE__, __LINE__, $db->error());
+		$db->query('UPDATE '.$db->prefix.'forums SET num_topics='.$num_topics.', num_posts='.$num_posts.', last_post='.$last_post.', last_post_id='.$last_post_id.', last_poster=\''.$db->escape($last_poster).'\' WHERE id='.$forum_id) or $pun_debug->error('Unable to update last_post/last_post_id/last_poster', __FILE__, __LINE__, $db->error(), true);
 	}
 	else // There are no topics
-		$db->query('UPDATE '.$db->prefix.'forums SET num_topics='.$num_topics.', num_posts='.$num_posts.', last_post=NULL, last_post_id=NULL, last_poster=NULL WHERE id='.$forum_id) or error('Unable to update last_post/last_post_id/last_poster', __FILE__, __LINE__, $db->error());
+		$db->query('UPDATE '.$db->prefix.'forums SET num_topics='.$num_topics.', num_posts='.$num_posts.', last_post=NULL, last_post_id=NULL, last_poster=NULL WHERE id='.$forum_id) or $pun_debug->error('Unable to update last_post/last_post_id/last_poster', __FILE__, __LINE__, $db->error(), true);
 }
 
 
@@ -812,14 +892,14 @@ function delete_avatar($user_id)
 //
 function delete_topic($topic_id)
 {
-	global $db;
+	global $db, $pun_debug;
 
 	// Delete the topic and any redirect topics
-	$db->query('DELETE FROM '.$db->prefix.'topics WHERE id='.$topic_id.' OR moved_to='.$topic_id) or error('Unable to delete topic', __FILE__, __LINE__, $db->error());
+	$db->query('DELETE FROM '.$db->prefix.'topics WHERE id='.$topic_id.' OR moved_to='.$topic_id) or $pun_debug->error('Unable to delete topic', __FILE__, __LINE__, $db->error(), true);
 
 	// Create a list of the post IDs in this topic
 	$post_ids = '';
-	$result = $db->query('SELECT id FROM '.$db->prefix.'posts WHERE topic_id='.$topic_id) or error('Unable to fetch posts', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT id FROM '.$db->prefix.'posts WHERE topic_id='.$topic_id) or $pun_debug->error('Unable to fetch posts', __FILE__, __LINE__, $db->error(), true);
 	while ($row = $db->fetch_row($result))
 		$post_ids .= ($post_ids != '') ? ','.$row[0] : $row[0];
 
@@ -829,11 +909,11 @@ function delete_topic($topic_id)
 		strip_search_index($post_ids);
 
 		// Delete posts in topic
-		$db->query('DELETE FROM '.$db->prefix.'posts WHERE topic_id='.$topic_id) or error('Unable to delete posts', __FILE__, __LINE__, $db->error());
+		$db->query('DELETE FROM '.$db->prefix.'posts WHERE topic_id='.$topic_id) or $pun_debug->error('Unable to delete posts', __FILE__, __LINE__, $db->error(), true);
 	}
 
 	// Delete any subscriptions for this topic
-	$db->query('DELETE FROM '.$db->prefix.'topic_subscriptions WHERE topic_id='.$topic_id) or error('Unable to delete subscriptions', __FILE__, __LINE__, $db->error());
+	$db->query('DELETE FROM '.$db->prefix.'topic_subscriptions WHERE topic_id='.$topic_id) or $pun_debug->error('Unable to delete subscriptions', __FILE__, __LINE__, $db->error(), true);
 	
 	global $pun_user;
 	require PUN_ROOT.'include/poll.php';
@@ -846,19 +926,19 @@ function delete_topic($topic_id)
 //
 function delete_post($post_id, $topic_id)
 {
-	global $db;
+	global $db, $pun_debug;
 
-	$result = $db->query('SELECT id, poster, posted FROM '.$db->prefix.'posts WHERE topic_id='.$topic_id.' ORDER BY id DESC LIMIT 2') or error('Unable to fetch post info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT id, poster, posted FROM '.$db->prefix.'posts WHERE topic_id='.$topic_id.' ORDER BY id DESC LIMIT 2') or $pun_debug->error('Unable to fetch post info', __FILE__, __LINE__, $db->error(), true);
 	list($last_id, ,) = $db->fetch_row($result);
 	list($second_last_id, $second_poster, $second_posted) = $db->fetch_row($result);
 
 	// Delete the post
-	$db->query('DELETE FROM '.$db->prefix.'posts WHERE id='.$post_id) or error('Unable to delete post', __FILE__, __LINE__, $db->error());
+	$db->query('DELETE FROM '.$db->prefix.'posts WHERE id='.$post_id) or $pun_debug->error('Unable to delete post', __FILE__, __LINE__, $db->error(), true);
 
 	strip_search_index($post_id);
 
 	// Count number of replies in the topic
-	$result = $db->query('SELECT COUNT(id) FROM '.$db->prefix.'posts WHERE topic_id='.$topic_id) or error('Unable to fetch post count for topic', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT COUNT(id) FROM '.$db->prefix.'posts WHERE topic_id='.$topic_id) or $pun_debug->error('Unable to fetch post count for topic', __FILE__, __LINE__, $db->error(), true);
 	$num_replies = $db->result($result, 0) - 1;
 
 	// If the message we deleted is the most recent in the topic (at the end of the topic)
@@ -866,14 +946,14 @@ function delete_post($post_id, $topic_id)
 	{
 		// If there is a $second_last_id there is more than 1 reply to the topic
 		if (!empty($second_last_id))
-			$db->query('UPDATE '.$db->prefix.'topics SET last_post='.$second_posted.', last_post_id='.$second_last_id.', last_poster=\''.$db->escape($second_poster).'\', num_replies='.$num_replies.' WHERE id='.$topic_id) or error('Unable to update topic', __FILE__, __LINE__, $db->error());
+			$db->query('UPDATE '.$db->prefix.'topics SET last_post='.$second_posted.', last_post_id='.$second_last_id.', last_poster=\''.$db->escape($second_poster).'\', num_replies='.$num_replies.' WHERE id='.$topic_id) or $pun_debug->error('Unable to update topic', __FILE__, __LINE__, $db->error(), true);
 		else
 			// We deleted the only reply, so now last_post/last_post_id/last_poster is posted/id/poster from the topic itself
-			$db->query('UPDATE '.$db->prefix.'topics SET last_post=posted, last_post_id=id, last_poster=poster, num_replies='.$num_replies.' WHERE id='.$topic_id) or error('Unable to update topic', __FILE__, __LINE__, $db->error());
+			$db->query('UPDATE '.$db->prefix.'topics SET last_post=posted, last_post_id=id, last_poster=poster, num_replies='.$num_replies.' WHERE id='.$topic_id) or $pun_debug->error('Unable to update topic', __FILE__, __LINE__, $db->error(), true);
 	}
 	else
 		// Otherwise we just decrement the reply counter
-		$db->query('UPDATE '.$db->prefix.'topics SET num_replies='.$num_replies.' WHERE id='.$topic_id) or error('Unable to update topic', __FILE__, __LINE__, $db->error());
+		$db->query('UPDATE '.$db->prefix.'topics SET num_replies='.$num_replies.' WHERE id='.$topic_id) or $pun_debug->error('Unable to update topic', __FILE__, __LINE__, $db->error(), true);
 }
 
 
@@ -1432,7 +1512,9 @@ function maintenance_message()
 
 	// End the transaction
 	$db->end_transaction();
-
+	
+	//Close off session.
+	session_write_close();
 
 	// Close the db connection (and free up any result data)
 	$db->close();
@@ -1444,7 +1526,7 @@ function maintenance_message()
 //
 // Display $message and redirect user to $destination_url
 //
-function redirect($destination_url, $message, $link_back = true)
+function redirect($destination_url, $message, $link_back = true, $time_overide = 0)
 {
 	global $db, $pun_config, $lang_common, $pun_user;
 	
@@ -1529,7 +1611,7 @@ function redirect($destination_url, $message, $link_back = true)
 	$page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_common['Redirecting']);
 
 ?>
-<meta http-equiv="refresh" content="<?php echo $pun_config['o_redirect_delay'] ?>;URL=<?php echo str_replace(array('<', '>', '"'), array('&lt;', '&gt;', '&quot;'), $destination_url) ?>" />
+<meta http-equiv="refresh" content="<?php echo ($time_overide > 0) ? $time_overide : $pun_config['o_redirect_delay']; ?>;URL=<?php echo str_replace(array('<', '>', '"'), array('&lt;', '&gt;', '&quot;'), $destination_url) ?>" />
 <title><?php echo generate_page_title($page_title) ?></title>
 <link rel="stylesheet" type="text/css" href="style/<?php echo $pun_user['style'].'.css' ?>" />
 <?php
@@ -1565,6 +1647,9 @@ function redirect($destination_url, $message, $link_back = true)
 
 	// End the transaction
 	$db->end_transaction();
+	
+	//Close off session.
+	session_write_close();
 
 	// Display executed queries (if enabled)
 	if (defined('PUN_SHOW_QUERIES'))
@@ -1592,7 +1677,7 @@ function redirect($destination_url, $message, $link_back = true)
 //
 function error($message, $file = null, $line = null, $db_error = false)
 {
-	global $pun_config, $lang_common;
+	global $db, $pun_config, $lang_common;
 	
 	if (defined('EVEBB_AUTO_DEBUG')) {
 		$xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
@@ -1668,33 +1753,40 @@ H2 {MARGIN: 0; COLOR: #FFFFFF; BACKGROUND-COLOR: #B84623; FONT-SIZE: 1.1em; PADD
 	<h2>An error was encountered</h2>
 	<div>
 <?php
-
-	if (defined('PUN_DEBUG') && $file !== null && $line !== null)
-	{
+	if (defined('PUN_DEBUG_VERBOSE')) {
 		echo "\t\t".'<strong>File:</strong> '.$file.'<br />'."\n\t\t".'<strong>Line:</strong> '.$line.'<br /><br />'."\n\t\t".'<strong>EveBB reported</strong>: '.$message."\n";
 
-		if ($db_error)
-		{
+		if ($db_error) {
+			echo "\t\t".'<br /><br /><strong>Database reported:</strong> '.pun_htmlspecialchars($db_error['error_msg']).(($db_error['error_no']) ? ' (Errno: '.$db_error['error_no'].')' : '')."\n";
+		} //End if.
+	} else if (defined('PUN_DEBUG') && $file !== null && $line !== null) {
+		echo "\t\t".'<strong>File:</strong> '.$file.'<br />'."\n\t\t".'<strong>Line:</strong> '.$line.'<br /><br />'."\n\t\t".'<strong>EveBB reported</strong>: '.$message."\n";
+
+		if ($db_error) {
 			echo "\t\t".'<br /><br /><strong>Database reported:</strong> '.pun_htmlspecialchars($db_error['error_msg']).(($db_error['error_no']) ? ' (Errno: '.$db_error['error_no'].')' : '')."\n";
 
-			if ($db_error['error_sql'] != '')
+			if ($db_error['error_sql'] != '') {
 				echo "\t\t".'<br /><br /><strong>Failed query:</strong> '.pun_htmlspecialchars($db_error['error_sql'])."\n";
-		}
-	}
-	else
+			} //End if.
+		} //End if.
+	} else {
 		echo "\t\t".'Error: <strong>'.$message.'.</strong>'."\n";
+	} //End if - else.
 
 ?>
 	</div>
+<?php (defined('PUN_DEBUG_VERBOSE') ? display_saved_queries() : '');?>
 </div>
-
 </body>
 </html>
 <?php
 
 	// If a database connection was established (before this error) we close it
 	if ($db_error)
-		$GLOBALS['db']->close();
+		$db->close();
+		
+	//Close off session.
+	session_write_close();
 
 	exit;
 }

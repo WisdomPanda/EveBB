@@ -37,6 +37,7 @@ class DBLayer
 
 	function DBLayer($db_host, $db_username, $db_password, $db_name, $db_prefix, $p_connect)
 	{
+		global $pun_debug;
 		$this->prefix = $db_prefix;
 
 		if ($db_host)
@@ -65,7 +66,7 @@ class DBLayer
 			$this->link_id = @pg_connect(implode(' ', $connect_str));
 
 		if (!$this->link_id)
-			error('Unable to connect to PostgreSQL server', __FILE__, __LINE__);
+			$pun_debug->error('Unable to connect to PostgreSQL server', __FILE__, __LINE__, false, true);
 
 		// Setup the client-server character set (UTF-8)
 		if (!defined('FORUM_NO_SET_NAMES'))
@@ -196,7 +197,7 @@ class DBLayer
 			if (is_array($primaryKey)) {
 				$sql = "UPDATE ".$table." SET ".$update_fields." WHERE ".$keyList;
 			} else {
-				$sql = "UPDATE ".$table." SET ".$update_fields." WHERE ".$primaryKey."=".(is_string($value) ? "'".$fields[$primaryKey]."'": $fields[$primaryKey]);
+				$sql = "UPDATE ".$table." SET ".$update_fields." WHERE ".$primaryKey."=".(is_string($fields[$primaryKey]) ? "'".$fields[$primaryKey]."'": $fields[$primaryKey]);
 			} //End if - else.
 		} else {
 			//Insert that data, baby.

@@ -85,7 +85,7 @@ if ($action == 'update_skills') {
 		ASC";
 	if (!$skills = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error('Unable to fetch skill queue information.', __FILE__, __LINE__, $db->error());
+			$pun_debug->error('Unable to fetch skill queue information.', __FILE__, __LINE__, $db->error());
 		} //End if.
 		message('Unable to fetch skill queue information.');
 	} //End if.
@@ -163,7 +163,7 @@ if ($action == 'refresh_keys') {
 	$sql = "SELECT * FROM ".$db->prefix."api_auth WHERE api_user_id=".$api_user_id;
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to get ApiUserID.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to get ApiUserID.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		message('[DB ERR] Unable to refresh your api details.');
 	} //End if.
@@ -219,12 +219,32 @@ if ($action == 'add_character') {
 			message("Malformed Vars.");
 		} //End if.
 		
+		$errors = array();
+		
 		if (($err = $cak->validate_mask()) != CAK_OK) {
+			switch ($cak_err) {
+				case(CAK_BAD_FETCH):
+					$errors[] = "Unable to fetch information from the API server. Please ensure the API server is currently operational.";
+					break;
+				case(CAK_BAD_KEY):
+					$errors[] = "Your API Detials are not correct, please ensure they are correct and try again.";
+					break;
+				case(CAK_BAD_MASK):
+					$errors[] = "Unable to locate a non-zero access mask for your CAK.";
+					break;
+				case(CAK_EXPIRE_SET):
+					$errors[] = "Your CAK is set to expire; EveBB does not support this option. (By choice)";
+					break;
+				case(CAK_BAD_TYPE):
+					$errors[] = "Your CAK type is not allowed by the administrators of this forum. If you are using character based CAK's, please try account based instead.";
+					break;
+				case(CAK_MASK_CLASH):
+					$errors[] = 'Your API keys do not have the correct access mask associated.<br/>This forum requires a mask of at least '.$pun_config['o_eve_cak_mask'];
+					break;
+			} //End switch().
 			if ($err == CAK_MASK_CLASH) {
-				message('Your API keys do not have the correct access mask associated.<br/>This forum requires a mask of at least '.$pun_config['o_eve_cak_mask']);
-			} else {
-				message('['.$err.'] Unable to fetch API information.');
-			} //End if - else.
+				message(implode("<br/>\n", $errors));
+			} //End if.
 		} //End if.
 		
 		$result = update_characters($id, $cak);
@@ -260,7 +280,7 @@ if ($action == 'remove_keys') {
 	$sql = "SELECT DISTINCT api_user_id FROM ".$db->prefix."api_auth WHERE user_id=".$id.";";
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to get user ID's.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to get user ID's.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		message('[DB ERR] Unable to remove your api details.');
 	} //End if.
@@ -285,14 +305,14 @@ if ($action == 'remove_keys') {
 	
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to get character.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to get character.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		message("Unable to fetch character data.");
 	} //End if.
 	
 	if ($db->num_rows($result) != 1) {
 		if (defined('PUN_DEBUG')) {
-			error("No Characters.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("No Characters.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		message('You apparently have no characters. Way to break it.');
 	} //End if.
@@ -307,7 +327,7 @@ if ($action == 'remove_keys') {
 	$sql = "DELETE FROM ".$db->prefix."api_auth WHERE api_user_id=".$api_user_id;
 	if (!$db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to dlete keys.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to dlete keys.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		message('Can\'t delete your keys.');
 	} //End if.

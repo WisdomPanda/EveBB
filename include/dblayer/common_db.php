@@ -39,7 +39,7 @@ switch ($db_type)
 		break;
 
 	default:
-		error('\''.$db_type.'\' is not a valid database type. Please check settings in config.php.', __FILE__, __LINE__);
+		$pun_debug->error('\''.$db_type.'\' is not a valid database type. Please check settings in config.php.', __FILE__, __LINE__, false, true);
 		break;
 }
 

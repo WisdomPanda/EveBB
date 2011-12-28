@@ -24,7 +24,7 @@ $_LAST_ERROR = 0;
  * Just like to group similar things together in a function pretty much.
  */
 function task_runner() {
-	global $db, $pun_config;
+	global $db, $pun_config, $pun_debug;
 	
 	$run_skills = $run_auth = $run_ally = $run_rules = $run_char = $force_char = false;
 	$action = $_GET['action'];
@@ -34,6 +34,8 @@ function task_runner() {
 		//We're running a cron job, so it's safe to run the more lengthy tasks.
 		if ($action == 'update_characters') {
 			$run_char = true;
+			$run_rules = true;
+			$run_auth = true;
 		} //End if.
 		
 		if ($action == 'update_alliance') {
@@ -45,7 +47,7 @@ function task_runner() {
 		} //End if.
 		
 		if ($action == 'update_all') {
-			$run_skills = $run_ally = $run_char = true;
+			$run_rules = $run_auth = $run_skills = $run_ally = $run_char = true;
 		} //End if.
 		
 	} else if ($pun_config['o_eve_use_cron'] == '0') {
@@ -53,7 +55,7 @@ function task_runner() {
 		$sql = "SELECT last_update FROM  ".$db->prefix."api_characters WHERE last_update<".(time()-($pun_config['o_eve_cache_char_sheet_interval']*60*60))." ORDER BY  last_update DESC LIMIT 0,1";
 		if (!$result = $db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
-				error("Unable to fetch corp list.", __FILE__, __LINE__, $db->error());
+				$pun_debug->error("Unable to fetch corp list.", __FILE__, __LINE__, $db->error());
 			} //End if.
 		} else {
 			if ($db->num_rows($result) == 1) {
@@ -84,8 +86,15 @@ function task_runner() {
 	//For debugging...
 	//$run_auth = $run_rules = true;
 	
+	if ($run_char) {
+		if (isset($_GET['force_char'])) {
+			$force_char = true;
+		} //End if.
+		$log = array_merge($log, task_update_characters(1, defined('EVE_CRON_ACTIVE'), $force_char));
+	} //End if.
+	
 	if ($run_auth) {
-		if (!task_check_auth()) {
+		if (!task_check_auth($log)) {
 			$log[] = 'Unable to complete auth check!<br/>';
 		} else {
 			$log[] = 'Auth checked!<br/>';
@@ -94,20 +103,14 @@ function task_runner() {
 	} //End if.
 	
 	if ($run_rules) {
-		$ignore = '';
-		if (!apply_rules($ignore)) {
+		$rules = '';
+		if (apply_rules($rules) == false) {
 			$log[] = 'Unable to complete rule check!<br/>';
 		} else {
-			$log[] = 'Rule applied!<br/>';
+			$log[] = 'Rules applied!<br/>';
+			$db->insert_or_update(array('conf_name' => 'o_eve_last_rule_check', 'conf_value' => time()), 'conf_name', $db->prefix.'config');
 		} //End if - else.
-		$db->insert_or_update(array('conf_name' => 'o_eve_last_rule_check', 'conf_value' => time()), 'conf_name', $db->prefix.'config');
-	} //End if.
-	
-	if ($run_char) {
-		if (isset($_GET['force_char'])) {
-			$force_char = true;
-		} //End if.
-		$log = array_merge($log, task_update_characters(1, defined('EVE_CRON_ACTIVE'), $force_char));
+		$log[] = $rules;
 	} //End if.
 	
 	if ($run_ally) {
@@ -250,7 +253,6 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 		return $log;
 	} //End if.
 	
-	
 	$log[] = "Starting the character update on [".$db->num_rows($result)."] characters.<br/><br/>";
 	
 	$_LAST_ERROR = 0;
@@ -258,6 +260,11 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
 	
 	while ($row = $db->fetch_assoc($result)) {
 		if (intval($row['cak_type']) == 0) {
+			//No more mister nice guy.
+			//We now kill all non-CAK users back into their bad, bad default group.
+			$log [] = sprintf("[%s] %s - Has not updated their CAK type - killing their forum access.", $row['character_id'], $row['character_name']);
+			purge_unclean(array($row['user_id']), $pun_config['o_eve_restricted_group']);
+			remove_api_keys($row['user_id']);
 			continue;
 		} //End if.
 		$cak = new CAK($row['api_user_id'],$row['api_key'],$row['api_character_id']);
@@ -297,12 +304,13 @@ function task_update_characters($limit = 1, $force = false, $full_force = false)
  * Find the users with no authed characters and restrict them as such.
  */
 function clean_no_auth($log) {
-	global $db, $pun_config, $lang_eve_bb, $_LAST_ERROR;
+	global $db, $pun_config, $pun_debug, $lang_eve_bb, $_LAST_ERROR;
 	
-	$sql = "SELECT u.id, u.username FROM ".$db->prefix."users AS u WHERE u.id NOT IN (SELECT user_id FROM ".$db->prefix."api_auth)  AND u.group_id!=".PUN_GUEST;
+	//Get all users who have no api keys, but are also not already in the default group.
+	$sql = "SELECT u.id, u.username FROM ".$db->prefix."users AS u WHERE u.id NOT IN (SELECT user_id FROM ".$db->prefix."api_auth) AND u.group_id>".PUN_GUEST." AND u.group_id!=".$pun_config['o_eve_restricted_group'];
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable find the inactive characters.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable find the inactive characters.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return; //What can we do?
 	} //End if.
@@ -310,7 +318,7 @@ function clean_no_auth($log) {
 	$unclean = array();
 	
 	while ($row = $db->fetch_assoc($result)) {
-		$log [] = sprintf("[%s] %s - Restricting user.", $row['id'], $row['username']);
+		$log [] = sprintf("[%s] %s - Restricting user. (No authed characters)", $row['id'], $row['username']);
 		$unclean[] = $row['id'];
 	} //End while loop().
 	
@@ -322,7 +330,7 @@ function clean_no_auth($log) {
  * Checks to see if a user is not in the corp/alliance specified, and if they aren't move them to an inactive status.
  *
  */
-function task_check_auth() {
+function task_check_auth(&$log) {
 	global $db, $pun_config, $lang_common;
 				
 	//End any open transactions, incase we've recently added corps or the likes.
@@ -335,15 +343,15 @@ function task_check_auth() {
 		SELECT
 			noauth.user_id,
 			noauth.character_id,
-			user.group_id
+			u.group_id
 		FROM
 			".$db->prefix."api_selected_char AS noauth
 		INNER JOIN
-			".$db->prefix."users AS user
+			".$db->prefix."users AS u
 		ON
-			noauth.user_id=user.id
+			noauth.user_id=u.id
 		WHERE
-			user.group_id != ".PUN_ADMIN."
+			u.group_id > ".PUN_GUEST."
 		AND
 			noauth.character_id
 		NOT IN
@@ -362,10 +370,16 @@ function task_check_auth() {
 					ac.corporationID=c.corp_id
 			)";
 	if (!$result = $db->query($sql)) {
+		$err = $db->error();
+		$log [] = sprintf("Unable to run character SQL.\n[%s] %s", $db->error_no, $db->error_msg);
+		if (defined('PUN_DEBUG')) {
+			$log [] = sprintf("SQL: %s", $sql);
+		} //End if.
 		return false;
 	} //End if.
 	
 	if ($db->num_rows($result) == 0) {
+		$log [] = "No users found that require purging, skipping.";
 		return true;
 	} //End if.
 	
@@ -377,8 +391,8 @@ function task_check_auth() {
 	
 	//OMGAH! UUUUNNNNNNCLLLLLEEEEEEEAAAAAAAANNNNNNNNNNNNNZZZZZ
 	//PURRRRGGGGEEEEEEE THHHHHEEEEEEEMMMMMMMMMMMMMMM
-	
-	return purge_unclean($users, $pun_config['o_eve_restricted_group']);
+	array_merge($log, purge_unclean($users, $pun_config['o_eve_restricted_group']));
+	return true;
 	
 } //End task_check_auth().
 
@@ -403,18 +417,22 @@ function purge_unclean($users, $group_id) {
 		} //End if.
 		
 		if ($pass !== true) {
-			$sql = "UPDATE ".$db->prefix."users SET group_id=".$group_id." WHERE id=".$row['user_id']." AND group_id!=".PUN_ADMIN.";";
+			$sql = "UPDATE ".$db->prefix."users SET group_id=".$group_id." WHERE id=".$row['user_id']." AND group_id>".PUN_GUEST.";";
 			$sql1 = "DELETE FROM ".$db->prefix."groups_users WHERE user_id=".$row['user_id'];
-			if (!$db->query($sql) || !$db->query($sql1)) {
+			if (!$db->query($sql)) {
 				$log[] = sprintf($lang_common['eve_purge_user_failed'], $row['character_name']);
 				continue;
-			} //End if.
-			$log[] = sprintf($lang_common['eve_purge_user_done'], $row['character_name']);
+			} else if (!$db->query($sql1)) {
+				$log[] = sprintf($lang_common['eve_purge_user_failed'], $row['character_name']);
+				continue;
+			} else {
+				$log[] = sprintf($lang_common['eve_purge_user_done'], $row['character_name']);
+			} //End if - else.
 		} //End if.
 		
 	} //End foreach.
 	
-	return $logs;
+	return $log;
 	
 } //End purge_unclean.
 
@@ -534,7 +552,7 @@ function check_rules() {
  * Applies any user defined rules to the user list.
  */
 function apply_rules(&$log) {
-	global $db, $pun_config, $_HOOKS;
+	global $db, $pun_config, $pun_debug, $_HOOKS;
 	
 	//Finish any out standing transactions.
 	$db->end_transaction();
@@ -602,7 +620,7 @@ function apply_rules(&$log) {
 	
 	//New group rule assignment block.
 	
-	//Let's tell the hooks we're about to process characters - we won't be passing them an arrayfilled with characters.
+	//Let's tell the hooks we're about to process characters - we won't be passing them an array filled with characters.
 	//This is just for inital loads or tasks before the rules.
 	foreach ($_HOOKS['rules'] as $hook) {
 		$hook->first_load($characters);
@@ -644,7 +662,7 @@ function apply_rules(&$log) {
 		//Select all their groups that are not locked and groups that are not specified as rules that apply to them.
 		//You could put this as the primary delete SQL as well, but from memory that can be flakey when you go two deep.
 		//I seem to recall some cache issues on MySQL as well. Either way; this works.
-		$sql = "SELECT g.g_id FROM ".$db->prefix."groups_users AS ug INNER JOIN ".$db->prefix."groups AS g ON g.g_id=ug.group_id WHERE g.g_locked=0 AND ug.group_id NOT IN
+		$sql = "SELECT DISTINCT g.g_id FROM ".$db->prefix."groups_users AS ug INNER JOIN ".$db->prefix."groups AS g ON g.g_id=ug.group_id WHERE ug.user_id=".$row['id']." AND g.g_locked=0 AND ug.group_id NOT IN
 			(SELECT group_id FROM ".$db->prefix."api_groups WHERE id=".$row['corp_id']." OR id=".$row['ally_id']." OR id=0)";
 		if (!$groups_result = $db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
@@ -674,7 +692,7 @@ function apply_rules(&$log) {
 			
 			//Find out if the mask matches.
 			if (!compare_roles($rule['role'], $row['roles'])) {
-				$post_purge[] = $rule['group_id'];
+				$post_purge[$rule['group_id']] = $rule['group_id'];
 				continue; //Denied based on roles.
 			} //End if.
 			
@@ -698,7 +716,7 @@ function apply_rules(&$log) {
 						);
 					if (!$db->insert_or_update($fields, array('user_id', 'group_id'), $db->prefix.'groups_users')) {
 						if (defined('PUN_DEBUG')) {
-							error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
+							$pun_debug->error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
 						} //End if.
 						$log .= "[".$row['username']."]: Unable to add user to group [".$old_group."].\n";
 						continue;
@@ -715,7 +733,7 @@ function apply_rules(&$log) {
 					);
 				if (!$db->insert_or_update($fields, array('user_id', 'group_id'), $db->prefix.'groups_users')) {
 					if (defined('PUN_DEBUG')) {
-						error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
+						$pun_debug->error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
 					} //End if.
 					$log .= "[".$row['username']."]: Unable to add user to group [".$rule['group_id']."].\n";
 					continue;
@@ -728,7 +746,7 @@ function apply_rules(&$log) {
 		//Remove old groups...
 			foreach ($post_purge as $p) {
 				//There isn't a huge amount we need to do past this.
-				$log .= "[".$row['username']."]: Removing from group [".$p."]\n";
+				$log .= "[".$row['username']."]: Removing from group [".$p."] (Post Purge)\n";
 				$db->query("DELETE FROM ".$db->prefix."groups_users WHERE group_id=".$p." AND user_id=".$row['id'].";");
 			} //End foreach loop.
 		} //End if.
@@ -749,6 +767,8 @@ function apply_rules(&$log) {
 		$hook->last_load($characters);
 	} //End foreach().
 	
+	$log .= "\nRules applied successfully.";
+	
 	return true;
 	
 } //End apply_rules().
@@ -757,12 +777,12 @@ function apply_rules(&$log) {
  * Removes a rule. Simplicity function basically.
  */
 function remove_rule($id, $group_id, $type = 0, $role = 0) {
-	global $db;
+	global $db, $pun_debug;
 	
 	$sql = "DELETE FROM ".$db->prefix."api_groups WHERE id=".$id." AND group_id=".$group_id." AND type=".$type." AND role='".$role."';";
 	if (!$db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to remove rule.<br/>".$sql, __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to remove rule.<br/>".$sql, __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -775,13 +795,13 @@ function remove_rule($id, $group_id, $type = 0, $role = 0) {
  */
 function is_allowed_corp($corpID) {
 	
-	global $db;
+	global $db, $pun_debug;
 	
 	//Get the allowed corps.
 	$sql = "SELECT corporationid FROM ".$db->prefix."api_allowed_corps WHERE allowed=1 AND corporationid=".$corpID.";";
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Enable to get corp list.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Enable to get corp list.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -801,7 +821,7 @@ function is_allowed_corp($corpID) {
  */
 
 function fetch_character_api(&$cak) {
-	global $_LAST_ERROR;
+	global $pun_debug, $_LAST_ERROR;
 	$_LAST_ERROR = 0;
 	if ($cak->validate(true) != CAK_OK) {
 		$_LAST_ERROR = API_BAD_AUTH;
@@ -812,7 +832,7 @@ function fetch_character_api(&$cak) {
 	
 	if (!$char_sheet->load_character($cak)) {
 		if (defined('PUN_DEBUG')) {
-			error("[".$_LAST_ERROR."] Unable to load character.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("[".$_LAST_ERROR."] Unable to load character.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -825,19 +845,19 @@ function fetch_character_api(&$cak) {
  * Fetches corpID from the selected characterID, then passes it to add_corp($corpID) - convience method.
  */
 function add_corp_from_character($id, $allowed = true) {
-	global $db;
+	global $db, $pun_debug;
 	
 	$sql = "SELECT corp_id FROM ".$db->prefix."api_characters WHERE character_id=".$id.";";
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to fetch corpID from character."); //Used in install, so kinda important.
+			$pun_debug->error("Unable to fetch corpID from character."); //Used in install, so kinda important.
 		} //End if.
 		return false;
 	} //End if.
 	
 	if ($db->num_rows($result) != 1) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to find the character you specified.");
+			$pun_debug->error("Unable to find the character you specified.");
 			return false;
 		} //End if.
 	} //End if.
@@ -854,7 +874,7 @@ function add_corp_from_character($id, $allowed = true) {
  * Note: Admins in the corp counts as an error. We do so to be on the safe side.
  */
 function purge_corp($id, $remove_group = true) {
-	global $db;
+	global $db, $pun_debug;
 	//Fetch all users from this corp that are admins.
 	$sql = "	SELECT
 		sc.*,
@@ -878,7 +898,7 @@ function purge_corp($id, $remove_group = true) {
 		c.corp_id=".$id;
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to delete corp.<br/>".$sql, __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to delete corp.<br/>".$sql, __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -895,7 +915,7 @@ function purge_corp($id, $remove_group = true) {
 	$sql = "UPDATE ".$db->prefix."api_allowed_corps SET allowed=0 WHERE corporationid=".$id.";";
 	if (!$db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to delete corp.<br/>".$sql, __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to delete corp.<br/>".$sql, __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -905,7 +925,7 @@ function purge_corp($id, $remove_group = true) {
 		$sql = "DELETE FROM ".$db->prefix."api_groups WHERE id=".$id." AND type=0;";
 		if (!$db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
-				error("Unable to delete corp related groups.<br/>".$sql, __FILE__, __LINE__, $db->error());
+				$pun_debug->error("Unable to delete corp related groups.<br/>".$sql, __FILE__, __LINE__, $db->error());
 			} //End if.
 			return false;
 		} //End if.
@@ -921,13 +941,13 @@ function purge_corp($id, $remove_group = true) {
  * Use purge corp if you wish to disallow a corp.
  */
 function add_corp($corpID, $allowed = true) {
-	global $db,$_LAST_ERROR;
+	global $db, $pun_debug, $_LAST_ERROR;
 	
 	$corp_sheet = new Corporation();
 	
 	if (!$corp_sheet->load_corp($corpID)) {
 		if (defined('PUN_DEBUG')) {
-			error("[".$_LAST_ERROR."] Unable to fetch corp data.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("[".$_LAST_ERROR."] Unable to fetch corp data.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -965,7 +985,7 @@ function add_corp($corpID, $allowed = true) {
  * Adds a set of API keys to the database, updating where needed.
  */
 function add_api_keys($user_id, &$cak) {
-	global $db;
+	global $db, $pun_debug;
 	
 	$fields = array(
 			'user_id' => $user_id,
@@ -977,7 +997,7 @@ function add_api_keys($user_id, &$cak) {
 	
 	if (!$db->insert_or_update($fields, 'api_character_id', $db->prefix.'api_auth')) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to update API keys.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to update API keys.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -990,7 +1010,7 @@ function add_api_keys($user_id, &$cak) {
  * Removes all API keys associated with a user or a single character, depending what you pass it.
  */
 function remove_api_keys($user_id = 0, $character_id = 0) {
-	global $db;
+	global $db, $pun_debug;
 	
 	if ($user_id > 0) {
 		$sql = '
@@ -1010,7 +1030,7 @@ function remove_api_keys($user_id = 0, $character_id = 0) {
 	
 	if (!$db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to remove API keys.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to remove API keys.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if/
@@ -1030,8 +1050,7 @@ function remove_api_keys($user_id = 0, $character_id = 0) {
  * Returns the character object used to get the list.
  */
 function update_characters($user_id, &$cak, $update = true) {
-	global $db;
-	global $_LAST_ERROR;
+	global $db, $pun_debug, $_LAST_ERROR;
 	$_LAST_ERROR = 0;
 	
 	if ($cak->validate() != CAK_OK) {
@@ -1044,14 +1063,14 @@ function update_characters($user_id, &$cak, $update = true) {
 	
 	if (!$characters->get_list($cak)) {
 		if (defined('PUN_DEBUG')) {
-				error("[".$_LAST_ERROR."] Could not load character list.", __FILE__, __LINE__, $db->error());
+				$pun_debug->error("[".$_LAST_ERROR."] Could not load character list.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
 	
 	if (count($characters->characterList) == 0) {
 		if (defined('PUN_DEBUG')) {
-				error("[".$_LAST_ERROR."] No characters found in list.", __FILE__, __LINE__, $db->error());
+				$pun_debug->error("[".$_LAST_ERROR."] No characters found in list.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -1067,7 +1086,7 @@ function update_characters($user_id, &$cak, $update = true) {
 				a.api_user_id=".$cak->id;
 		if (!$result = $db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
-					error("Unable to fetch existing characters.", __FILE__, __LINE__, $db->error());
+					$pun_debug->error("Unable to fetch existing characters.", __FILE__, __LINE__, $db->error());
 			} //End if.
 			return false;
 		} //End if.
@@ -1133,8 +1152,7 @@ function update_characters($user_id, &$cak, $update = true) {
  * This function handles both inserts and updating.
  */
 function update_character_sheet($user_id, $cak = null, $sheet = false) {
-	global $db;
-	global $_LAST_ERROR;
+	global $db, $pun_debug, $_LAST_ERROR;
 	$_LAST_ERROR = 0;
 	
 	//If any of them are not set and if sheet is false...
@@ -1151,7 +1169,7 @@ function update_character_sheet($user_id, $cak = null, $sheet = false) {
 		
 		if (!$char_sheet->load_character($cak)) {
 			if (defined('PUN_DEBUG')) {
-				error("[".$_LAST_ERROR."] Could not load character.", __FILE__, __LINE__, $db->error());
+				$pun_debug->error("[".$_LAST_ERROR."] Could not load character.", __FILE__, __LINE__, $db->error());
 			} //End if.
 			return false;
 		} //End if.
@@ -1182,8 +1200,8 @@ function update_character_sheet($user_id, $cak = null, $sheet = false) {
 	
 	if (!$db->insert_or_update($fields, 'character_id', $db->prefix.'api_characters')) {
 		if (defined('PUN_DEBUG')) {
-		error("Unable to run update query for character data.<br/>", __FILE__, __LINE__, $db->error());
-	} //End if.
+			$pun_debug->error("Unable to run update query for character data.<br/>", __FILE__, __LINE__, $db->error());
+		} //End if.
 		return false;
 	} //End if.
 	
@@ -1198,13 +1216,13 @@ function update_character_sheet($user_id, $cak = null, $sheet = false) {
  * But for now, screw your freedom. Only Spai's want freedom.
  */
 function select_character($user_id, $character_id) {
-	global $db;
+	global $db, $pun_debug;
 	
 	//Let's test to see if the character exists.
 	$sql = "SELECT character_id FROM ".$db->prefix."api_characters WHERE character_id=".$character_id.";";
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to see if character exists.<br/>", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to see if character exists.<br/>", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -1218,7 +1236,7 @@ function select_character($user_id, $character_id) {
 	
 	if (!$db->insert_or_update(array('user_id' => $user_id, 'character_id' => $character_id), 'user_id', $db->prefix.'api_selected_char')) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to select character.<br/>", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to select character.<br/>", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -1232,7 +1250,7 @@ function select_character($user_id, $character_id) {
  * Fetchs the character information for last poster in a forum. Takes a forum_id, returns char array or false.
  */
 function fetch_last_forum_poster_character($id) {
-	global $db;
+	global $db, $pun_debug;
 	
 	$sql = "
 		SELECT
@@ -1266,14 +1284,14 @@ function fetch_last_forum_poster_character($id) {
 	
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to query character data.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to query character data.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
 	
 	if ($db->num_rows($result) == 0) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to find character/user data.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to find character/user data.", __FILE__, __LINE__, $db->error());
 		}//End if.
 		return false;
 	} //End if.
@@ -1292,7 +1310,7 @@ function fetch_last_forum_poster_character($id) {
  * Fetchs the characrer information for last poster in a forum/topic. Takes an id (post or topic), returns char array or false.
  */
 function fetch_last_poster_character($id, $is_topic = false) {
-	global $db;
+	global $db, $pun_debug;
 	
 	if (!$is_topic) {
 		$sql = "
@@ -1344,14 +1362,14 @@ function fetch_last_poster_character($id, $is_topic = false) {
 	
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to query character data.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to query character data.", __FILE__, __LINE__, $db->error());
 		} //End if.\
 		return false;
 	} //End if.
 	
 	if ($db->num_rows($result) == 0) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to find character data.".$sql, __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to find character data.".$sql, __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -1364,7 +1382,7 @@ function fetch_last_poster_character($id, $is_topic = false) {
  * Fetchs the characrer information for the topic poster in a forum. Takes a topic_id, returns char array or false.
  */
 function fetch_topic_poster_character($id) {
-	global $db;
+	global $db, $pun_debug;
 	
 	$sql = "
 		SELECT
@@ -1392,16 +1410,16 @@ function fetch_topic_poster_character($id) {
 	";
 	
 	if (!$result = $db->query($sql)) {
-		/*if (defined('PUN_DEBUG')) {
-			error("Unable to query character data.", __FILE__, __LINE__, $db->error());
-		} //End if.*/
+		if (defined('PUN_DEBUG')) {
+			$pun_debug->error("Unable to query character data.", __FILE__, __LINE__, $db->error());
+		} //End if.
 		return false;
 	} //End if.
 	
 	if ($db->num_rows($result) == 0) {
-		/*if (defined('PUN_DEBUG')) {
-			error("Unable to find character data.".$sql, __FILE__, __LINE__, $db->error());
-		} //End if.*/
+		if (defined('PUN_DEBUG')) {
+			$pun_debug->error("Unable to find character data.".$sql, __FILE__, __LINE__, $db->error());
+		} //End if.
 		return false;
 	} //End if.
 	
@@ -1414,7 +1432,7 @@ function fetch_topic_poster_character($id) {
  * This is only acceptable to use when you are NOT requiring the character to have a corp associated.
  */
 function fetch_selected_character($id, $limited = false) {
-	global $db;
+	global $db, $pun_debug;
 		$sql = "
 			SELECT
 				sc.*,
@@ -1440,7 +1458,7 @@ function fetch_selected_character($id, $limited = false) {
 	
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to query character data.<br/>".$sql, __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to query character data.<br/>".$sql, __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -1574,24 +1592,6 @@ function convert_roles($roles) {
 		
 	} //End while loop.
 	
-	/*//Lets first set the scale to 0.
-	bscale(0);
-	$auth = array();
-	
-	//Now then, we loop through the api_roles array, backwards!
-	$temp_api_roles = array_reverse($api_roles);
-	foreach($temp_api_roles as $key => $value) {
-		$auth[$value] = false;
-		if ($value == 0) {
-			$auth[$value] = true;
-			continue; //The 'Any' value is in there, which will get set to true always.
-		} //End if.
-		if (bdiv($roles, $value) == 1) {
-			$roles = bsub($roles, $value);
-			$auth[$value] = true;
-		} //End if.
-	} //End 'i' for loop().*/
-	
 	return $auth;
 } //End convert_roles().
 
@@ -1625,17 +1625,14 @@ function cache_char_pic($id, $force = false) {
 	
 	$img = 'img/chars/'.$id.'_64.jpg';
 	if (!file_exists($img) || $force) {
-		
 		$pun_request->fetch_file('http://image.eveonline.com/Character/'.$id.'_64.jpg', $img);
-		
 	} //End if.
 	
 	$img = 'img/chars/'.$id.'_128.jpg';
 	if (!file_exists($img) || $force) {
-		
 		$pun_request->fetch_file('http://image.eveonline.com/Character/'.$id.'_128.jpg', $img);
-		
 	} //End if.
+	
 	return true;
 } //End cache_char_pic().
 
@@ -1695,5 +1692,44 @@ function strip_special($string) {
 	return preg_replace($regex, "", $string);
 	
 } //End strip_special().
+
+/**
+ * Creates a lock file with a 'hidden' token to validate the legitness of our user.
+ * Since this file is kept in .php format and the token is a comment, nothing will be displayed by viewing the page.
+ * @return Returns the token used in the file.
+ */
+function create_id_file($file, $length = 32) {
+	
+	$token = md5('evebb_'.$file.'_'.time()-rand(0, 9876543210));
+	
+	file_put_contents(FORUM_CACHE_DIR.$file.'_lock.php', '<?php /*'.$token.'*/ ?>');
+	
+	return $token;
+	
+} //End create_id_file().
+
+/**
+ * Reads the lock file with a 'hidden' token to validate the legitness of our user.
+ * Since this file is kept in .php format and the token is a comment, nothing will be displayed by viewing the page.
+ * @return Returns the token used in the file, or false if there was a problem.
+ */
+function read_id_file($file) {
+	
+	if (!file_exists(FORUM_CACHE_DIR.$file.'_lock.php')) {
+		return false;
+	} //End if.
+	
+	if (!$token = file_get_contents(FORUM_CACHE_DIR.$file.'_lock.php')) {
+		return false;
+	} //End if.
+	
+	$matches = array();
+	if (preg_match('|^\<\?php\s*\/\*([a-z0-9]{32})\*\/\s*\?\>$|', $token, $matches) == 0) {
+		return false;
+	} //End if.
+	
+	return $matches[1];
+	
+} //End read_id_file().
 
 ?>

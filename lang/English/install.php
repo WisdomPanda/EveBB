@@ -127,5 +127,6 @@ $lang_install = array(
 'Evebb_username' => 'Username: ',
 'Evebb_password' => 'Password: ',
 'Evebb_details' => 'Your Details: ',
+'eve_use_fopen' => 'Use Fopen instead of cURL for API fetching.<br/>(Only change if you are unable to fetch your character.)',
 
 );

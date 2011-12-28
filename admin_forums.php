@@ -193,7 +193,7 @@ else if (isset($_GET['edit_forum']))
 						
 				if (!$db->insert_or_update($fields, array('forum_id', 'group_id'), $db->prefix.'forum_perms')) {
 						if (defined('PUN_DEBUG')) {
-							error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
+							$pun_debug->error('Unable to add group to table.', __FILE__, __LINE__, $db->error());
 						} //End if.
 						$log .= "[".$cur_group['g_id']."]: Unable to add permissions [".$old_group."].\n";
 						continue;

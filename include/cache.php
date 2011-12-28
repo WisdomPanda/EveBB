@@ -16,17 +16,17 @@ if (!defined('PUN'))
 //
 function generate_config_cache()
 {
-	global $db;
+	global $db, $pun_debug;
 
 	// Get the forum config from the DB
-	$result = $db->query('SELECT * FROM '.$db->prefix.'config', true) or error('Unable to fetch forum config', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT * FROM '.$db->prefix.'config', true) or $pun_debug->error('Unable to fetch forum config', __FILE__, __LINE__, $db->error(), true);
 	while ($cur_config_item = $db->fetch_row($result))
 		$output[$cur_config_item[0]] = $cur_config_item[1];
 
 	// Output config as PHP code
 	$fh = @fopen(FORUM_CACHE_DIR.'cache_config.php', 'wb');
 	if (!$fh)
-		error('Unable to write configuration cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+		$pun_debug->error('Unable to write configuration cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__, false, true);
 
 	fwrite($fh, '<?php'."\n\n".'define(\'PUN_CONFIG_LOADED\', 1);'."\n\n".'$pun_config = '.var_export($output, true).';'."\n\n".'?>');
 
@@ -37,25 +37,25 @@ function generate_config_cache()
 }
 
 function generate_online_cache() {
-	global $db, $lang_index;
+	global $db, $lang_index, $pun_debug;
 	
 	// Update online list
 	update_users_online();
 
 	$fh = @fopen(FORUM_CACHE_DIR.'cache_online.php', 'wb');
 	if (!$fh) {
-		error('Unable to online cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+		$pun_debug->error('Unable to online cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__, false, true);
 	} //End if.
 	
 	if (!file_put_contents(FORUM_CACHE_DIR.'online.stamp', time())) {
-		error('Unable to online cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+		$pun_debug->error('Unable to online cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__, false, true);
 	} //End if.
 	
 	fwrite($fh, '<?php'."\n\n".'define(\'PUN_ONLINE_LOADED\', 1);'."\n\n".'?>'."\n\n");
 	// Fetch users online info and generate strings for output
 	$num_guests = 0;
 	$users = array();
-	$result = $db->query('SELECT o.user_id, o.ident, o.idle,sc.user_id,sc.character_id,c.character_id,c.character_name,o.logged FROM '.$db->prefix.'online AS o,'.$db->prefix.'api_selected_char AS sc, '.$db->prefix.'api_characters AS c  WHERE o.idle=0  AND sc.user_id=o.user_id AND sc.character_id=c.character_id ORDER BY o.ident', true) or error('Unable to fetch online list', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT o.user_id, o.ident, o.idle,sc.user_id,sc.character_id,c.character_id,c.character_name,o.logged FROM '.$db->prefix.'online AS o,'.$db->prefix.'api_selected_char AS sc, '.$db->prefix.'api_characters AS c  WHERE o.idle=0  AND sc.user_id=o.user_id AND sc.character_id=c.character_id ORDER BY o.ident', true) or $pun_debug->error('Unable to fetch online list', __FILE__, __LINE__, $db->error(), true);
 
 	while ($pun_user_online = $db->fetch_assoc($result))
 	{
@@ -89,10 +89,10 @@ function generate_online_cache() {
 //
 function generate_bans_cache()
 {
-	global $db;
+	global $db, $pun_debug;
 
 	// Get the ban list from the DB
-	$result = $db->query('SELECT * FROM '.$db->prefix.'bans', true) or error('Unable to fetch ban list', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT * FROM '.$db->prefix.'bans', true) or $pun_debug->error('Unable to fetch ban list', __FILE__, __LINE__, $db->error(), true);
 
 	$output = array();
 	while ($cur_ban = $db->fetch_assoc($result))
@@ -101,7 +101,7 @@ function generate_bans_cache()
 	// Output ban list as PHP code
 	$fh = @fopen(FORUM_CACHE_DIR.'cache_bans.php', 'wb');
 	if (!$fh)
-		error('Unable to write bans cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+		$pun_debug->error('Unable to write bans cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__, false, true);
 
 	fwrite($fh, '<?php'."\n\n".'define(\'PUN_BANS_LOADED\', 1);'."\n\n".'$pun_bans = '.var_export($output, true).';'."\n\n".'?>');
 
@@ -117,10 +117,10 @@ function generate_bans_cache()
 //
 function generate_ranks_cache()
 {
-	global $db;
+	global $db, $pun_debug;
 
 	// Get the rank list from the DB
-	$result = $db->query('SELECT * FROM '.$db->prefix.'ranks ORDER BY min_posts', true) or error('Unable to fetch rank list', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT * FROM '.$db->prefix.'ranks ORDER BY min_posts', true) or $pun_debug->error('Unable to fetch rank list', __FILE__, __LINE__, $db->error(), true);
 
 	$output = array();
 	while ($cur_rank = $db->fetch_assoc($result))
@@ -129,7 +129,7 @@ function generate_ranks_cache()
 	// Output ranks list as PHP code
 	$fh = @fopen(FORUM_CACHE_DIR.'cache_ranks.php', 'wb');
 	if (!$fh)
-		error('Unable to write ranks cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+		$pun_debug->error('Unable to write ranks cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__, false, true);
 
 	fwrite($fh, '<?php'."\n\n".'define(\'PUN_RANKS_LOADED\', 1);'."\n\n".'$pun_ranks = '.var_export($output, true).';'."\n\n".'?>');
 
@@ -145,7 +145,7 @@ function generate_ranks_cache()
 //
 function generate_quickjump_cache($group_id = false)
 {
-	global $db, $lang_common, $pun_user;
+	global $db, $lang_common, $pun_user, $pun_debug;
 
 	$file = $group_id;
 	$groups = array();
@@ -159,20 +159,26 @@ function generate_quickjump_cache($group_id = false)
 		$group_id = (int)$temp[0];
 		
 		// Is this group even allowed to read forums?
-		$result = $db->query('SELECT g_read_board FROM '.$db->prefix.'groups WHERE g_id='.$group_id) or error('Unable to fetch user group read permission', __FILE__, __LINE__, $db->error());
+		$result = $db->query('SELECT g_read_board FROM '.$db->prefix.'groups WHERE g_id='.$group_id) or $pun_debug->error('Unable to fetch user group read permission', __FILE__, __LINE__, $db->error(), true);
 		$read_board = $db->result($result);
 
 		$groups[$group_id] = $read_board;
-	}
-	else
-	{
+	} else {
 		// A group_id was not supplied, so we generate the quick jump cache for all groups
-		$result = $db->query('SELECT g_id, g_read_board FROM '.$db->prefix.'groups') or error('Unable to fetch user group list', __FILE__, __LINE__, $db->error());
+		$result = $db->query('SELECT g_id, g_read_board FROM '.$db->prefix.'groups') or $pun_debug->error('Unable to fetch user group list', __FILE__, __LINE__, $db->error(), true);
 		$num_groups = $db->num_rows($result);
 
 		while ($row = $db->fetch_row($result))
 			$groups[$row[0]] = $row[1];
-	}
+	} //End if - else.
+	
+	//Now to be neat, we remove the old quickjump files.
+	$files = scandir(FORUM_CACHE_DIR);
+	foreach ($files as $f) {
+		if (strpos($f, 'cache_quickjump_') !== false) {
+			@unlink(FORUM_CACHE_DIR.$f);
+		} //End if.
+	} //End foreach().
 	
 	if (count($temp) > 1 && $groups[$group_id] == '1') {
 		//EveBB Muli-group support for quick-jump.
@@ -195,7 +201,7 @@ function generate_quickjump_cache($group_id = false)
 		// Output quick jump as PHP code
 		$fh = @fopen(FORUM_CACHE_DIR.'cache_quickjump_'.$file.'.php', 'wb');
 		if (!$fh)
-			error('Unable to write quick jump cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+			$pun_debug->error('Unable to write quick jump cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__, false, true);
 
 		$output = '<?php'."\n\n".'if (!defined(\'PUN\')) exit;'."\n".'define(\'PUN_QJ_LOADED\', 1);'."\n".'$forum_id = isset($forum_id) ? $forum_id : 0;'."\n\n".'?>';
 
@@ -203,9 +209,9 @@ function generate_quickjump_cache($group_id = false)
 		{
 			if (!$is_admin) {
 				$sql = 'SELECT DISTINCT c.id AS cid, c.cat_name, c.disp_position, c.id, f.disp_position, f.id AS fid, f.forum_name, f.redirect_url, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id INNER JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND ('.$group_ids.')) WHERE fp.read_forum=1 ORDER BY c.disp_position, c.id, f.disp_position';
-				$result = $db->query($sql) or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
+				$result = $db->query($sql) or $pun_debug->error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error(), true);
 			} else {
-				$result = $db->query('SELECT DISTINCT c.id AS cid, c.cat_name, c.disp_position, c.id, f.disp_position, f.id AS fid, f.forum_name, f.redirect_url, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id ORDER BY c.disp_position, c.id, f.disp_position') or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
+				$result = $db->query('SELECT DISTINCT c.id AS cid, c.cat_name, c.disp_position, c.id, f.disp_position, f.id AS fid, f.forum_name, f.redirect_url, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id ORDER BY c.disp_position, c.id, f.disp_position') or $pun_debug->error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error(), true);
 			} //End if - else.
 			if ($db->num_rows($result))
 			{
@@ -248,13 +254,13 @@ function generate_quickjump_cache($group_id = false)
 		// Output quick jump as PHP code
 		$fh = @fopen(FORUM_CACHE_DIR.'cache_quickjump_'.$group_id.'.php', 'wb');
 		if (!$fh)
-			error('Unable to write quick jump cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+			$pun_debug->error('Unable to write quick jump cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__, false, true);
 
 		$output = '<?php'."\n\n".'if (!defined(\'PUN\')) exit;'."\n".'define(\'PUN_QJ_LOADED\', 1);'."\n".'$forum_id = isset($forum_id) ? $forum_id : 0;'."\n\n".'?>';
 
 		if ($read_board == '1')
 		{
-			$result = $db->query('SELECT c.id AS cid, c.cat_name, f.id AS fid, f.forum_name, f.redirect_url, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$group_id.') WHERE fp.read_forum IS NULL OR fp.read_forum=1 ORDER BY c.disp_position, c.id, f.disp_position') or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
+			$result = $db->query('SELECT c.id AS cid, c.cat_name, f.id AS fid, f.forum_name, f.redirect_url, f.parent_forum_id FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$group_id.') WHERE fp.read_forum IS NULL OR fp.read_forum=1 ORDER BY c.disp_position, c.id, f.disp_position') or $pun_debug->error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error(), true);
 
 			if ($db->num_rows($result))
 			{
@@ -295,9 +301,9 @@ function generate_quickjump_cache($group_id = false)
 //
 function generate_censoring_cache()
 {
-	global $db;
+	global $db, $pun_debug;
 
-	$result = $db->query('SELECT search_for, replace_with FROM '.$db->prefix.'censoring') or error('Unable to fetch censoring list', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT search_for, replace_with FROM '.$db->prefix.'censoring') or $pun_debug->error('Unable to fetch censoring list', __FILE__, __LINE__, $db->error(), true);
 	$num_words = $db->num_rows($result);
 
 	$search_for = $replace_with = array();
@@ -310,7 +316,7 @@ function generate_censoring_cache()
 	// Output censored words as PHP code
 	$fh = @fopen(FORUM_CACHE_DIR.'cache_censoring.php', 'wb');
 	if (!$fh)
-		error('Unable to write censoring cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+		$pun_debug->error('Unable to write censoring cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__, false, true);
 
 	fwrite($fh, '<?php'."\n\n".'define(\'PUN_CENSOR_LOADED\', 1);'."\n\n".'$search_for = '.var_export($search_for, true).';'."\n\n".'$replace_with = '.var_export($replace_with, true).';'."\n\n".'?>');
 
@@ -326,6 +332,7 @@ function generate_censoring_cache()
 //
 function generate_stopwords_cache()
 {
+	global $pun_debug;
 	$stopwords = array();
 
 	$d = dir(PUN_ROOT.'lang');
@@ -346,7 +353,7 @@ function generate_stopwords_cache()
 	// Output stopwords as PHP code
 	$fh = @fopen(FORUM_CACHE_DIR.'cache_stopwords.php', 'wb');
 	if (!$fh)
-		error('Unable to write stopwords cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+		$pun_debug->error('Unable to write stopwords cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__, false, true);
 
 	fwrite($fh, '<?php'."\n\n".'$cache_id = \''.generate_stopwords_cache_id().'\';'."\n".'if ($cache_id != generate_stopwords_cache_id()) return;'."\n\n".'define(\'PUN_STOPWORDS_LOADED\', 1);'."\n\n".'$stopwords = '.var_export($stopwords, true).';'."\n\n".'?>');
 
@@ -362,20 +369,20 @@ function generate_stopwords_cache()
 //
 function generate_users_info_cache()
 {
-	global $db;
+	global $db, $pun_debug;
 
 	$stats = array();
 
-	$result = $db->query('SELECT COUNT(id)-1 FROM '.$db->prefix.'users WHERE group_id!='.PUN_UNVERIFIED) or error('Unable to fetch total user count', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT COUNT(id)-1 FROM '.$db->prefix.'users WHERE group_id!='.PUN_UNVERIFIED) or $pun_debug->error('Unable to fetch total user count', __FILE__, __LINE__, $db->error(), true);
 	$stats['total_users'] = $db->result($result);
 
-	$result = $db->query('SELECT id, username FROM '.$db->prefix.'users WHERE group_id!='.PUN_UNVERIFIED.' ORDER BY registered DESC LIMIT 1') or error('Unable to fetch newest registered user', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT id, username FROM '.$db->prefix.'users WHERE group_id!='.PUN_UNVERIFIED.' ORDER BY registered DESC LIMIT 1') or $pun_debug->error('Unable to fetch newest registered user', __FILE__, __LINE__, $db->error(), true);
 	$stats['last_user'] = $db->fetch_assoc($result);
 
 	// Output users info as PHP code
 	$fh = @fopen(FORUM_CACHE_DIR.'cache_users_info.php', 'wb');
 	if (!$fh)
-		error('Unable to write users info cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+		$pun_debug->error('Unable to write users info cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__, false, true);
 
 	fwrite($fh, '<?php'."\n\n".'define(\'PUN_USERS_INFO_LOADED\', 1);'."\n\n".'$stats = '.var_export($stats, true).';'."\n\n".'?>');
 

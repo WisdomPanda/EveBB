@@ -134,14 +134,17 @@ $lang_common = array(
 // Debug information
 'Debug table'						=>	'Debug information',
 'Querytime'							=>	'Generated in %1$s seconds, %2$s queries executed',
-'Memory usage'						=>	'Memory usage: %1$s',
+'Memory usage'					=>	'Memory usage: %1$s',
 'Peak usage'						=>	'(Peak: %1$s)',
 'Query times'						=>	'Time (s)',
 'Query'								=>	'Query',
 'Total query time'					=>	'Total query time: %s',
 'Request times'						=>	'Time (s)',
 'Request'								=>	'Request',
-'Total request time'					=>	'Total request time: %s',
+'Total request time'				=>	'Total request time: %s',
+'total_errors' 						=> '%s log entries.',
+'error_info'							=> 'Error encountered',
+'debug_title' 						=> 'Debug log',
 
 // Email related notifications
 'New user notification'				=>	'Alert - New registration',

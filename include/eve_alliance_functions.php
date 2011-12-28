@@ -13,7 +13,7 @@ define('EVE_ALLIANCE_ENABLED', 1);
  */
 function task_update_alliance() {
 	
-	global $db;
+	global $db, $pun_debug;
 	
 	$log = array();
 	
@@ -37,7 +37,7 @@ function task_update_alliance() {
 			c.allianceID;";
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to fetch corp list.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to fetch corp list.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		$log[] = "Unable to fetch corp list.";
 		return $log;
@@ -75,7 +75,7 @@ function task_update_alliance() {
 			c.allianceID;";
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to fetch corp list.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to fetch corp list.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		$log[] = "Unable to fetch corp list.";
 		return $log;
@@ -129,12 +129,12 @@ function refresh_alliance_list() {
  * $skip_corp should be set to the users current corp, regardless as to if they're in the alliance.
  */
 function purge_alliance($id, $skip_corp, $remove_group = true) {
-	global $db;
+	global $db, $pun_debug;
 
 	$sql = "UPDATE ".$db->prefix."api_allowed_alliance SET allowed=0 WHERE allianceID=".$id.";";
 	if (!$db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to delete alliance.<br/>", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to delete alliance.<br/>", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -144,7 +144,7 @@ function purge_alliance($id, $skip_corp, $remove_group = true) {
 		$sql = "DELETE FROM ".$db->prefix."api_groups WHERE id=".$id." AND type=1;";
 		if (!$db->query($sql)) {
 			if (defined('PUN_DEBUG')) {
-				error("Unable to delete corp related groups.<br/>".$sql, __FILE__, __LINE__, $db->error());
+				$pun_debug->error("Unable to delete corp related groups.<br/>".$sql, __FILE__, __LINE__, $db->error());
 			} //End if.
 			return false;
 		} //End if.
@@ -153,7 +153,7 @@ function purge_alliance($id, $skip_corp, $remove_group = true) {
 	$sql = "SELECT corporationID FROM ".$db->prefix."api_allowed_corps WHERE allianceID=".$id.";";
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to fetch corps.<br/>".$sql, __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to fetch corps.<br/>".$sql, __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -179,19 +179,19 @@ function purge_alliance($id, $skip_corp, $remove_group = true) {
  * Takes an allianceID and adds the alliance and it's corps to the allowed list.
  */
 function add_alliance($allianceID) {
-	global $db;
+	global $db, $pun_debug;
 	
 	$sql = "SELECT allianceid, name, shortname, executorcorpid, membercount, startdate FROM ".$db->prefix."api_alliance_list WHERE allianceID=".$allianceID.";";
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to fetch alliance.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to fetch alliance.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
 	
 	if ($db->num_rows($result) == 0) {
 		if (defined('PUN_DEBUG')) {
-			error("Alliance not in database.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Alliance not in database.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -201,14 +201,14 @@ function add_alliance($allianceID) {
 	$sql = "SELECT corporationid FROM ".$db->prefix."api_alliance_corps WHERE allianceID=".$allianceID.";";
 	if (!$result = $db->query($sql)) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to fetch corps.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to fetch corps.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
 	
 	if ($db->num_rows($result) == 0) {
 		if (defined('PUN_DEBUG')) {
-			error("Alliance has no corps in database.<br/>".$sql, __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Alliance has no corps in database.<br/>".$sql, __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -225,7 +225,7 @@ function add_alliance($allianceID) {
 	
 	if (!$db->insert_or_update($fields, 'allianceID', $db->prefix.'api_allowed_alliance')) {
 		if (defined('PUN_DEBUG')) {
-			error("Unable to insert alliance.", __FILE__, __LINE__, $db->error());
+			$pun_debug->error("Unable to insert alliance.", __FILE__, __LINE__, $db->error());
 		} //End if.
 		return false;
 	} //End if.
@@ -235,7 +235,7 @@ function add_alliance($allianceID) {
 	while ($corp = $db->fetch_assoc($result)) {
 		if (!add_corp($corp['corporationid'])) {
 			if (defined('PUN_DEBUG')) {
-				error("Unable to insert corp.", __FILE__, __LINE__, $db->error());
+				$pun_debug->error("Unable to insert corp.", __FILE__, __LINE__, $db->error());
 			} //End if.
 			$win = false; //Again, get as many of them in as possible. Also, We just lost.
 		} //End if.

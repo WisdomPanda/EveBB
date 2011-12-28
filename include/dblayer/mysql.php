@@ -30,6 +30,7 @@ class DBLayer
 
 	function DBLayer($db_host, $db_username, $db_password, $db_name, $db_prefix, $p_connect)
 	{
+		global $pun_debug;
 		$this->prefix = $db_prefix;
 
 		if ($p_connect)
@@ -40,10 +41,10 @@ class DBLayer
 		if ($this->link_id)
 		{
 			if (!@mysql_select_db($db_name, $this->link_id))
-				error('Unable to select database. MySQL reported: '.mysql_error(), __FILE__, __LINE__);
+				$pun_debug->error('Unable to select database. MySQL reported: '.mysql_error(), __FILE__, __LINE__, false, true);
 		}
 		else
-			error('Unable to connect to MySQL server. MySQL reported: '.mysql_error(), __FILE__, __LINE__);
+			$pun_debug->error('Unable to connect to MySQL server. MySQL reported: '.mysql_error(), __FILE__, __LINE__, false, true);
 
 		// Setup the client-server character set (UTF-8)
 		if (!defined('FORUM_NO_SET_NAMES'))

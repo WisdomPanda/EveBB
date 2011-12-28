@@ -12,7 +12,7 @@ class Alliance {
 	 */
 	function update_list() {
 		
-		global $db, $pun_request, $_LAST_ERROR;
+		global $db, $pun_request, $pun_debug, $_LAST_ERROR;
 		$_LAST_ERROR = 0;
 		
 		$url = 'http://api.eve-online.com/eve/AllianceList.xml.aspx';
@@ -24,22 +24,24 @@ class Alliance {
 		
 		if (!$list = simplexml_load_string($xml)) {
 			if (defined('PUN_DEBUG')) {
-				error(print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
+				$pun_debug->error(print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
 			} //End if.
+			$_LAST_ERROR = API_SERVER_ERROR;
 			return false;
 		} //End if.
 		
 		if (isset($list->error)) {
 			if (defined('PUN_DEBUG')) {
-				error($list->error, __FILE__, __LINE__, $db->error());
+				$pun_debug->error($list->error, __FILE__, __LINE__, $db->error());
 			} //End if.
+			$_LAST_ERROR = API_SERVER_ERROR;
 			return false;
 		} //End if.
 		
 		if (!$db->truncate_table('api_alliance_corps')) {
 			if (defined('PUN_DEBUG')) {
-					error("Unable to delete corps.", __FILE__, __LINE__, $db->error());
-				} //End if.
+				$pun_debug->error("Unable to delete corps.", __FILE__, __LINE__, $db->error());
+			} //End if.
 			return false;
 		} //End if.
 		
@@ -57,7 +59,7 @@ class Alliance {
 		
 			if (!$db->insert_or_update($fields, 'allianceID', $db->prefix.'api_alliance_list')) {
 				if (defined('PUN_DEBUG')) {
-						error((string)$list->error."<br/>".$sql."<br/>".print_r($row, true)."<br/>", __FILE__, __LINE__, $db->error());
+						$pun_debug->error((string)$list->error."<br/>".$sql."<br/>".print_r($row, true)."<br/>", __FILE__, __LINE__, $db->error());
 					} //End if.
 				return false;
 			} //End if.
@@ -68,7 +70,7 @@ class Alliance {
 				
 				if (!$db->query($sql)) {
 					if (defined('PUN_DEBUG')) {
-						error("Unable to insert corp.<br/>".$sql."<br/>".print_r($corp, true)."<br/>", __FILE__, __LINE__, $db->error());
+						$pun_debug->error("Unable to insert corp.<br/>".$sql."<br/>".print_r($corp, true)."<br/>", __FILE__, __LINE__, $db->error());
 					} //End if.
 					return false;
 				} //End if.

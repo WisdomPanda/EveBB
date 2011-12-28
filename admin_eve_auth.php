@@ -26,7 +26,7 @@ if ($action == 'add_allowed_corp') {
 			message("Unable to add corp.");
 		} //End if.
 		$log = '';
-		task_check_auth();
+		task_check_auth($log);
 		apply_rules($log);
 		redirect('admin_eve_auth.php', $lang_admin_eve_online['allowed_corp_add_redirect']);
 		
@@ -52,7 +52,7 @@ if ($action == 'del_corp') {
 	} //End if.
 	
 	$log = '';
-	task_check_auth();
+	task_check_auth($log);
 	apply_rules($log);
 	redirect('admin_eve_auth.php', $lang_admin_eve_online['removed_corp_redirect']);
 	
@@ -68,11 +68,11 @@ if ($action == 'refresh_alliance_list') {
 	$result = $db->query($sql) or error("Unable to fetch current alliance list.");
 	
 	while ($row = $db->fetch_assoc($result)) {
-		add_alliance($row['allianceID']);
+		add_alliance($row['allianceid']);
 	} //End while loop.
 
 	$log = '';
-	task_check_auth();
+	task_check_auth($log);
 	apply_rules($log);
 	
 	redirect('admin_eve_auth.php', $lang_admin_eve_online['alliance_list_refresh_redirect']);
@@ -86,7 +86,7 @@ if ($action == 'add_allowed_alliance') {
 				message("Unable to add alliance.");
 			} else {
 				$log = '';
-				task_check_auth();
+				task_check_auth($log);
 				apply_rules($log);
 				redirect('admin_eve_auth.php', $lang_admin_eve_online['allowed_alliance_redirect']);
 			} //End if - else.
@@ -106,7 +106,7 @@ if ($action == 'del_alliance') {
 	} //End if.
 	
 	$log = '';
-	task_check_auth();
+	task_check_auth($log);
 	apply_rules($log);
 	redirect('admin_eve_auth.php', $lang_admin_eve_online['removed_alliance_redirect']);
 	

@@ -33,6 +33,7 @@ class DBLayer
 
 	function DBLayer($db_host, $db_username, $db_password, $db_name, $db_prefix, $p_connect)
 	{
+		global $pun_debug;
 		// Prepend $db_name with the path to the forum root directory
 		$db_name = PUN_ROOT.$db_name;
 
@@ -43,14 +44,14 @@ class DBLayer
 			@touch($db_name);
 			@chmod($db_name, 0666);
 			if (!file_exists($db_name))
-				error('Unable to create new database \''.$db_name.'\'. Permission denied', __FILE__, __LINE__);
+				$pun_debug->error('Unable to create new database \''.$db_name.'\'. Permission denied', __FILE__, __LINE__, false, true);
 		}
 
 		if (!is_readable($db_name))
-			error('Unable to open database \''.$db_name.'\' for reading. Permission denied', __FILE__, __LINE__);
+			$pun_debug->error('Unable to open database \''.$db_name.'\' for reading. Permission denied', __FILE__, __LINE__, false, true);
 
 		if (!is_writable($db_name))
-			error('Unable to open database \''.$db_name.'\' for writing. Permission denied', __FILE__, __LINE__);
+			$pun_debug->error('Unable to open database \''.$db_name.'\' for writing. Permission denied', __FILE__, __LINE__, false, true);
 
 		if ($p_connect)
 			$this->link_id = @sqlite_popen($db_name, 0666, $sqlite_error);
@@ -58,7 +59,7 @@ class DBLayer
 			$this->link_id = @sqlite_open($db_name, 0666, $sqlite_error);
 
 		if (!$this->link_id)
-			error('Unable to open database \''.$db_name.'\'. SQLite reported: '.$sqlite_error, __FILE__, __LINE__);
+			$pun_debug->error('Unable to open database \''.$db_name.'\'. SQLite reported: '.$sqlite_error, __FILE__, __LINE__, false, true);
 		else
 			return $this->link_id;
 	}
@@ -182,7 +183,7 @@ class DBLayer
 			if (is_array($primaryKey)) {
 				$sql = "UPDATE ".$table." SET ".$update_fields." WHERE ".$keyList;
 			} else {
-				$sql = "UPDATE ".$table." SET ".$update_fields." WHERE ".$primaryKey."=".(is_string($value) ? "'".$fields[$primaryKey]."'": $fields[$primaryKey]);
+				$sql = "UPDATE ".$table." SET ".$update_fields." WHERE ".$primaryKey."=".(is_string($fields[$primaryKey]) ? "'".$fields[$primaryKey]."'": $fields[$primaryKey]);
 			} //End if - else.
 		} else {
 			//Insert that data, baby.
@@ -458,8 +459,9 @@ class DBLayer
 
 	function get_table_info($table_name, $no_prefix = false)
 	{
+		global $pun_debug;
 		// Grab table info
-		$result = $this->query('SELECT sql FROM sqlite_master WHERE tbl_name = \''.($no_prefix ? '' : $this->prefix).$this->escape($table_name).'\' ORDER BY type DESC') or error('Unable to fetch table information', __FILE__, __LINE__, $this->error());
+		$result = $this->query('SELECT sql FROM sqlite_master WHERE tbl_name = \''.($no_prefix ? '' : $this->prefix).$this->escape($table_name).'\' ORDER BY type DESC') or $pun_debug->error('Unable to fetch table information', __FILE__, __LINE__, $this->error(), true);
 		$num_rows = $this->num_rows($result);
 
 		if ($num_rows == 0)

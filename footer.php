@@ -135,9 +135,8 @@ else if ($footer_style == 'viewtopic')
 </div>
 <?php
 
-// Display debug info (if enabled/defined)
-if (defined('PUN_DEBUG'))
-{
+// Display speed info (if enabled/defined)
+if (defined('PUN_DEBUG') || $pun_config['o_debug_build_speed'] == 1) {
 	echo '<p id="debugtime">[ ';
 
 	// Calculate script generation time
@@ -153,18 +152,30 @@ if (defined('PUN_DEBUG'))
 	}
 
 	echo ' ]</p>'."\n";
-}
+} //End if.
 
 
 // End the transaction
 $db->end_transaction();
 
-// Display executed queries (if enabled)
-if (defined('PUN_SHOW_QUERIES'))
-	display_saved_queries();
+//Close off session.
+session_write_close();
+
+if ($pun_config['o_debug_admin'] != 1 || ($pun_config['o_debug_admin'] == 1 && $pun_user['g_id'] == PUN_ADMIN)) {
 	
-if (defined('PUN_SHOW_REQUESTS')) {
-	display_saved_requests();
+	if (defined('PUN_SHOW_LOGS')) {
+		$pun_debug->display_log();
+	} //End if.
+	
+	// Display executed queries (if enabled)
+	if (defined('PUN_SHOW_QUERIES')) {
+		display_saved_queries();
+	} //End if.
+		
+	if (defined('PUN_SHOW_REQUESTS')) {
+		display_saved_requests();
+	} //End if.
+	
 } //End if.
 
 $tpl_temp = trim(ob_get_contents());

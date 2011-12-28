@@ -37,7 +37,7 @@ class Character {
 	//public $corporationTitles = array();
 	
 	function load_character(&$cak) {
-		global $db, $pun_request, $_LAST_ERROR;
+		global $db, $pun_request, $pun_debug, $_LAST_ERROR;
 		$_LAST_ERROR = 0;
 		
 		//Is our CAK valid?
@@ -56,8 +56,9 @@ class Character {
 			
 		if (!$char_sheet = simplexml_load_string($xml)) {
 			if (defined('PUN_DEBUG')) {
-				error("Unable to convert xml.".print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
+				$pun_debug->error("Unable to convert xml.".print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
 			} //End if.
+			$_LAST_ERROR = API_SERVER_ERROR;
 			return false;
 		} //End if.
 		
@@ -114,7 +115,7 @@ class Character {
 	} //End load_character().
 		
 	function load_skill_queue(&$cak) {
-		global $db, $pun_request, $_LAST_ERROR;
+		global $db, $pun_request, $pun_debug, $_LAST_ERROR;
 		$_LAST_ERROR = 0;
 		
 		//If any of them are not set and if sheet is false...
@@ -133,14 +134,14 @@ class Character {
 			
 		if (!$queue = simplexml_load_string($xml)) {
 			if (defined('PUN_DEBUG')) {
-				error("Unable to convert xml.".print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
+				$pun_debug->error("Unable to convert xml.".print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
 			} //End if.
 			return false;
 		} //End if.
 		
 		if (isset($queue->error)) {
 			if (defined('PUN_DEBUG')) {
-				error("API error while fetching character data.".$char_sheet->error, __FILE__, __LINE__, $db->error());
+				$pun_debug->error("API error while fetching character data.".$char_sheet->error, __FILE__, __LINE__, $db->error());
 			} //End if.
 			
 			$err = (int)$queue->error['code'];
@@ -180,7 +181,7 @@ class Character {
 	} //End load_skill_queue().
 	
 	function get_list(&$cak) {
-		global $db, $pun_request, $_LAST_ERROR;
+		global $db, $pun_request, $pun_debug, $_LAST_ERROR;
 		$_LAST_ERROR = 0;
 		
 		//If any of them are not set and if sheet is false...
@@ -199,14 +200,14 @@ class Character {
 			
 		if (!$characters = simplexml_load_string($xml)) {
 			if (defined('PUN_DEBUG')) {
-				error("Unable to convert xml.".print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
+				$pun_debug->error("Unable to convert xml.".print_r(libxml_get_errors(), true), __FILE__, __LINE__, $db->error());
 			} //End if.
 			return false;
 		} //End if.
 		
 		if (isset($characters->error)) {
 			if (defined('PUN_DEBUG')) {
-				error("API error while fetching character list.".$char_sheet->error, __FILE__, __LINE__, $db->error());
+				$pun_debug->error("API error while fetching character list.".$char_sheet->error, __FILE__, __LINE__, $db->error());
 			} //End if.
 			
 			$err = (int)$queue->error['code'];
