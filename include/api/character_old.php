@@ -51,7 +51,7 @@ class Character {
 			return false;
 		} //End if.
 		
-		$url = "http://api.eve-online.com/char/CharacterSheet.xml.aspx";
+		$url = "https://api.eveonline.com/char/CharacterSheet.xml.aspx";
 		$char_sheet;
 		
 		if (!$xml = $pun_request->post($url, $cak->get_auth())) {
@@ -107,7 +107,7 @@ class Character {
 			return false;
 		} //End if.
 		
-		$url = "http://api.eve-online.com/char/SkillQueue.xml.aspx";
+		$url = "https://api.eveonline.com/char/SkillQueue.xml.aspx";
 		$queue;
 			
 		if (!$xml = $pun_request->post($url, $cak->get_auth())) {
@@ -143,7 +143,7 @@ class Character {
 			return false;
 		} //End if.
 		
-		$url = "http://api.eve-online.com/account/Characters.xml.aspx";
+		$url = "https://api.eveonline.com/account/Characters.xml.aspx";
 		$characters;
 			
 		if (!$xml = $pun_request->post($url, $cak->get_auth())) {
