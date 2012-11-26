@@ -15,7 +15,7 @@ class Alliance {
 		global $db, $pun_request, $_LAST_ERROR;
 		$_LAST_ERROR = 0;
 		
-		$url = 'http://api.eve-online.com/eve/AllianceList.xml.aspx';
+		$url = 'https://api.eveonline.com/eve/AllianceList.xml.aspx';
 		
 		if (!$xml = $pun_request->post($url)) {
 			$_LAST_ERROR = API_BAD_REQUEST;

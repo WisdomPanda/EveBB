@@ -19,7 +19,7 @@ $error = '<?xml version=\'1.0\' encoding=\'UTF-8\'?>
 
 if (isset($_GET['char_list'])) {
 	//keyid-vcode
-	$url = "http://api.eve-online.com/account/Characters.xml.aspx";
+	$url = "https://api.eveonline.com/account/Characters.xml.aspx";
 	$data = explode('-',$_GET['char_list']);
 	$vars = array(
 				'keyID' => intval($data[0]),
@@ -37,7 +37,7 @@ if (isset($_GET['char_list'])) {
 	} //End if.
 	
 } else if (isset($_GET['corp_name'])) {
-	$url = "http://api.eve-online.com/corp/CorporationSheet.xml.aspx";
+	$url = "https://api.eveonline.com/corp/CorporationSheet.xml.aspx";
 	$vars = array(
 			'corporationID' => $_GET['corp_name']
 			);

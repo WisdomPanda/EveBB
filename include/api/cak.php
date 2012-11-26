@@ -46,7 +46,7 @@ class CAK {
 	var $keys_validated;
 	var $mask_validated;
 	
-	var $base_url = 'http://api.eve-online.com';
+	var $base_url = 'https://api.eveonline.com';
 	var $mask_url = '/account/APIKeyInfo.xml.aspx?keyID=%d&vCode=%s';
 	
 	function CAK($_id = 0, $_vcode = 0, $_char_id = 0) {

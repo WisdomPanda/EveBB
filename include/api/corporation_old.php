@@ -21,7 +21,7 @@ class Corporation {
 		global $db, $pun_request, $_LAST_ERROR;
 		$_LAST_ERROR = 0;
 		
-		$url = "http://api.eve-online.com/corp/CorporationSheet.xml.aspx";
+		$url = "https://api.eveonline.com/corp/CorporationSheet.xml.aspx";
 		
 		if (!$xml = $pun_request->post($url, array('corporationID' => $corpID))) {
 			$_LAST_ERROR = API_BAD_REQUEST;
