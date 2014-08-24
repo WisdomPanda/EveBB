@@ -3,14 +3,14 @@ README
 ======
 
 * Copyright (C) 2011 EveBB
-* EveBB is built on FluBB v1.4.5 Copyright (C) 2008-2010 FluxBB
+* EveBB is built on FlxuBB v1.4.5 Copyright (C) 2008-2010 FluxBB
 * FluxBB is based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
 * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
 * Authors: Thorin Wren & WisdomPanda
 * Version: 1.1.14
 
 ===========
-PREPORATION
+PREPARATION
 ===========
 
 * Create a database with your hosting account and make a note of the details.
